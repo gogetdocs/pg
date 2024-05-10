@@ -1,0 +1,100 @@
+## Table Basics
+
+A table in a relational database is similar to a table on paper, consisting of rows and columns. The number and order of columns are fixed, while the number of rows is variable. SQL does not guarantee the order of rows in a table unless sorting is explicitly requested.
+
+### Creating a Table
+
+To create a table, use the `CREATE TABLE` command, specifying the table name, column names, and data types.
+
+**Example: Creating a Simple Table**
+
+```sql
+CREATE TABLE my_first_table (
+    first_column text,
+    second_column integer
+);
+```
+
+This creates a table named `my_first_table` with two columns: `first_column` of type `text` and `second_column` of type `integer`.
+
+**Example: Creating a Realistic Table**
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric
+);
+```
+
+This creates a table named `products` with three columns: `product_no` of type `integer`, `name` of type `text`, and `price` of type `numeric`.
+
+### Data Types
+
+Each column has a data type that constrains the set of possible values and assigns semantics to the data stored in the column. PostgreSQL includes a sizable set of built-in data types, such as:
+
+- `integer` for whole numbers
+- `numeric` for possibly fractional numbers
+- `text` for character strings
+- `date` for dates
+- `time` for time-of-day values
+- `timestamp` for values containing both date and time
+
+### Dropping a Table
+
+To remove a table, use the `DROP TABLE` command.
+
+**Example: Dropping a Table**
+
+```sql
+DROP TABLE my_first_table;
+DROP TABLE products;
+```
+
+Note that attempting to drop a table that does not exist is an error. To avoid error messages, use the `DROP TABLE IF EXISTS` variant.
+
+### Modifying a Table
+
+To modify a table that already exists, see Section 5.6 later in this chapter.
+
+### Best Practices
+
+When creating many interrelated tables, choose a consistent naming pattern for tables and columns. For example, use singular or plural nouns for table names.
+
+### Limitations
+
+There is a limit on how many columns a table can contain, depending on the column types (between 250 and 1600). Defining a table with many columns is highly unusual and often a questionable design.
+
+### Usage
+
+In a scenario, you might create a table to store customer information:
+
+```sql
+CREATE TABLE customers (
+    customer_id integer,
+    name text,
+    email text,
+    address text
+);
+```
+
+You can then insert data into the table:
+
+```sql
+INSERT INTO customers (customer_id, name, email, address)
+VALUES (1, 'John Doe', 'john.doe@example.com', '123 Main St');
+```
+
+And retrieve data from the table:
+
+```sql
+SELECT * FROM customers;
+```
+
+This would return the following result:
+
+```markdown
+| customer_id | name     | email                | address     |
+| ----------- | -------- | -------------------- | ----------- |
+| 1           | John Doe | john.doe@example.com | 123 Main St |
+```

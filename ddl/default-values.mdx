@@ -1,0 +1,138 @@
+## Default Values in SQL
+
+Default values in SQL are used to assign a predefined value to a column when no other value is specified during data entry. This ensures that all rows in a table have a value for a particular column, even if the value is not known at the time the row is created.
+
+### Importance of Default Values
+
+Default values are crucial for maintaining data consistency and preventing null values in columns that should have a specific default value. They simplify data entry by automatically assigning default values to columns, reducing the need for users to explicitly provide values for those columns.
+
+### Syntax for Default Values
+
+The syntax for defining a default value in SQL is as follows:
+
+```sql
+CREATE TABLE table_name (
+    column1 data_type DEFAULT default_value,
+    column2 data_type,
+    -- ...
+);
+```
+
+- `table_name`: The name of the table for which you're creating the default constraint.
+- `column1, column2, ...`: The columns in the table.
+- `data_type`: The data type of the column.
+- `default_value`: The default value to be used when no explicit value is provided for the column.
+
+### Example Usage
+
+Here's an example SQL query that creates a "products" table with a default constraint that sets the "discount" column to 0.0 if no discount value is provided during an insert operation:
+
+```sql
+CREATE TABLE products (
+    product_id INT PRIMARY KEY,
+    product_name VARCHAR(100),
+    price DECIMAL(10, 2),
+    discount DECIMAL(5, 2) DEFAULT 0.0,
+    -- Other columns
+);
+```
+
+### Usage
+
+1. **Ensuring Data Consistency**:
+   To guarantee that a default value is automatically used when no value is explicitly provided during an insert operation, preventing null values in specific columns.
+
+   ```sql
+   CREATE TABLE employees (
+       employee_id INT PRIMARY KEY,
+       name VARCHAR(100),
+       hire_date DATE DEFAULT CURRENT_DATE,
+       -- Other columns
+   );
+   ```
+
+2. **Streamlining Data Entry**:
+   To simplify data entry by automatically assigning default values to columns, reducing the need for users to explicitly provide values for those columns.
+
+   ```sql
+   CREATE TABLE orders (
+       order_id INT PRIMARY KEY,
+       order_date DATE DEFAULT CURRENT_DATE,
+       status VARCHAR(50) DEFAULT 'Pending',
+       -- Other columns
+   );
+   ```
+
+3. **Maintaining Data Integrity**:
+   To ensure that certain columns consistently have predefined default values, reducing the risk of data inconsistencies.
+
+   ```sql
+   CREATE TABLE customers (
+       customer_id INT PRIMARY KEY,
+       name VARCHAR(100),
+       membership_status VARCHAR(50) DEFAULT 'Basic',
+       -- Other columns
+   );
+   ```
+
+4. **Implementing Business Rules**:
+   To enforce specific business rules that require the use of default values in particular situations.
+   ```sql
+   CREATE TABLE invoices (
+       invoice_id INT PRIMARY KEY,
+       invoice_date DATE DEFAULT CURRENT_DATE,
+       payment_terms VARCHAR(50) DEFAULT '30 Days',
+       -- Other columns
+   );
+   ```
+
+### Using Expressions as Default Values
+
+Default values can also be expressions, which will be evaluated whenever the default value is inserted (not when the table is created). A common example is for a timestamp column to have a default of `CURRENT_TIMESTAMP`, so that it gets set to the time of row insertion.
+
+```sql
+CREATE TABLE logs (
+    log_id INT PRIMARY KEY,
+    log_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Other columns
+);
+```
+
+### Generating Serial Numbers
+
+In PostgreSQL, generating a “serial number” for each row can be done using a sequence object.
+
+```sql
+CREATE TABLE products (
+    product_no integer DEFAULT nextval('products_product_no_seq'),
+    -- Other columns
+);
+```
+
+Or using the `SERIAL` shorthand:
+
+```sql
+CREATE TABLE products (
+    product_no SERIAL,
+    -- Other columns
+);
+```
+
+### Altering Default Values
+
+Default values can be altered using the `ALTER TABLE` statement.
+
+```sql
+ALTER TABLE products
+ADD CONSTRAINT df_price
+DEFAULT 9.99 FOR price;
+```
+
+### Dropping Default Values
+
+Default values can be dropped using the `ALTER TABLE` statement.
+
+```sql
+ALTER TABLE products
+ALTER COLUMN price DROP DEFAULT;
+```

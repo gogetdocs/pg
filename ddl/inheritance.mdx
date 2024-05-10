@@ -1,0 +1,152 @@
+## PostgreSQL Table Inheritance
+
+### Overview
+
+PostgreSQL implements table inheritance, which can be a useful tool for database designers. This feature allows a table to inherit columns and constraints from one or more parent tables, enabling efficient querying and management of related data.
+
+### Creating Inheritance Hierarchies
+
+To create an inheritance hierarchy, you define a child table that inherits from a parent table using the `INHERITS` clause in the `CREATE TABLE` statement. For example, consider a data model for cities where each state has many cities, but only one capital:
+
+```sql
+CREATE TABLE cities (
+    name text,
+    population float,
+    elevation int -- in feet
+);
+
+CREATE TABLE capitals (
+    state char(2)
+) INHERITS (cities);
+```
+
+In this example, the `capitals` table inherits all the columns of its parent table, `cities`, and adds an extra column, `state`, that shows their state.
+
+### Querying Inheritance Hierarchies
+
+Queries can reference either all rows of a table or all rows of a table plus all of its descendant tables. The latter behavior is the default. For example, to find the names of all cities, including state capitals, that are located at an elevation over 500 feet:
+
+```sql
+SELECT name, elevation
+FROM cities
+WHERE elevation > 500;
+```
+
+This query returns all cities, including capitals, that meet the elevation criterion.
+
+To query only the parent table and exclude its descendants, use the `ONLY` keyword:
+
+```sql
+SELECT name, elevation
+FROM ONLY cities
+WHERE elevation > 500;
+```
+
+This query returns only cities that are not state capitals and are situated at an elevation over 500 feet.
+
+### Explicitly Including Descendant Tables
+
+You can also explicitly specify that descendant tables are included by appending a `*` to the table name:
+
+```sql
+SELECT name, elevation
+FROM cities*
+WHERE elevation > 500;
+```
+
+This syntax is supported for compatibility with older releases where the default could be changed, but it is not necessary since including descendants is the default behavior.
+
+### Identifying the Originating Table
+
+To determine which table a particular row originated from, you can use the `tableoid` system column:
+
+```sql
+SELECT c.tableoid, c.name, c.elevation
+FROM cities c
+WHERE c.elevation > 500;
+```
+
+This query returns the OID of the table each row comes from, along with the name and elevation. By joining with `pg_class`, you can see the actual table names:
+
+```sql
+SELECT p.relname, c.name, c.elevation
+FROM cities c, pg_class p
+WHERE c.elevation > 500 AND c.tableoid = p.oid;
+```
+
+Alternatively, you can use the `regclass` alias type to print the table OID symbolically:
+
+```sql
+SELECT c.tableoid::regclass, c.name, c.elevation
+FROM cities c
+WHERE c.elevation > 500;
+```
+
+### Inheritance and Data Insertion
+
+Inheritance does not automatically propagate data from `INSERT` or `COPY` commands to other tables in the inheritance hierarchy. For example, the following `INSERT` statement will fail:
+
+```sql
+INSERT INTO cities (name, population, elevation, state)
+VALUES ('Albany', NULL, NULL, 'NY');
+```
+
+This is because `INSERT` always inserts into exactly the table specified, and the `cities` table does not contain the `state` column.
+
+### Inheritance and Constraints
+
+All check constraints and not-null constraints on a parent table are automatically inherited by its children, unless explicitly specified otherwise with `NO INHERIT` clauses. Other types of constraints (unique, primary key, and foreign key constraints) are not inherited.
+
+### Multiple Inheritance
+
+A table can inherit from more than one parent table, in which case it has the union of the columns defined by the parent tables. Any columns declared in the child table's definition are added to these. If the same column name appears in multiple parent tables, or in both a parent table and the child's definition, then these columns are “merged” so that there is only one such column in the child table. To be merged, columns must have the same data types, else an error is raised.
+
+### Dynamically Adding and Removing Inheritance Links
+
+Inheritance links can be dynamically added or removed using `ALTER TABLE`. For example, to add a new parent relationship to an existing table:
+
+```sql
+ALTER TABLE capitals INHERIT cities;
+```
+
+To remove an inheritance link:
+
+```sql
+ALTER TABLE capitals NO INHERIT cities;
+```
+
+### Creating Compatible Tables
+
+One convenient way to create a compatible table that will later be made a new child is to use the `LIKE` clause in `CREATE TABLE`:
+
+```sql
+CREATE TABLE new_cities LIKE cities INCLUDING CONSTRAINTS;
+```
+
+This creates a new table with the same columns and constraints as the source table.
+
+### Dropping Tables and Inheritance
+
+A parent table cannot be dropped while any of its children remain. Neither can columns or check constraints of child tables be dropped or altered if they are inherited from any parent tables. To remove a table and all of its descendants, use the `CASCADE` option:
+
+```sql
+DROP TABLE cities CASCADE;
+```
+
+### Access Permission Checks
+
+Inherited queries perform access permission checks on the parent table only. Thus, granting `UPDATE` permission on the `cities` table implies permission to update rows in the `capitals` table as well, when they are accessed through `cities`.
+
+### Row Security Policies
+
+The parent table's row security policies are applied to rows coming from child tables during an inherited query. A child table's policies, if any, are applied only when it is the table explicitly named in the query; and in that case, any policies attached to its parent(s) are ignored.
+
+### Foreign Tables and Inheritance
+
+Foreign tables can also be part of inheritance hierarchies, either as parent or child tables, just as regular tables can be. If a foreign table is part of an inheritance hierarchy, then any operations not supported by the foreign table are not supported on the whole hierarchy either.
+
+### Caveats
+
+- **Not all SQL commands work on inheritance hierarchies**: Commands for data querying, modification, or schema modification typically default to including child tables and support the `ONLY` notation to exclude them. However, commands for database maintenance and tuning (e.g., `REINDEX`, `VACUUM`) typically only work on individual, physical tables and do not support recursing over inheritance hierarchies.
+- **Indexes and foreign key constraints**: These only apply to single tables, not to their inheritance children. This limitation can lead to issues with data consistency and uniqueness across the hierarchy.
+- **Consider declarative partitioning**: Some functionality not implemented for inheritance hierarchies is available for declarative partitioning. Careful consideration is needed to decide whether partitioning with legacy inheritance is suitable for your application.

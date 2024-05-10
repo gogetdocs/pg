@@ -1,0 +1,241 @@
+## SQL Constraints
+
+SQL constraints are used to limit the type of data that can go into a table. This ensures the accuracy and reliability of the data in the database.
+
+### 5.4.1. Check Constraints
+
+Check constraints are used to limit the value range that can be placed in a column. For example, if you want to ensure that a column only contains positive values, you can use a check constraint.
+
+**Example: Ensuring Positive Product Prices**
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CHECK (price > 0)
+);
+```
+
+You can also give the constraint a separate name for clarity and ease of reference.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CONSTRAINT positive_price CHECK (price > 0)
+);
+```
+
+Check constraints can also refer to several columns. For instance, to ensure that the discounted price is lower than the regular price:
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric CHECK (price > 0),
+    discounted_price numeric CHECK (discounted_price > 0),
+    CHECK (price > discounted_price)
+);
+```
+
+### 5.4.2. Not-Null Constraints
+
+Not-null constraints specify that a column must not assume the null value.
+
+**Example: Ensuring Non-Null Product Information**
+
+```sql
+CREATE TABLE products (
+    product_no integer NOT NULL,
+    name text NOT NULL,
+    price numeric
+);
+```
+
+A column can have more than one constraint.
+
+```sql
+CREATE TABLE products (
+    product_no integer NOT NULL,
+    name text NOT NULL,
+    price numeric NOT NULL CHECK (price > 0)
+);
+```
+
+### 5.4.3. Unique Constraints
+
+Unique constraints ensure that the data contained in a column, or a group of columns, is unique among all the rows in the table.
+
+**Example: Ensuring Unique Product Numbers**
+
+```sql
+CREATE TABLE products (
+    product_no integer UNIQUE,
+    name text,
+    price numeric
+);
+```
+
+Or written as a table constraint:
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric,
+    UNIQUE (product_no)
+);
+```
+
+To define a unique constraint for a group of columns:
+
+```sql
+CREATE TABLE example (
+    a integer,
+    b integer,
+    c integer,
+    UNIQUE (a, c)
+);
+```
+
+### 5.4.4. Primary Keys
+
+A primary key constraint indicates that a column, or group of columns, can be used as a unique identifier for rows in the table.
+
+**Example: Defining a Primary Key**
+
+```sql
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+```
+
+Primary keys can span more than one column.
+
+```sql
+CREATE TABLE example (
+    a integer,
+    b integer,
+    c integer,
+    PRIMARY KEY (a, c)
+);
+```
+
+### 5.4.5. Foreign Keys
+
+A foreign key constraint specifies that the values in a column (or a group of columns) must match the values appearing in some row of another table.
+
+**Example: Ensuring Valid Product References in Orders**
+
+```sql
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    product_no integer REFERENCES products (product_no),
+    quantity integer
+);
+```
+
+Or shortened by omitting the column list, which defaults to the primary key of the referenced table:
+
+```sql
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    product_no integer REFERENCES products,
+    quantity integer
+);
+```
+
+Foreign keys can also constrain and reference a group of columns.
+
+```sql
+CREATE TABLE t1 (
+    a integer PRIMARY KEY,
+    b integer,
+    c integer,
+    FOREIGN KEY (b, c) REFERENCES other_table (c1, c2)
+);
+```
+
+### 5.4.6. Exclusion Constraints
+
+Exclusion constraints ensure that if any two rows are compared on the specified columns or expressions using the specified operators, at least one of these operator comparisons will return false or null.
+
+**Example: Ensuring Non-Overlapping Circles**
+
+```sql
+CREATE TABLE circles (
+    c circle,
+    EXCLUDE USING gist (c WITH &&)
+);
+```
+
+### Usage Examples
+
+#### E-commerce Database
+
+In an e-commerce database, you might have tables for products and orders. You can use primary keys and foreign keys to ensure data integrity.
+
+```sql
+CREATE TABLE products (
+    product_no integer PRIMARY KEY,
+    name text,
+    price numeric
+);
+
+CREATE TABLE orders (
+    order_id integer PRIMARY KEY,
+    product_no integer REFERENCES products,
+    quantity integer
+);
+```
+
+#### Employee Database
+
+In an employee database, you might want to ensure that each employee has a unique ID and that the department ID exists in the departments table.
+
+```sql
+CREATE TABLE departments (
+    dept_id integer PRIMARY KEY,
+    name text
+);
+
+CREATE TABLE employees (
+    emp_id integer PRIMARY KEY,
+    name text,
+    dept_id integer REFERENCES departments
+);
+```
+
+#### Geographic Database
+
+In a geographic database, you might want to ensure that no two cities have the same name within the same state.
+
+```sql
+CREATE TABLE states (
+    state_id integer PRIMARY KEY,
+    name text
+);
+
+CREATE TABLE cities (
+    city_id integer PRIMARY KEY,
+    name text,
+    state_id integer REFERENCES states,
+    UNIQUE (name, state_id)
+);
+```
+
+### Important Considerations
+
+- **Constraint Naming**: Naming constraints can make error messages clearer and allow for easier constraint management.
+- **Constraint Order**: The order of constraints does not necessarily determine the order in which they are checked.
+- **Null Values**: Most constraints do not prevent null values unless explicitly specified (e.g., NOT NULL).
+- **Cross-Table Constraints**: Use foreign keys to enforce cross-table restrictions. For one-time checks, consider using custom triggers.
+- **Constraint Maintenance**: PostgreSQL assumes that CHECK constraints are immutable. If a function used in a CHECK constraint changes, the constraint should be dropped and re-added to ensure data integrity.

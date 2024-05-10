@@ -1,0 +1,108 @@
+## System Columns in PostgreSQL
+
+Every table in PostgreSQL has several system columns that are implicitly defined by the system. These columns are essential for managing and understanding the internal workings of PostgreSQL's Multiversion Concurrency Control (MVCC) and other database operations.
+
+### System Columns Overview
+
+- **tableoid**: The OID of the table containing this row. It is particularly useful for queries that select from partitioned tables or inheritance hierarchies.
+- **xmin**: The identity (transaction ID) of the inserting transaction for this row version.
+- **cmin**: The command identifier (starting at zero) within the inserting transaction.
+- **xmax**: The identity (transaction ID) of the deleting transaction, or zero for an undeleted row version.
+- **cmax**: The command identifier within the deleting transaction, or zero.
+- **ctid**: The physical location of the row version within its table.
+
+### Detailed Explanation and Usage
+
+#### tableoid
+
+The `tableoid` column is crucial for identifying the table from which a row originates, especially in scenarios involving partitioned tables or inheritance hierarchies.
+
+**Example:**
+
+```sql
+SELECT tableoid, * FROM mytable;
+```
+
+You can join `tableoid` with `pg_class.oid` to get the table name:
+
+```sql
+SELECT pg_class.relname
+FROM pg_class
+WHERE pg_class.oid = 'mytable'::regclass::oid;
+```
+
+#### xmin
+
+The `xmin` column tracks the transaction ID that inserted the row version.
+
+**Example:**
+
+```sql
+CREATE TABLE tbl_MVCCDemo (ID INT, CODE CHARACTER VARYING);
+INSERT INTO tbl_MVCCDemo VALUES (1,'XVK98');
+SELECT xmin, id, code FROM tbl_MVCCDemo;
+```
+
+This will show the `xmin` value for the newly inserted row.
+
+#### cmin
+
+The `cmin` column provides the command identifier within the inserting transaction.
+
+**Example:**
+While `cmin` is not directly used in queries, it can be inspected to understand the sequence of operations:
+
+```sql
+SELECT cmin, xmin, id, code FROM tbl_MVCCDemo;
+```
+
+#### xmax
+
+The `xmax` column indicates the transaction ID of the deleting transaction, or zero if the row version is not deleted.
+
+**Example:**
+
+```sql
+BEGIN;
+DELETE FROM parent WHERE p_id = 42;
+-- In another session:
+SELECT ctid, xmin, xmax, p_id, p_val FROM parent;
+-- Note the change in xmax
+ROLLBACK;
+-- After rollback, xmax remains non-zero until vacuum
+```
+
+This demonstrates how `xmax` changes with deletion attempts and rollbacks[1][5].
+
+#### cmax
+
+The `cmax` column provides the command identifier within the deleting transaction.
+
+**Example:**
+Similar to `cmin`, `cmax` can be inspected to understand deletion operations:
+
+```sql
+SELECT cmax, xmax, id FROM mytable;
+```
+
+#### ctid
+
+The `ctid` column specifies the physical location of the row version within its table.
+
+**Example:**
+
+```sql
+SELECT ctid, id FROM pi_postgres;
+-- Update a row
+UPDATE pi_postgres SET id = 11 WHERE id = 2;
+-- Note the change in ctid after update
+SELECT ctid, id FROM pi_postgres;
+```
+
+This shows how `ctid` changes with updates and `VACUUM FULL` operations[2][5].
+
+### Important Considerations
+
+- **Transaction ID Wraparound**: In long-lived databases, transaction IDs can wrap around. Regular maintenance is necessary to prevent issues[5][7].
+- **Command Identifiers**: There is a hard limit of 2^32 (4 billion) SQL commands within a single transaction. Only commands that modify database contents consume a command identifier[5][7].
+- **ctid Limitations**: `ctid` is not suitable as a long-term row identifier because it changes with updates and `VACUUM FULL` operations. Use primary keys for logical row identification[5][7].

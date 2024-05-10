@@ -1,0 +1,220 @@
+# Modifying Tables in PostgreSQL
+
+PostgreSQL provides a range of commands to modify existing tables, allowing you to make changes to the table structure without having to drop and recreate the table. This is particularly useful when working with tables that already contain data or are referenced by other database objects.
+
+### Adding a Column
+
+To add a new column to a table, use the `ALTER TABLE` command with the `ADD COLUMN` clause.
+
+```sql
+ALTER TABLE products ADD COLUMN description text;
+```
+
+You can also define constraints on the new column at the same time.
+
+```sql
+ALTER TABLE products ADD COLUMN description text CHECK (description <> '');
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no` and `name`, and we want to add a new column `description` to store a brief description of each product.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text
+);
+
+ALTER TABLE products ADD COLUMN description text;
+```
+
+### Removing a Column
+
+To remove a column from a table, use the `ALTER TABLE` command with the `DROP COLUMN` clause.
+
+```sql
+ALTER TABLE products DROP COLUMN description;
+```
+
+If the column is referenced by a foreign key constraint of another table, you can authorize dropping everything that depends on the column by adding `CASCADE`.
+
+```sql
+ALTER TABLE products DROP COLUMN description CASCADE;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no`, `name`, and `description`, and we want to remove the `description` column.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    description text
+);
+
+ALTER TABLE products DROP COLUMN description;
+```
+
+### Adding a Constraint
+
+To add a constraint to a table, use the `ALTER TABLE` command with the `ADD CONSTRAINT` clause.
+
+```sql
+ALTER TABLE products ADD CHECK (name <> '');
+ALTER TABLE products ADD CONSTRAINT some_name UNIQUE (product_no);
+ALTER TABLE products ADD FOREIGN KEY (product_group_id) REFERENCES product_groups;
+```
+
+To add a not-null constraint, use the `ALTER COLUMN` clause with the `SET NOT NULL` clause.
+
+```sql
+ALTER TABLE products ALTER COLUMN product_no SET NOT NULL;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no` and `name`, and we want to add a unique constraint on the `product_no` column.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text
+);
+
+ALTER TABLE products ADD CONSTRAINT some_name UNIQUE (product_no);
+```
+
+### Removing a Constraint
+
+To remove a constraint from a table, use the `ALTER TABLE` command with the `DROP CONSTRAINT` clause.
+
+```sql
+ALTER TABLE products DROP CONSTRAINT some_name;
+```
+
+If the constraint is referenced by another constraint, you can authorize dropping everything that depends on the constraint by adding `CASCADE`.
+
+```sql
+ALTER TABLE products DROP CONSTRAINT some_name CASCADE;
+```
+
+To drop a not-null constraint, use the `ALTER COLUMN` clause with the `DROP NOT NULL` clause.
+
+```sql
+ALTER TABLE products ALTER COLUMN product_no DROP NOT NULL;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no` and `name`, and a unique constraint on the `product_no` column, and we want to remove the constraint.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text
+);
+
+ALTER TABLE products ADD CONSTRAINT some_name UNIQUE (product_no);
+
+ALTER TABLE products DROP CONSTRAINT some_name;
+```
+
+### Changing a Column's Default Value
+
+To change the default value of a column, use the `ALTER TABLE` command with the `ALTER COLUMN` clause and the `SET DEFAULT` clause.
+
+```sql
+ALTER TABLE products ALTER COLUMN price SET DEFAULT 7.77;
+```
+
+To remove the default value, use the `DROP DEFAULT` clause.
+
+```sql
+ALTER TABLE products ALTER COLUMN price DROP DEFAULT;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no`, `name`, and `price`, and we want to change the default value of the `price` column.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric(10,2) DEFAULT 0.00
+);
+
+ALTER TABLE products ALTER COLUMN price SET DEFAULT 7.77;
+```
+
+### Changing a Column's Data Type
+
+To change the data type of a column, use the `ALTER TABLE` command with the `ALTER COLUMN` clause and the `TYPE` clause.
+
+```sql
+ALTER TABLE products ALTER COLUMN price TYPE numeric(10,2);
+```
+
+You can also specify a `USING` clause to specify how to compute the new values from the old.
+
+```sql
+ALTER TABLE products ALTER COLUMN price TYPE numeric(10,2) USING price::numeric(10,2);
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no`, `name`, and `price`, and we want to change the data type of the `price` column from `integer` to `numeric(10,2)`.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price integer
+);
+
+ALTER TABLE products ALTER COLUMN price TYPE numeric(10,2);
+```
+
+### Renaming a Column
+
+To rename a column, use the `ALTER TABLE` command with the `RENAME COLUMN` clause.
+
+```sql
+ALTER TABLE products RENAME COLUMN product_no TO product_number;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no` and `name`, and we want to rename the `product_no` column to `product_number`.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text
+);
+
+ALTER TABLE products RENAME COLUMN product_no TO product_number;
+```
+
+### Renaming a Table
+
+To rename a table, use the `ALTER TABLE` command with the `RENAME TO` clause.
+
+```sql
+ALTER TABLE products RENAME TO items;
+```
+
+**Example Use Case:**
+
+Suppose we have a table `products` with columns `product_no` and `name`, and we want to rename the table to `items`.
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text
+);
+
+ALTER TABLE products RENAME TO items;
+```

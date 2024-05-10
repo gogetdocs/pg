@@ -1,0 +1,172 @@
+## PostgreSQL Schemas: A Comprehensive Guide
+
+### Overview
+
+In PostgreSQL, a database cluster contains one or more named databases. Roles and certain object types are shared across the entire cluster. A client connection to the server can only access data in a single database, specified in the connection request. Within a database, there are one or more named schemas, which contain tables and other kinds of named objects, including data types, functions, and operators.
+
+### Creating a Schema
+
+To create a schema, use the `CREATE SCHEMA` command. For example:
+
+```sql
+CREATE SCHEMA myschema;
+```
+
+You can also create a schema owned by another user:
+
+```sql
+CREATE SCHEMA schema_name AUTHORIZATION user_name;
+```
+
+### The Public Schema
+
+Every new database contains a schema named "public". Objects created without specifying a schema name are automatically placed in the public schema. For example:
+
+```sql
+CREATE TABLE products ( ... );
+```
+
+is equivalent to:
+
+```sql
+CREATE TABLE public.products ( ... );
+```
+
+### The Schema Search Path
+
+Qualified names are tedious to write, and it's often best not to wire a particular schema name into applications. Therefore, tables are often referred to by unqualified names, which consist of just the table name. The system determines which table is meant by following a search path, which is a list of schemas to look in.
+
+To show the current search path, use:
+
+```sql
+SHOW search_path;
+```
+
+In the default setup, this returns:
+
+```sql
+search_path
+--------------
+
+"$user", public
+```
+
+To add a new schema to the search path, use:
+
+```sql
+SET search_path TO myschema, public;
+```
+
+### Schemas and Privileges
+
+By default, users cannot access any objects in schemas they do not own. To allow access, the owner of the schema must grant the `USAGE` privilege on the schema. For example:
+
+```sql
+GRANT USAGE ON SCHEMA myschema TO user_name;
+```
+
+To allow users to create objects in someone else's schema, grant the `CREATE` privilege on the schema:
+
+```sql
+GRANT CREATE ON SCHEMA myschema TO user_name;
+```
+
+### The System Catalog Schema
+
+Each database contains a `pg_catalog` schema, which contains the system tables and all the built-in data types, functions, and operators. `pg_catalog` is always effectively part of the search path.
+
+### Usage Patterns
+
+#### Secure Schema Usage Pattern
+
+1. **Constrain ordinary users to user-private schemas**:
+
+   - Ensure no schemas have public `CREATE` privileges.
+   - Create a schema with the same name as each user, for example:
+     ```sql
+     CREATE SCHEMA alice AUTHORIZATION alice;
+     ```
+   - This pattern is secure unless an untrusted user is the database owner or holds the `CREATEROLE` privilege.
+
+2. **Remove the public schema from the default search path**:
+
+   - Modify `postgresql.conf` or issue:
+     ```sql
+     ALTER ROLE ALL SET search_path = "$user";
+     ```
+   - Grant privileges to create in the public schema. Only qualified names will choose public schema objects.
+
+3. **Keep the default search path and grant privileges to create in the public schema**:
+   - This simulates the situation where schemas are not available at all, giving a smooth transition from the non-schema-aware world.
+   - However, this is never a secure pattern and is acceptable only when the database has a single user or a few mutually-trusting users.
+
+### Usage Examples
+
+#### Example 1: Creating and Using a Schema
+
+```sql
+-- Create a new schema
+CREATE SCHEMA myapp;
+
+-- Create a table in the new schema
+CREATE TABLE myapp.users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+-- Set the search path to include the new schema
+SET search_path TO myapp, public;
+
+-- Access the table without schema qualification
+SELECT * FROM users;
+```
+
+#### Example 2: Granting Privileges
+
+```sql
+-- Create a new schema
+CREATE SCHEMA myapp;
+
+-- Grant usage privilege on the schema to a user
+GRANT USAGE ON SCHEMA myapp TO myuser;
+
+-- Grant create privilege on the schema to a user
+GRANT CREATE ON SCHEMA myapp TO myuser;
+
+-- Create a table in the schema as the granted user
+SET ROLE myuser;
+CREATE TABLE myapp.mytable (
+    id SERIAL PRIMARY KEY,
+    data VARCHAR(100)
+);
+```
+
+#### Example 3: Using Qualified Names
+
+```sql
+-- Create a new schema
+CREATE SCHEMA myapp;
+
+-- Create a table in the public schema with the same name as in the new schema
+CREATE TABLE public.mytable (
+    id SERIAL PRIMARY KEY,
+    data VARCHAR(100)
+);
+
+-- Create a table in the new schema
+CREATE TABLE myapp.mytable (
+    id SERIAL PRIMARY KEY,
+    data VARCHAR(100)
+);
+
+-- Access the table in the new schema using a qualified name
+SELECT * FROM myapp.mytable;
+```
+
+### Portability Considerations
+
+- The SQL standard does not support the concept of objects in the same schema being owned by different users.
+- Some implementations do not allow creating schemas with a different name than their owner.
+- For maximum conformance to the standard, avoid using the public schema.
+- If you need to work with systems that do not implement schemas or provide limited cross-database access, maximum portability is achieved by not using schemas at all.

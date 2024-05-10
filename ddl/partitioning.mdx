@@ -1,0 +1,165 @@
+## Table Partitioning in PostgreSQL
+
+Table partitioning is a technique used to split large tables into smaller, more manageable pieces called partitions. This can improve query performance, reduce storage costs, and simplify data management.
+
+### Overview
+
+Partitioning can provide several benefits, including:
+
+- **Improved query performance**: By dividing data into smaller partitions, queries can focus on specific subsets of data, reducing the amount of data that needs to be scanned.
+- **Efficient bulk operations**: Adding or removing partitions can be faster than performing bulk inserts or deletes on a single large table.
+- **Cost-effective storage**: Infrequently used data can be stored on slower, less expensive storage media.
+
+### Declarative Partitioning
+
+PostgreSQL supports declarative partitioning, which allows you to define a partitioning strategy for a table. The table is divided into partitions based on a partition key, which can be a column or set of columns.
+
+#### Example: Range Partitioning
+
+Suppose we have a table `measurement` that stores temperature readings for different cities. We can partition this table by date using range partitioning.
+
+```sql
+CREATE TABLE measurement (
+    city_id int not null,
+    logdate date not null,
+    peaktemp int,
+    unitsales int
+) PARTITION BY RANGE (logdate);
+
+CREATE TABLE measurement_y2006m02 PARTITION OF measurement
+FOR VALUES FROM ('2006-02-01') TO ('2006-03-01');
+
+CREATE TABLE measurement_y2006m03 PARTITION OF measurement
+FOR VALUES FROM ('2006-03-01') TO ('2006-04-01');
+```
+
+#### Example: List Partitioning
+
+We can also partition the `measurement` table by city using list partitioning.
+
+```sql
+CREATE TABLE measurement (
+    city_id int not null,
+    logdate date not null,
+    peaktemp int,
+    unitsales int
+) PARTITION BY LIST (city_id);
+
+CREATE TABLE measurement_ny PARTITION OF measurement
+FOR VALUES IN (1);
+
+CREATE TABLE measurement_la PARTITION OF measurement
+FOR VALUES IN (2);
+```
+
+#### Example: Hash Partitioning
+
+We can partition the `measurement` table by city using hash partitioning.
+
+```sql
+CREATE TABLE measurement (
+    city_id int not null,
+    logdate date not null,
+    peaktemp int,
+    unitsales int
+) PARTITION BY HASH (city_id);
+
+CREATE TABLE measurement_p1 PARTITION OF measurement
+FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+
+CREATE TABLE measurement_p2 PARTITION OF measurement
+FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+```
+
+### Partition Maintenance
+
+Partition maintenance involves adding and removing partitions as needed.
+
+#### Adding a New Partition
+
+To add a new partition, we can create a new table and attach it to the partitioned table.
+
+```sql
+CREATE TABLE measurement_y2008m02 (
+    LIKE measurement INCLUDING DEFAULTS INCLUDING CONSTRAINTS
+) TABLESPACE fasttablespace;
+
+ALTER TABLE measurement_y2008m02 ADD CONSTRAINT y2008m02
+CHECK ( logdate >= DATE '2008-02-01' AND logdate < DATE '2008-03-01' );
+
+ALTER TABLE measurement ATTACH PARTITION measurement_y2008m02
+FOR VALUES FROM ('2008-02-01') TO ('2008-03-01');
+```
+
+#### Removing an Old Partition
+
+To remove an old partition, we can detach it from the partitioned table and drop it.
+
+```sql
+ALTER TABLE measurement DETACH PARTITION measurement_y2006m02;
+
+DROP TABLE measurement_y2006m02;
+```
+
+### Partition Pruning
+
+Partition pruning is a query optimization technique that improves performance by excluding partitions that do not contain relevant data.
+
+#### Example
+
+Suppose we want to count the number of rows in the `measurement` table where `logdate` is greater than or equal to '2008-01-01'.
+
+```sql
+SET enable_partition_pruning = on;
+
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate >= DATE '2008-01-01';
+```
+
+The query plan will show that only the partitions that contain relevant data are scanned.
+
+### Partitioning and Constraint Exclusion
+
+Constraint exclusion is a query optimization technique that uses CHECK constraints to exclude partitions that do not contain relevant data.
+
+#### Example
+
+Suppose we have a table `measurement` that is partitioned by date using inheritance.
+
+```sql
+CREATE TABLE measurement (
+    city_id int not null,
+    logdate date not null,
+    peaktemp int,
+    unitsales int
+);
+
+CREATE TABLE measurement_y2006m02 (
+    CHECK ( logdate >= DATE '2006-02-01' AND logdate < DATE '2006-03-01' )
+) INHERITS (measurement);
+
+CREATE TABLE measurement_y2006m03 (
+    CHECK ( logdate >= DATE '2006-03-01' AND logdate < DATE '2006-04-01' )
+) INHERITS (measurement);
+```
+
+We can use constraint exclusion to exclude partitions that do not contain relevant data.
+
+```sql
+SET constraint_exclusion = on;
+
+EXPLAIN SELECT count(*) FROM measurement WHERE logdate >= DATE '2008-01-01';
+```
+
+The query plan will show that only the partitions that contain relevant data are scanned.
+
+### Best Practices for Declarative Partitioning
+
+When designing a partitioning strategy, consider the following best practices:
+
+- **Choose the right partition key**: The partition key should be a column or set of columns that are frequently used in WHERE clauses.
+- **Choose the right number of partitions**: The number of partitions should be balanced between query performance and storage costs.
+- **Consider sub-partitioning**: Sub-partitioning can be used to further divide large partitions.
+- **Consider range partitioning with multiple columns**: Range partitioning with multiple columns can be used to divide data into smaller partitions.
+- **Avoid excessive numbers of partitions**: Excessive numbers of partitions can lead to longer query planning times and higher memory consumption.
+
+By following these best practices, you can design an effective partitioning strategy that improves query performance and reduces storage costs.

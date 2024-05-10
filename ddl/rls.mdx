@@ -1,0 +1,131 @@
+## PostgreSQL Row-Level Security (RLS)
+
+PostgreSQL provides a robust feature known as Row-Level Security (RLS) that allows you to control access to specific rows in a table based on the user executing the query. This feature is crucial for implementing fine-grained security policies in databases.
+
+### Enabling Row-Level Security
+
+To enable RLS on a table, you use the `ALTER TABLE` command with the `ENABLE ROW LEVEL SECURITY` clause. Here is an example:
+
+```sql
+CREATE TABLE accounts (manager text, company text, contact_email text);
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+```
+
+### Creating Policies
+
+Policies are created using the `CREATE POLICY` command. You can specify which rows are visible or modifiable according to a policy by providing an expression that returns a Boolean result. Here is a simple example:
+
+```sql
+CREATE POLICY account_managers ON accounts TO managers
+USING (manager = current_user);
+```
+
+This policy allows only members of the `managers` role to access rows in the `accounts` table where the `manager` column matches the current user.
+
+### Policy Types
+
+#### Permissive Policies
+
+Permissive policies are combined using the `OR` Boolean operator. Here is an example of how to create permissive policies to allow all users to view all rows but only modify their own rows:
+
+```sql
+CREATE POLICY user_sel_policy ON users
+FOR SELECT
+USING (true);
+
+CREATE POLICY user_mod_policy ON users
+USING (user_name = current_user);
+```
+
+#### Restrictive Policies
+
+Restrictive policies are combined using the `AND` Boolean operator. Here is an example of how to create a restrictive policy to require the administrator to be connected over a local Unix socket to access the records of the `passwd` table:
+
+```sql
+CREATE POLICY admin_local_only ON passwd AS RESTRICTIVE TO admin
+USING (pg_catalog.inet_client_addr() IS NULL);
+```
+
+### Usage
+
+Let's consider a more comprehensive example that emulates a Unix password file:
+
+```sql
+-- Create the passwd table
+CREATE TABLE passwd (
+    user_name text UNIQUE NOT NULL,
+    pwhash text,
+    uid int PRIMARY KEY,
+    gid int NOT NULL,
+    real_name text NOT NULL,
+    home_phone text,
+    extra_info text,
+    home_dir text NOT NULL,
+    shell text NOT NULL
+);
+
+-- Create roles
+CREATE ROLE admin; -- Administrator
+CREATE ROLE bob; -- Normal user
+CREATE ROLE alice; -- Normal user
+
+-- Populate the table
+INSERT INTO passwd VALUES
+('admin','xxx',0,0,'Admin','111-222-3333',null,'/root','/bin/dash'),
+('bob','xxx',1,1,'Bob','123-456-7890',null,'/home/bob','/bin/zsh'),
+('alice','xxx',2,1,'Alice','098-765-4321',null,'/home/alice','/bin/zsh');
+
+-- Enable row-level security
+ALTER TABLE passwd ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY admin_all ON passwd TO admin USING (true) WITH CHECK (true);
+CREATE POLICY all_view ON passwd FOR SELECT USING (true);
+CREATE POLICY user_mod ON passwd FOR UPDATE
+USING (current_user = user_name)
+WITH CHECK (
+    current_user = user_name AND
+    shell IN ('/bin/bash','/bin/sh','/bin/dash','/bin/zsh','/bin/tcsh')
+);
+
+-- Grant privileges
+GRANT SELECT, INSERT, UPDATE, DELETE ON passwd TO admin;
+GRANT SELECT (user_name, uid, gid, real_name, home_phone, extra_info, home_dir, shell) ON passwd TO public;
+GRANT UPDATE (pwhash, real_name, home_phone, extra_info, shell) ON passwd TO public;
+```
+
+This setup allows administrators to see and modify all rows, while normal users can view all rows but only modify their own records, with restrictions on which shells they can set.
+
+### Testing Policies
+
+To test these policies, you can switch roles and execute queries:
+
+```sql
+-- Switch to admin role
+SET ROLE admin;
+
+-- View all rows
+TABLE passwd;
+
+-- Switch to alice role
+SET ROLE alice;
+
+-- Attempt to view all rows (only public columns are visible)
+SELECT user_name, real_name, home_phone, extra_info, home_dir, shell FROM passwd;
+
+-- Attempt to update own record
+UPDATE passwd SET real_name = 'Alice Doe';
+
+-- Attempt to update another user's record (fails)
+UPDATE passwd SET real_name = 'John Doe' WHERE user_name = 'admin';
+
+-- Attempt to set an invalid shell (fails)
+UPDATE passwd SET shell = '/bin/xx';
+```
+
+### Additional Considerations
+
+- **Bypassing Row Security**: Superusers and roles with the `BYPASSRLS` attribute always bypass the row security system. Table owners can also choose to bypass row security by using `ALTER TABLE ... FORCE ROW LEVEL SECURITY`.
+- **Referential Integrity**: Referential integrity checks, such as unique or primary key constraints and foreign key references, always bypass row security to ensure data integrity.
+- **Race Conditions**: Care must be taken to avoid race conditions when developing schemas and row-level policies, especially when using sub-SELECTs in policy expressions.
+- **Disabling Row Security**: Row security can be disabled by setting the `row_security` configuration parameter to `off`, which throws an error if any query's results would get filtered by a policy.

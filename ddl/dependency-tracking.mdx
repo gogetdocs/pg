@@ -1,0 +1,89 @@
+## Dependency Tracking in PostgreSQL
+
+### Overview
+
+Dependency tracking is a crucial feature in PostgreSQL that ensures the integrity of complex database structures. When creating tables with foreign key constraints, views, triggers, functions, and other objects, a network of dependencies is implicitly created. PostgreSQL prevents dropping objects that other objects depend on, ensuring data consistency and preventing errors.
+
+### Example: Dropping a Table with Dependencies
+
+Consider a scenario where we have two tables, `products` and `orders`, with a foreign key constraint between them:
+
+```sql
+CREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50)
+);
+
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  product_id INTEGER REFERENCES products(id)
+);
+```
+
+Attempting to drop the `products` table will result in an error:
+
+```sql
+DROP TABLE products;
+
+ERROR:  cannot drop table products because other objects depend on it
+DETAIL:  constraint orders_product_id_fkey on table orders depends on table products
+HINT:  Use DROP ... CASCADE to drop the dependent objects too.
+```
+
+To resolve this, we can use the `CASCADE` keyword to drop the dependent objects:
+
+```sql
+DROP TABLE products CASCADE;
+```
+
+This will remove the foreign key constraint on the `orders` table, but not the table itself.
+
+### Specifying CASCADE or RESTRICT
+
+PostgreSQL allows specifying either `CASCADE` or `RESTRICT` in a `DROP` command. `CASCADE` will drop dependent objects, while `RESTRICT` will prevent dropping objects that other objects depend on.
+
+```sql
+DROP TABLE products RESTRICT;  -- Prevents dropping the table if dependent objects exist
+```
+
+Note that the SQL standard requires specifying either `RESTRICT` or `CASCADE` in a `DROP` command, but most database systems do not enforce this rule.
+
+### User-Defined Functions and Procedures
+
+PostgreSQL tracks dependencies associated with a function's externally-visible properties, such as its argument and result types. However, it does not track dependencies that could only be known by examining the function body.
+
+Consider an example:
+
+```sql
+CREATE TYPE rainbow AS ENUM ('red', 'orange', 'yellow',
+                             'green', 'blue', 'purple');
+
+CREATE TABLE my_colors (color rainbow, note text);
+
+CREATE FUNCTION get_color_note (rainbow) RETURNS text AS
+  'SELECT note FROM my_colors WHERE color = $1'
+  LANGUAGE SQL;
+```
+
+PostgreSQL will be aware that the `get_color_note` function depends on the `rainbow` type, but not on the `my_colors` table. Dropping the `my_colors` table will not affect the function.
+
+However, if we write the function in SQL-standard style, the body is parsed at function definition time, and all dependencies recognized by the parser are stored:
+
+```sql
+CREATE FUNCTION get_color_note (rainbow) RETURNS text
+BEGIN ATOMIC
+  SELECT note FROM my_colors WHERE color = $1;
+END;
+```
+
+In this case, the function's dependency on the `my_colors` table will be known and enforced by `DROP`.
+
+### Usage
+
+Dependency tracking is essential in maintaining complex database structures. Here are some scenarios where dependency tracking is crucial:
+
+- **E-commerce platforms**: When creating tables for products, orders, and customers, foreign key constraints ensure data consistency. Dependency tracking prevents accidental deletion of dependent objects.
+- **Financial systems**: Tables for transactions, accounts, and customers are interconnected. Dependency tracking ensures that deleting a table does not affect dependent objects.
+- **Data warehousing**: Complex data structures with multiple tables and views require dependency tracking to prevent errors and data inconsistencies.
+
+By understanding and utilizing dependency tracking in PostgreSQL, developers can ensure the integrity and consistency of their database structures, preventing errors and data loss.

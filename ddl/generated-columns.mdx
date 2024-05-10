@@ -1,0 +1,92 @@
+## Generated Columns in PostgreSQL
+
+### Overview
+
+A generated column is a special column that is always computed from other columns. There are two kinds of generated columns: stored and virtual. PostgreSQL currently implements only stored generated columns.
+
+### Creating a Generated Column
+
+To create a generated column, use the `GENERATED ALWAYS AS` clause in `CREATE TABLE`. For example:
+
+```sql
+CREATE TABLE people (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    height_cm numeric,
+    height_in numeric GENERATED ALWAYS AS (height_cm / 2.54) STORED
+);
+```
+
+The `STORED` keyword must be specified to choose the stored kind of generated column.
+
+### Key Differences Between Generated Columns and Column Defaults
+
+- A column default is evaluated once when the row is first inserted if no other value was provided. A generated column is updated whenever the row changes and cannot be overridden.
+- A column default may not refer to other columns of the table. A generation expression would normally do so.
+- A column default can use volatile functions, for example `random()` or functions referring to the current time. This is not allowed for generated columns.
+
+### Restrictions on Generated Columns
+
+- The generation expression can only use immutable functions and cannot use subqueries or reference anything other than the current row in any way.
+- A generation expression cannot reference another generated column.
+- A generation expression cannot reference a system column, except `tableoid`.
+- A generated column cannot have a column default or an identity definition.
+- A generated column cannot be part of a partition key.
+
+### Usage
+
+Consider a table that stores product information, including the price in different currencies. You can use a generated column to automatically calculate the price in another currency based on the exchange rate.
+
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    price_eur numeric,
+    price_usd numeric GENERATED ALWAYS AS (price_eur * 1.12) STORED
+);
+
+INSERT INTO products (name, price_eur) VALUES ('Product A', 100);
+
+SELECT * FROM products;
+```
+
+This will insert a new product with a price of 100 EUR and automatically calculate the price in USD based on the exchange rate.
+
+### Inheritance and Generated Columns
+
+If a parent column is a generated column, a child column must also be a generated column using the same expression. In the definition of the child column, leave off the `GENERATED` clause, as it will be copied from the parent.
+
+```sql
+CREATE TABLE parent (
+    id SERIAL PRIMARY KEY,
+    height_cm numeric,
+    height_in numeric GENERATED ALWAYS AS (height_cm / 2.54) STORED
+);
+
+CREATE TABLE child (
+    id SERIAL PRIMARY KEY,
+    height_cm numeric,
+    height_in numeric
+) INHERITS (parent);
+```
+
+### Additional Considerations
+
+- Generated columns maintain access privileges separately from their underlying base columns. So, it is possible to arrange it so that a particular role can read from a generated column but not from the underlying base columns.
+- Generated columns are, conceptually, updated after `BEFORE` triggers have run. Therefore, changes made to base columns in a `BEFORE` trigger will be reflected in generated columns. But conversely, it is not allowed to access generated columns in `BEFORE` triggers.
+- Generated columns are skipped for logical replication and cannot be specified in a `CREATE PUBLICATION` column list.
+
+### Foreign Tables and Generated Columns
+
+Foreign tables can have generated columns. See `CREATE FOREIGN TABLE` for details.
+
+```sql
+CREATE FOREIGN TABLE foreign_products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    price_eur numeric,
+    price_usd numeric GENERATED ALWAYS AS (price_eur * 1.12) STORED
+) SERVER myserver OPTIONS (table_name 'products');
+```
+
+This will create a foreign table with a generated column that calculates the price in USD based on the exchange rate.

@@ -1,0 +1,149 @@
+## PostgreSQL Privileges Documentation
+
+### Overview
+
+PostgreSQL privileges are used to control access to database objects such as tables, views, functions, and more. When an object is created, it is assigned an owner who has full control over the object. To allow other roles to use the object, privileges must be granted.
+
+### Types of Privileges
+
+There are several types of privileges in PostgreSQL:
+
+- **SELECT**: Allows SELECT from any column, or specific column(s), of a table, view, materialized view, or other table-like object. Also allows use of COPY TO.
+- **INSERT**: Allows INSERT of a new row into a table, view, etc. Can be granted on specific column(s), in which case only those columns may be assigned to in the INSERT command.
+- **UPDATE**: Allows UPDATE of any column, or specific column(s), of a table, view, etc. SELECT privilege is also required for non-trivial UPDATE commands.
+- **DELETE**: Allows DELETE of a row from a table, view, etc. SELECT privilege is also required for non-trivial DELETE commands.
+- **TRUNCATE**: Allows TRUNCATE on a table.
+- **REFERENCES**: Allows creation of a foreign key constraint referencing a table, or specific column(s) of a table.
+- **TRIGGER**: Allows creation of a trigger on a table, view, etc.
+- **CREATE**: For databases, allows new schemas and publications to be created within the database. For schemas, allows new objects to be created within the schema.
+- **CONNECT**: Allows the grantee to connect to the database.
+- **TEMPORARY**: Allows temporary tables to be created while using the database.
+- **EXECUTE**: Allows calling a function or procedure.
+- **USAGE**: For procedural languages, allows use of the language for the creation of functions in that language. For schemas, allows access to objects contained in the schema.
+- **SET**: Allows a server configuration parameter to be set to a new value within the current session.
+- **ALTER SYSTEM**: Allows a server configuration parameter to be configured to a new value using the ALTER SYSTEM command.
+
+### Granting Privileges
+
+Privileges are granted using the GRANT command. For example, to grant UPDATE privilege on the `accounts` table to the role `joe`:
+
+```sql
+GRANT UPDATE ON accounts TO joe;
+```
+
+To grant all privileges relevant for the object type, use `ALL` in place of a specific privilege:
+
+```sql
+GRANT ALL ON accounts TO joe;
+```
+
+### Revoking Privileges
+
+Privileges are revoked using the REVOKE command. For example, to revoke all privileges on the `accounts` table from the role `joe`:
+
+```sql
+REVOKE ALL ON accounts FROM joe;
+```
+
+### Special Privileges
+
+- **PUBLIC**: A special role name that can be used to grant a privilege to every role on the system.
+- **Grant Option**: Allows the recipient to grant the privilege to others. If the grant option is subsequently revoked, all who received the privilege from that recipient will lose the privilege.
+
+### Usage Examples
+
+#### Example 1: Granting SELECT Privilege
+
+Suppose you have a table `employees` and you want to grant SELECT privilege on this table to the role `hr`:
+
+```sql
+GRANT SELECT ON employees TO hr;
+```
+
+#### Example 2: Granting INSERT and UPDATE Privileges
+
+To grant INSERT and UPDATE privileges on the `orders` table to the role `sales`:
+
+```sql
+GRANT INSERT, UPDATE ON orders TO sales;
+```
+
+#### Example 3: Revoking DELETE Privilege
+
+To revoke DELETE privilege on the `products` table from the role `inventory`:
+
+```sql
+REVOKE DELETE ON products FROM inventory;
+```
+
+#### Example 4: Granting EXECUTE Privilege
+
+To grant EXECUTE privilege on the function `calculate_total` to the role `finance`:
+
+```sql
+GRANT EXECUTE ON FUNCTION calculate_total TO finance;
+```
+
+#### Example 5: Granting USAGE Privilege
+
+To grant USAGE privilege on the schema `public` to the role `developer`:
+
+```sql
+GRANT USAGE ON SCHEMA public TO developer;
+```
+
+### Default Privileges
+
+PostgreSQL grants some privileges to PUBLIC by default when certain objects are created. For example, CONNECT and TEMPORARY privileges are granted to PUBLIC for databases, and EXECUTE privilege is granted to PUBLIC for functions and procedures. These default privileges can be overridden using the ALTER DEFAULT PRIVILEGES command.
+
+### Viewing Privileges
+
+Privileges can be viewed using various psql commands. For example, to view the privileges on a table:
+
+```sql
+\dp table_name
+```
+
+This command will display the access privileges, column privileges, and policies for the specified table.
+
+### ACL Privilege Abbreviations
+
+Privileges are represented by one-letter abbreviations in ACL (Access Control List) values. These abbreviations are used in the output of psql commands and in system catalogs. The following table lists the abbreviations for each privilege type:
+
+| Privilege    | Abbreviation | Applicable Object Types                                                        |
+| ------------ | ------------ | ------------------------------------------------------------------------------ |
+| SELECT       | r            | LARGE OBJECT, SEQUENCE, TABLE, table column                                    |
+| INSERT       | a            | TABLE, table column                                                            |
+| UPDATE       | w            | LARGE OBJECT, SEQUENCE, TABLE, table column                                    |
+| DELETE       | d            | TABLE                                                                          |
+| TRUNCATE     | D            | TABLE                                                                          |
+| REFERENCES   | x            | TABLE, table column                                                            |
+| TRIGGER      | t            | TABLE                                                                          |
+| CREATE       | C            | DATABASE, SCHEMA, TABLESPACE                                                   |
+| CONNECT      | c            | DATABASE                                                                       |
+| TEMPORARY    | T            | DATABASE                                                                       |
+| EXECUTE      | X            | FUNCTION, PROCEDURE                                                            |
+| USAGE        | U            | DOMAIN, FOREIGN DATA WRAPPER, FOREIGN SERVER, LANGUAGE, SCHEMA, SEQUENCE, TYPE |
+| SET          | s            | PARAMETER                                                                      |
+| ALTER SYSTEM | A            | PARAMETER                                                                      |
+
+### Summary of Access Privileges
+
+The following table summarizes the privileges available for each type of SQL object, along with the default PUBLIC privileges and the psql command to examine privilege settings:
+
+| Object Type                    | All Privileges | Default PUBLIC Privileges | psql Command |
+| ------------------------------ | -------------- | ------------------------- | ------------ |
+| DATABASE                       | CTc            | Tc                        | \l           |
+| DOMAIN                         | U              | U                         | \dD+         |
+| FUNCTION or PROCEDURE          | X              | X                         | \df+         |
+| FOREIGN DATA WRAPPER           | U              | none                      | \dew+        |
+| FOREIGN SERVER                 | U              | none                      | \des+        |
+| LANGUAGE                       | U              | U                         | \dL+         |
+| LARGE OBJECT                   | rw             | none                      | \dl+         |
+| PARAMETER                      | sA             | none                      | \dconfig+    |
+| SCHEMA                         | UC             | none                      | \dn+         |
+| SEQUENCE                       | rwU            | none                      | \dp          |
+| TABLE (and table-like objects) | arwdDxt        | none                      | \dp          |
+| Table column                   | arwx           | none                      | \dp          |
+| TABLESPACE                     | C              | none                      | \db+         |
+| TYPE                           | U              | U                         | \dT+         |
