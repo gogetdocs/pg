@@ -1,0 +1,608 @@
+# Monitoring Database Activity in PostgreSQL
+
+## Table of Contents
+
+1. [Standard Unix Tools](#standard-unix-tools)
+2. [The Cumulative Statistics System](#the-cumulative-statistics-system)
+   - [Statistics Collection Configuration](#statistics-collection-configuration)
+   - [Viewing Statistics](#viewing-statistics)
+   - [pg_stat_activity](#pg_stat_activity)
+   - [pg_stat_replication](#pg_stat_replication)
+   - [pg_stat_replication_slots](#pg_stat_replication_slots)
+   - [pg_stat_wal_receiver](#pg_stat_wal_receiver)
+   - [pg_stat_recovery_prefetch](#pg_stat_recovery_prefetch)
+   - [pg_stat_subscription](#pg_stat_subscription)
+   - [pg_stat_subscription_stats](#pg_stat_subscription_stats)
+   - [pg_stat_ssl](#pg_stat_ssl)
+   - [pg_stat_gssapi](#pg_stat_gssapi)
+   - [pg_stat_archiver](#pg_stat_archiver)
+   - [pg_stat_bgwriter](#pg_stat_bgwriter)
+   - [pg_stat_wal](#pg_stat_wal)
+   - [pg_stat_database](#pg_stat_database)
+   - [pg_stat_database_conflicts](#pg_stat_database_conflicts)
+   - [pg_stat_all_tables](#pg_stat_all_tables)
+   - [pg_stat_all_indexes](#pg_stat_all_indexes)
+   - [pg_statio_all_tables](#pg_statio_all_tables)
+   - [pg_statio_all_indexes](#pg_statio_all_indexes)
+   - [pg_statio_all_sequences](#pg_statio_all_sequences)
+   - [pg_stat_user_functions](#pg_stat_user_functions)
+   - [pg_stat_slru](#pg_stat_slru)
+   - [Statistics Functions](#statistics-functions)
+3. [Viewing Locks](#viewing-locks)
+4. [Progress Reporting](#progress-reporting)
+   - [ANALYZE Progress Reporting](#analyze-progress-reporting)
+   - [CREATE INDEX Progress Reporting](#create-index-progress-reporting)
+   - [VACUUM Progress Reporting](#vacuum-progress-reporting)
+   - [CLUSTER Progress Reporting](#cluster-progress-reporting)
+   - [Base Backup Progress Reporting](#base-backup-progress-reporting)
+   - [COPY Progress Reporting](#copy-progress-reporting)
+5. [Dynamic Tracing](#dynamic-tracing)
+   - [Compiling for Dynamic Tracing](#compiling-for-dynamic-tracing)
+   - [Built-in Probes](#built-in-probes)
+   - [Using Probes](#using-probes)
+   - [Defining New Probes](#defining-new-probes)
+
+---
+
+## 1. Standard Unix Tools
+
+Monitoring PostgreSQL often involves standard Unix tools like `ps`, `top`, `iostat`, and `vmstat`. These tools can provide insights into system performance, resource usage, and help identify bottlenecks.
+
+### Usage
+
+```bash
+# View active processes related to PostgreSQL
+ps aux | grep postgres
+
+# Monitor real-time CPU and memory usage
+top
+
+# Check input/output statistics
+iostat -x 5
+
+# View virtual memory statistics
+vmstat 5
+```
+
+---
+
+## 2. The Cumulative Statistics System
+
+PostgreSQL includes a robust cumulative statistics system that helps database administrators understand database activity and performance. It comprises several views that present various statistics.
+
+### 2.1 Statistics Collection Configuration
+
+To enable statistics collection, modify the PostgreSQL configuration file (`postgresql.conf`) to set:
+
+```sql
+# Enable statistics collection
+track_counts = on
+track_io_timing = on
+log_statement = 'all'
+```
+
+### 2.2 Viewing Statistics
+
+After configuring statistics collection, restart the PostgreSQL service to apply the changes. You can view collected statistics using the following queries:
+
+```sql
+-- View cumulative statistics
+SELECT * FROM pg_stat_statements;
+```
+
+---
+
+### 2.3 pg_stat_activity
+
+The `pg_stat_activity` view provides information about the current activity of all database sessions.
+
+#### Usage
+
+```sql
+-- Retrieve current database connections and their state
+SELECT pid, usename, datname, state, query, backend_start
+FROM pg_stat_activity
+WHERE state <> 'idle';
+```
+
+#### Information Extracted
+
+- **pid**: Process ID of the backend.
+- **usename**: Name of the user connected to the database.
+- **datname**: Name of the database.
+- **state**: Current state of the connection (active, idle, etc.).
+- **query**: The SQL query being executed.
+
+---
+
+### 2.4 pg_stat_replication
+
+This view provides information about the status of the replication connections to standby servers.
+
+#### Usage
+
+```sql
+-- Check replication status
+SELECT * FROM pg_stat_replication;
+```
+
+#### Information Extracted
+
+- **pid**: Process ID of the backend.
+- **usesysid**: OID of the user logged into this backend.
+- **application_name**: Name of the application connected.
+- **state**: Current state of the replication (streaming, catchup, etc.).
+
+---
+
+### 2.5 pg_stat_replication_slots
+
+This view shows the status of replication slots, which can help ensure that the primary server doesn’t discard WAL files that are still needed by replicas.
+
+#### Usage
+
+```sql
+-- Get information about replication slots
+SELECT * FROM pg_stat_replication_slots;
+```
+
+#### Information Extracted
+
+- **slot_name**: Name of the replication slot.
+- **plugin**: Replication slot plugin being used.
+- **active**: Whether the slot is currently active.
+- **restart_lsn**: Log sequence number where the slot will restart replication.
+
+---
+
+### 2.6 pg_stat_wal_receiver
+
+This view provides information about the WAL receiver process on standby servers.
+
+#### Usage
+
+```sql
+-- Check WAL receiver status
+SELECT * FROM pg_stat_wal_receiver;
+```
+
+#### Information Extracted
+
+- **pid**: Process ID of the WAL receiver.
+- **status**: Current status of the WAL receiver.
+- **received_lsn**: Last LSN received by the WAL receiver.
+
+---
+
+### 2.7 pg_stat_recovery_prefetch
+
+This view provides information about recovery prefetching, which can enhance performance during recovery operations.
+
+#### Usage
+
+```sql
+-- Check recovery prefetch statistics
+SELECT * FROM pg_stat_recovery_prefetch;
+```
+
+#### Information Extracted
+
+- **max_lsn**: Maximum LSN that can be prefetched.
+- **current_lsn**: Current LSN of the recovery process.
+- **prefetch_count**: Number of prefetched LSNs.
+
+---
+
+### 2.8 pg_stat_subscription
+
+This view provides information about logical replication subscriptions.
+
+#### Usage
+
+```sql
+-- Check logical replication subscriptions
+SELECT * FROM pg_stat_subscription;
+```
+
+#### Information Extracted
+
+- **subid**: Subscription identifier.
+- **subname**: Name of the subscription.
+- **received_lsn**: Last LSN received by the subscription.
+
+---
+
+### 2.9 pg_stat_subscription_stats
+
+This view gives detailed statistics on the performance of each subscription.
+
+#### Usage
+
+```sql
+-- Get subscription statistics
+SELECT * FROM pg_stat_subscription_stats;
+```
+
+#### Information Extracted
+
+- **subid**: Subscription identifier.
+- **relid**: Relation identifier.
+- **received_lsn**: Last LSN received for each table in the subscription.
+
+---
+
+### 2.10 pg_stat_ssl
+
+This view provides information about SSL connections to the PostgreSQL server.
+
+#### Usage
+
+```sql
+-- Check SSL connection status
+SELECT * FROM pg_stat_ssl;
+```
+
+#### Information Extracted
+
+- **pid**: Process ID of the connection.
+- **ssl**: Whether the connection is using SSL.
+- **version**: SSL version used.
+
+---
+
+### 2.11 pg_stat_gssapi
+
+This view gives information about GSSAPI (Generic Security Services Application Program Interface) connections.
+
+#### Usage
+
+```sql
+-- Check GSSAPI connection status
+SELECT * FROM pg_stat_gssapi;
+```
+
+#### Information Extracted
+
+- **pid**: Process ID of the connection.
+- **gssapi**: Whether GSSAPI is being used for the connection.
+
+---
+
+### 2.12 pg_stat_archiver
+
+This view provides information about the WAL archiver process.
+
+#### Usage
+
+```sql
+-- Check WAL archiving status
+SELECT * FROM pg_stat_archiver;
+```
+
+#### Information Extracted
+
+- **archived_count**: Number of archived WAL files.
+- **last_archived_wal**: Name of the last archived WAL file.
+
+---
+
+### 2.13 pg_stat_bgwriter
+
+This view provides statistics about the background writer process.
+
+#### Usage
+
+```sql
+-- Check background writer statistics
+SELECT * FROM pg_stat_bgwriter;
+```
+
+#### Information Extracted
+
+- **buffers_checkpoint**: Number of buffers written by checkpoints.
+- **buffers_clean**: Number of buffers written by the background writer.
+
+---
+
+### 2.14 pg_stat_wal
+
+This view provides information about Write-Ahead Logging (WAL) activity.
+
+#### Usage
+
+```sql
+-- Check WAL statistics
+SELECT * FROM pg_stat_wal;
+```
+
+#### Information Extracted
+
+- **wal_written**: Total amount of WAL written.
+- **wal_fsync**: Number of WAL fsync calls.
+
+---
+
+### 2.15 pg_stat_database
+
+This view provides statistics for each database in the PostgreSQL instance.
+
+#### Usage
+
+```sql
+-- Retrieve statistics for all databases
+SELECT * FROM pg_stat_database;
+```
+
+#### Information Extract
+
+ed
+
+- **datname**: Name of the database.
+- **numbackends**: Number of active connections.
+- **xact_commit**: Number of transactions committed.
+
+---
+
+### 2.16 pg_stat_database_conflicts
+
+This view provides information about database conflicts that occurred in the system.
+
+#### Usage
+
+```sql
+-- Check database conflicts
+SELECT * FROM pg_stat_database_conflicts;
+```
+
+#### Information Extracted
+
+- **datid**: OID of the database.
+- **conflict_type**: Type of conflict encountered.
+
+---
+
+### 2.17 pg_stat_all_tables
+
+This view provides statistics for all tables in the current database.
+
+#### Usage
+
+```sql
+-- Retrieve statistics for all tables
+SELECT * FROM pg_stat_all_tables;
+```
+
+#### Information Extracted
+
+- **relid**: Relation ID of the table.
+- **seq_scan**: Number of sequential scans.
+- **seq_tup_read**: Number of tuples read by sequential scans.
+
+---
+
+### 2.18 pg_stat_all_indexes
+
+This view provides statistics for all indexes in the current database.
+
+#### Usage
+
+```sql
+-- Retrieve statistics for all indexes
+SELECT * FROM pg_stat_all_indexes;
+```
+
+#### Information Extracted
+
+- **relid**: Relation ID of the index.
+- **idx_scan**: Number of times the index was scanned.
+
+---
+
+### 2.19 pg_statio_all_tables
+
+This view provides I/O statistics for all tables in the current database.
+
+#### Usage
+
+```sql
+-- Retrieve I/O statistics for all tables
+SELECT * FROM pg_statio_all_tables;
+```
+
+#### Information Extracted
+
+- **relid**: Relation ID of the table.
+- **heap_blks_read**: Number of blocks read from the heap.
+
+---
+
+### 2.20 pg_statio_all_indexes
+
+This view provides I/O statistics for all indexes in the current database.
+
+#### Usage
+
+```sql
+-- Retrieve I/O statistics for all indexes
+SELECT * FROM pg_statio_all_indexes;
+```
+
+#### Information Extracted
+
+- **relid**: Relation ID of the index.
+- **idx_blks_read**: Number of blocks read from the index.
+
+---
+
+### 2.21 pg_statio_all_sequences
+
+This view provides I/O statistics for all sequences in the current database.
+
+#### Usage
+
+```sql
+-- Retrieve I/O statistics for all sequences
+SELECT * FROM pg_statio_all_sequences;
+```
+
+#### Information Extracted
+
+- **relid**: Relation ID of the sequence.
+- **seq_blks_read**: Number of blocks read from the sequence.
+
+---
+
+### 2.22 pg_stat_user_functions
+
+This view provides statistics on user-defined functions.
+
+#### Usage
+
+```sql
+-- Retrieve statistics for user-defined functions
+SELECT * FROM pg_stat_user_functions;
+```
+
+#### Information Extracted
+
+- **funcid**: OID of the function.
+- **calls**: Number of times the function was called.
+
+---
+
+### 2.23 pg_stat_slru
+
+This view provides statistics on the SLRU (Simple LRU) caches.
+
+#### Usage
+
+```sql
+-- Check SLRU statistics
+SELECT * FROM pg_stat_slru;
+```
+
+#### Information Extracted
+
+- **name**: Name of the SLRU cache.
+- **blocks_written**: Number of blocks written to disk.
+
+---
+
+### 2.24 Statistics Functions
+
+PostgreSQL provides several functions to retrieve statistical information directly.
+
+#### Usage
+
+```sql
+-- Get the total number of database transactions
+SELECT pg_stat_get_xact_commit(oid) AS total_commits
+FROM pg_database;
+```
+
+---
+
+## 3. Viewing Locks
+
+Locks are essential for concurrency control in PostgreSQL. Monitoring locks can help diagnose performance issues.
+
+### Usage
+
+```sql
+-- View current locks held by active sessions
+SELECT pid, mode, relation::regclass, transactionid, virtualtransaction
+FROM pg_locks
+JOIN pg_stat_activity ON pg_locks.pid = pg_stat_activity.pid
+WHERE pg_stat_activity.state <> 'idle';
+```
+
+---
+
+## 4. Progress Reporting
+
+PostgreSQL provides progress reporting for long-running operations.
+
+### 4.1 ANALYZE Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of ANALYZE operations
+SELECT * FROM pg_stat_progress_analyze;
+```
+
+### 4.2 CREATE INDEX Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of CREATE INDEX operations
+SELECT * FROM pg_stat_progress_create_index;
+```
+
+### 4.3 VACUUM Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of VACUUM operations
+SELECT * FROM pg_stat_progress_vacuum;
+```
+
+### 4.4 CLUSTER Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of CLUSTER operations
+SELECT * FROM pg_stat_progress_cluster;
+```
+
+### 4.5 Base Backup Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of base backups
+SELECT * FROM pg_stat_progress_base_backup;
+```
+
+### 4.6 COPY Progress Reporting
+
+#### Usage
+
+```sql
+-- Check progress of COPY operations
+SELECT * FROM pg_stat_progress_copy;
+```
+
+---
+
+## 5. Dynamic Tracing
+
+PostgreSQL allows dynamic tracing for performance monitoring and debugging.
+
+### 5.1 Compiling for Dynamic Tracing
+
+Ensure PostgreSQL is compiled with support for dynamic tracing.
+
+### 5.2 Built-in Probes
+
+Use built-in probes to trace specific events.
+
+### 5.3 Using Probes
+
+#### Usage
+
+```sql
+-- Example probe usage (pseudo code, requires specific setup)
+SELECT pg_event_trigger_ddl_commands('my_trigger');
+```
+
+### 5.4 Defining New Probes
+
+Custom probes can be defined to track specific events in PostgreSQL.
+
+---
+
+This document provides a comprehensive overview of monitoring database activity in PostgreSQL using various views and commands. By using these tools and queries, database administrators can gain insights into system performance, diagnose issues, and optimize operations effectively.

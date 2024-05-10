@@ -1,0 +1,126 @@
+## Managing Databases in PostgreSQL
+
+### 23.1. Overview
+
+Every instance of a running PostgreSQL server manages one or more databases. Databases are the topmost hierarchical level for organizing SQL objects (“database objects”). This chapter describes the properties of databases and how to create, manage, and destroy them.
+
+### 23.2. Creating a Database
+
+To create a database, you can use the `CREATE DATABASE` statement. Here is an example of creating a database named `mydb`:
+
+```sql
+CREATE DATABASE mydb;
+```
+
+You can also specify additional options such as the database owner and the tablespace:
+
+```sql
+CREATE DATABASE mydb OWNER myuser TABLESPACE my_tablespace;
+```
+
+### 23.3. Template Databases
+
+When creating a new database, PostgreSQL uses a template database as a basis. The default template database is `template1`. You can specify a different template database using the `TEMPLATE` clause:
+
+```sql
+CREATE DATABASE mydb TEMPLATE template2;
+```
+
+### 23.4. Database Configuration
+
+You can configure various database settings such as the character encoding and the locale:
+
+```sql
+CREATE DATABASE mydb ENCODING 'UTF8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8';
+```
+
+### 23.5. Destroying a Database
+
+To destroy a database, you can use the `DROP DATABASE` statement. Here is an example of dropping a database named `mydb`:
+
+```sql
+DROP DATABASE mydb;
+```
+
+If the database does not exist, PostgreSQL will issue an error. To prevent this, you can use the `IF EXISTS` clause:
+
+```sql
+DROP DATABASE IF EXISTS mydb;
+```
+
+If the database has active connections, the `DROP DATABASE` statement will fail. To force the deletion of the database, you can use the `WITH (FORCE)` clause:
+
+```sql
+DROP DATABASE mydb WITH (FORCE);
+```
+
+### 23.6. Tablespaces
+
+Tablespaces are used to physically separate databases in PostgreSQL. You can create a tablespace using the `CREATE TABLESPACE` statement:
+
+```sql
+CREATE TABLESPACE my_tablespace LOCATION '/tmp/pgdata';
+```
+
+You can then create a database that uses this tablespace:
+
+```sql
+CREATE DATABASE mydb TABLESPACE my_tablespace;
+```
+
+You can also specify a tablespace for individual tables:
+
+```sql
+CREATE TABLE mytable (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+) TABLESPACE my_tablespace;
+```
+
+To change the tablespace of a table, you can use the `ALTER TABLE` statement:
+
+```sql
+ALTER TABLE mytable SET TABLESPACE pg_default;
+```
+
+To drop a tablespace, you must first remove all database objects from it:
+
+```sql
+DROP TABLE mytable;
+DROP TABLESPACE my_tablespace;
+```
+
+### Usage Examples
+
+- **Creating a Database for a Web Application**:
+
+  ```sql
+  CREATE DATABASE webapp ENCODING 'UTF8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8';
+  ```
+
+- **Dropping a Database Used for Testing**:
+
+  ```sql
+  DROP DATABASE IF EXISTS testdb WITH (FORCE);
+  ```
+
+- **Using Tablespaces for Data Organization**:
+
+  ```sql
+  CREATE TABLESPACE fast_disk LOCATION '/tmp/pgdata-fast';
+  CREATE TABLESPACE slow_disk LOCATION '/tmp/pgdata';
+
+  CREATE TABLE measurements (
+      time TIMESTAMPTZ NOT NULL,
+      data DECIMAL NOT NULL
+  ) TABLESPACE fast_disk;
+
+  ALTER TABLE measurements SET TABLESPACE slow_disk;
+  ```
+
+### Important Notes
+
+- Only the database owner can delete a database[1][3].
+- The `DROP DATABASE` statement removes the directory containing the database information and the catalog entries[1].
+- The `WITH (FORCE)` clause is available in PostgreSQL version 13 and higher[1][3].
+- Tablespaces allow for physical separation of databases and can be used to manage disk space efficiently[5].

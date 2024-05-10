@@ -1,0 +1,208 @@
+## Client Authentication in PostgreSQL
+
+Client authentication in PostgreSQL is a critical process that determines whether a client application can connect to a database server with a specified database user name. This process involves verifying the identity of the client and ensuring that the client has the necessary privileges to access the requested database.
+
+### 21.1. The pg_hba.conf File
+
+The `pg_hba.conf` file is a configuration file that controls client authentication. It is traditionally stored in the database cluster's data directory and is read on start-up and when the main server process receives a SIGHUP signal[4][5].
+
+#### Format of pg_hba.conf
+
+The `pg_hba.conf` file consists of a set of records, one per line. Each record specifies a connection type, a client IP address range, a database name, a user name, and the authentication method to be used for connections matching these parameters[4][5].
+
+```plaintext
+# TYPE DATABASE USER ADDRESS METHOD
+local all all trust
+host all all 127.0.0.1/32 md5
+host all all ::1/128 md5
+```
+
+### 21.2. User Name Maps
+
+User name maps are used to map operating system user names to PostgreSQL database user names. This is useful when the operating system user names do not match the PostgreSQL database user names.
+
+```sql
+-- Create a user name map
+CREATE USER MAPPING FOR PUBLIC SERVER myserver OPTIONS (user 'myuser', password 'mypassword');
+```
+
+### 21.3. Authentication Methods
+
+PostgreSQL offers several authentication methods, including:
+
+- **Trust Authentication**: Allows the connection unconditionally.
+- **Password Authentication**: Requires the client to supply a password for authentication.
+- **GSSAPI Authentication**: Uses GSSAPI to authenticate the user.
+- **SSPI Authentication**: Uses SSPI to authenticate the user (only available on Windows).
+- **Ident Authentication**: Obtains the operating system user name of the client by contacting the ident server on the client.
+- **Peer Authentication**: Obtains the client's operating system user name from the operating system.
+- **LDAP Authentication**: Authenticates using an LDAP server.
+- **RADIUS Authentication**: Authenticates using a RADIUS server.
+- **Certificate Authentication**: Authenticates using SSL client certificates.
+- **PAM Authentication**: Authenticates using the Pluggable Authentication Modules (PAM) service provided by the operating system.
+- **BSD Authentication**: Authenticates using the BSD Authentication service provided by the operating system.
+
+#### Examples of Authentication Methods
+
+```plaintext
+# Trust authentication
+local all all trust
+
+# Password authentication
+host all all 127.0.0.1/32 md5
+
+# GSSAPI authentication
+host all all 127.0.0.1/32 gss
+
+# Ident authentication
+host all all 192.168.93.0/24 ident
+
+# Peer authentication
+local all all peer
+
+# LDAP authentication
+host all all 192.168.12.10/32 ldap
+
+# RADIUS authentication
+host all all 192.168.12.10/32 radius
+
+# Certificate authentication
+hostssl all all all cert
+
+# PAM authentication
+host all all 192.168.12.10/32 pam
+
+# BSD authentication
+host all all 192.168.12.10/32 bsd
+```
+
+### 21.4. Trust Authentication
+
+Trust authentication allows the connection unconditionally. This method is not recommended for remote connections.
+
+```plaintext
+# Trust authentication
+local all all trust
+```
+
+### 21.5. Password Authentication
+
+Password authentication requires the client to supply a password for authentication.
+
+```plaintext
+# Password authentication
+host all all 127.0.0.1/32 md5
+```
+
+### 21.6. GSSAPI Authentication
+
+GSSAPI authentication uses GSSAPI to authenticate the user.
+
+```plaintext
+# GSSAPI authentication
+host all all 127.0.0.1/32 gss
+```
+
+### 21.7. SSPI Authentication
+
+SSPI authentication uses SSPI to authenticate the user (only available on Windows).
+
+```plaintext
+# SSPI authentication
+host all all 127.0.0.1/32 sspi
+```
+
+### 21.8. Ident Authentication
+
+Ident authentication obtains the operating system user name of the client by contacting the ident server on the client.
+
+```plaintext
+# Ident authentication
+host all all 192.168.93.0/24 ident
+```
+
+### 21.9. Peer Authentication
+
+Peer authentication obtains the client's operating system user name from the operating system.
+
+```plaintext
+# Peer authentication
+local all all peer
+```
+
+### 21.10. LDAP Authentication
+
+LDAP authentication authenticates using an LDAP server.
+
+```plaintext
+# LDAP authentication
+host all all 192.168.12.10/32 ldap
+```
+
+### 21.11. RADIUS Authentication
+
+RADIUS authentication authenticates using a RADIUS server.
+
+```plaintext
+# RADIUS authentication
+host all all 192.168.12.10/32 radius
+```
+
+### 21.12. Certificate Authentication
+
+Certificate authentication authenticates using SSL client certificates.
+
+```plaintext
+# Certificate authentication
+hostssl all all all cert
+```
+
+### 21.13. PAM Authentication
+
+PAM authentication authenticates using the Pluggable Authentication Modules (PAM) service provided by the operating system.
+
+```plaintext
+# PAM authentication
+host all all 192.168.12.10/32 pam
+```
+
+### 21.14. BSD Authentication
+
+BSD authentication authenticates using the BSD Authentication service provided by the operating system.
+
+```plaintext
+# BSD authentication
+host all all 192.168.12.10/32 bsd
+```
+
+### 21.15. Authentication Problems
+
+Common authentication problems include:
+
+- **Connection refused**: The server is not listening on the specified port or the connection is blocked by a firewall.
+- **Authentication failed**: The client supplied an incorrect password or the authentication method is not supported.
+- **No pg_hba.conf entry**: The `pg_hba.conf` file does not contain an entry that matches the client's connection parameters.
+
+To troubleshoot authentication problems, check the server logs for error messages and verify that the `pg_hba.conf` file is correctly configured.
+
+### Usage
+
+Here is an example of a `pg_hba.conf` file that allows local connections using trust authentication and remote connections using password authentication:
+
+```plaintext
+# TYPE DATABASE USER ADDRESS METHOD
+local all all trust
+host all all 127.0.0.1/32 md5
+host all all ::1/128 md5
+host all all 192.168.12.10/32 md5
+```
+
+This configuration allows local connections to any database using trust authentication and remote connections to any database using password authentication.
+
+To connect to a database using password authentication, use the following command:
+
+```sql
+psql -h 192.168.12.10 -U myuser -d mydatabase
+```
+
+This command connects to the `mydatabase` database on the `192.168.12.

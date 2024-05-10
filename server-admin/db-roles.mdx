@@ -1,0 +1,121 @@
+## Database Roles in PostgreSQL
+
+PostgreSQL manages database access permissions using the concept of roles. A role can be thought of as either a database user, or a group of database users, depending on how the role is set up. Roles can own database objects (for example, tables and functions) and can assign privileges on those objects to other roles to control who has access to which objects.
+
+### 22.1. Database Roles
+
+Database roles are global across a database cluster installation (and not per individual database). To create a role, use the `CREATE ROLE` SQL command.
+
+```sql
+CREATE ROLE role_name WITH LOGIN PASSWORD 'password';
+```
+
+For example, creating a role named `dev1` with a password:
+
+```sql
+CREATE ROLE dev1 WITH LOGIN PASSWORD 'supersecretpw';
+```
+
+### 22.2. Role Attributes
+
+Roles have various attributes that define their capabilities, such as `LOGIN`, `NOLOGIN`, `CREATEROLE`, and `SUPERUSER`.
+
+- **LOGIN/NOLOGIN**: Determines whether a role is allowed to log in.
+- **CREATEROLE**: Allows a role to create new roles.
+- **SUPERUSER**: Grants all privileges to a role.
+
+```sql
+CREATE ROLE admin_role WITH LOGIN PASSWORD 'adminpw' CREATEROLE;
+```
+
+### 22.3. Role Membership
+
+It is possible to grant membership in a role to another role, thus allowing the member role to use privileges assigned to another role.
+
+```sql
+GRANT role_name TO another_role_name;
+```
+
+For example, granting `store_admin` role to `jacob`:
+
+```sql
+GRANT store_admin TO jacob;
+```
+
+### 22.4. Dropping Roles
+
+To remove an existing role, use the `DROP ROLE` command.
+
+```sql
+DROP ROLE role_name;
+```
+
+For example, dropping the `dev1` role:
+
+```sql
+DROP ROLE dev1;
+```
+
+### 22.5. Predefined Roles
+
+PostgreSQL provides a set of predefined roles that provide access to certain, commonly needed, privileged capabilities and information[1]. These include `pg_read_all_data`, `pg_monitor`, and `pg_database_owner`.
+
+- **pg_read_all_data**: Allows reading all data (tables, views, sequences), as if having `SELECT` rights on those objects, and `USAGE` rights on all schemas.
+- **pg_monitor**: Allows reading/execute various monitoring views and functions.
+- **pg_database_owner**: Implicitly includes the current database owner.
+
+```sql
+GRANT pg_read_all_data TO monitoring_role;
+```
+
+### 22.6. Function Security
+
+Roles can also be used to control access to functions.
+
+```sql
+GRANT EXECUTE ON FUNCTION function_name TO role_name;
+```
+
+For example, granting execute permission on a function to `store_admin`:
+
+```sql
+GRANT EXECUTE ON FUNCTION calculate_total TO store_admin;
+```
+
+### Usage Example
+
+Consider an e-commerce application with different roles for store administrators, order specialists, and customer support staff.
+
+1. **Create Roles**:
+
+   ```sql
+   CREATE ROLE store_admin;
+   CREATE ROLE order_specialist;
+   CREATE ROLE customer_support;
+   ```
+
+2. **Assign Permissions**:
+
+   ```sql
+   GRANT INSERT, SELECT, UPDATE, DELETE ON TABLE orders TO store_admin;
+   GRANT SELECT ON TABLE orders TO order_specialist;
+   GRANT SELECT ON TABLE customer_info TO customer_support;
+   ```
+
+3. **Create Users and Link to Roles**:
+
+   ```sql
+   CREATE ROLE jacob WITH LOGIN PASSWORD 'jacobpw';
+   GRANT store_admin TO jacob;
+
+   CREATE ROLE isaac WITH LOGIN PASSWORD 'isaacpw';
+   GRANT order_specialist TO isaac;
+
+   CREATE ROLE carol WITH LOGIN PASSWORD 'carolpw';
+   GRANT customer_support TO carol;
+   ```
+
+4. **Test Permissions**:
+   Connect as each user and attempt to perform actions according to their roles to ensure permissions are correctly applied.
+
+This setup allows for efficient management of database access permissions by leveraging PostgreSQL's role-based access control.

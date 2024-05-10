@@ -1,0 +1,425 @@
+PostgreSQL client applications, along with usage examples for each of them. The examples include PostgreSQL SQL code to demonstrate typical operations.
+
+## PostgreSQL Client Applications
+
+PostgreSQL client applications are command-line tools that assist in managing PostgreSQL databases and users, performing backups, verifying data integrity, and more. These tools can be run from any host, even remotely, without needing to reside on the same server as the database.
+
+**Note:** For commands involving users or databases, the names have their case preserved, and special characters or spaces may require quoting.
+
+---
+
+### 1. `clusterdb` — Cluster a PostgreSQL database
+
+`clusterdb` clusters a PostgreSQL database based on the specified index. Clustering reorders the data according to the index to improve performance of certain queries.
+
+**Usage:**
+
+```bash
+clusterdb my_database
+```
+
+This command clusters the tables in `my_database` according to the specified indexes.
+
+**SQL Equivalent:**
+
+```sql
+CLUSTER;
+```
+
+In a scenario, after creating an index on a table, you can cluster the table to optimize queries:
+
+```sql
+CREATE INDEX idx_users_last_name ON users (last_name);
+CLUSTER users USING idx_users_last_name;
+```
+
+---
+
+### 2. `createdb` — Create a new PostgreSQL database
+
+`createdb` is used to create a new database.
+
+**Usage:**
+
+```bash
+createdb my_database
+```
+
+This command creates a new database called `my_database`.
+
+**SQL Equivalent:**
+
+```sql
+CREATE DATABASE my_database;
+```
+
+**Example:**
+
+```bash
+createdb ecommerce
+```
+
+This would create a new database `ecommerce` for an online store application.
+
+---
+
+### 3. `createuser` — Define a new PostgreSQL user account
+
+`createuser` creates a new user (role) in PostgreSQL.
+
+**Usage:**
+
+```bash
+createuser --interactive my_user
+```
+
+This command will create a user `my_user` interactively, allowing you to specify whether the user should have superuser privileges.
+
+**SQL Equivalent:**
+
+```sql
+CREATE USER my_user WITH PASSWORD 'password';
+```
+
+**Example:**
+
+```bash
+createuser --interactive --pwprompt shop_admin
+```
+
+This command will create a new user `shop_admin` and prompt for a password interactively.
+
+---
+
+### 4. `dropdb` — Remove a PostgreSQL database
+
+`dropdb` deletes an existing database.
+
+**Usage:**
+
+```bash
+dropdb my_database
+```
+
+This command drops (deletes) the `my_database`.
+
+**SQL Equivalent:**
+
+```sql
+DROP DATABASE my_database;
+```
+
+**Example:**
+
+```bash
+dropdb ecommerce
+```
+
+This will remove the `ecommerce` database.
+
+---
+
+### 5. `dropuser` — Remove a PostgreSQL user account
+
+`dropuser` removes an existing PostgreSQL user account.
+
+**Usage:**
+
+```bash
+dropuser my_user
+```
+
+This command deletes the user `my_user`.
+
+**SQL Equivalent:**
+
+```sql
+DROP USER my_user;
+```
+
+**Example:**
+
+```bash
+dropuser shop_admin
+```
+
+This will drop the `shop_admin` user.
+
+---
+
+### 6. `ecpg` — Embedded SQL C preprocessor
+
+`ecpg` is a tool used for embedding SQL statements in C programs. This is mostly used in custom applications where SQL needs to be integrated with a C program.
+
+**Usage:**
+
+```bash
+ecpg my_program.pgc
+```
+
+This preprocesses the embedded SQL C file `my_program.pgc` into a C file that can then be compiled with a standard C compiler.
+
+**Example:**
+
+For an enterprise-grade application, you can embed SQL in a C program:
+
+```c
+EXEC SQL BEGIN DECLARE SECTION;
+    int id;
+    char name[50];
+EXEC SQL END DECLARE SECTION;
+
+EXEC SQL SELECT name INTO :name FROM employees WHERE id = :id;
+```
+
+You can then preprocess this with `ecpg`.
+
+---
+
+### 7. `pg_amcheck` — Check for corruption in PostgreSQL databases
+
+`pg_amcheck` checks for corruption within a PostgreSQL database.
+
+**Usage:**
+
+```bash
+pg_amcheck -d my_database
+```
+
+This command checks the integrity of the tables in `my_database`.
+
+**Example:**
+
+```bash
+pg_amcheck -d ecommerce
+```
+
+This would check the `ecommerce` database for corruption.
+
+---
+
+### 8. `pg_basebackup` — Take a base backup of a PostgreSQL cluster
+
+`pg_basebackup` is used to take a backup of a PostgreSQL cluster.
+
+**Usage:**
+
+```bash
+pg_basebackup -D /path/to/backup -Fp -Xs -P
+```
+
+This takes a base backup and stores it in `/path/to/backup`.
+
+**Example:**
+
+```bash
+pg_basebackup -D /backups/ecommerce -Fp -Xs -P
+```
+
+This takes a base backup of the PostgreSQL cluster and stores it in the `ecommerce` folder.
+
+---
+
+### 9. `pgbench` — Run a benchmark test on PostgreSQL
+
+`pgbench` is a tool for benchmarking PostgreSQL performance.
+
+**Usage:**
+
+```bash
+pgbench -i my_database
+pgbench -c 10 -j 2 -T 60 my_database
+```
+
+This initializes and then runs a benchmark on `my_database` with 10 clients and 2 threads for 60 seconds.
+
+**Example:**
+
+```bash
+pgbench -i ecommerce
+pgbench -c 10 -j 4 -T 60 ecommerce
+```
+
+This benchmarks the `ecommerce` database with 10 concurrent clients and 4 threads.
+
+---
+
+### 10. `pg_config` — Retrieve information about the installed version of PostgreSQL
+
+`pg_config` provides configuration information about the installed version of PostgreSQL.
+
+**Usage:**
+
+```bash
+pg_config
+```
+
+This will display PostgreSQL configuration details like `BINDIR`, `LIBDIR`, etc.
+
+---
+
+### 11. `pg_dump` — Extract a PostgreSQL database into a script file or archive file
+
+`pg_dump` is used to create a logical backup of a PostgreSQL database.
+
+**Usage:**
+
+```bash
+pg_dump my_database > my_database.sql
+```
+
+This dumps the `my_database` into the `my_database.sql` file.
+
+**Example:**
+
+```bash
+pg_dump ecommerce > ecommerce_backup.sql
+```
+
+This creates a backup of the `ecommerce` database.
+
+---
+
+### 12. `pg_dumpall` — Extract a PostgreSQL database cluster into a script file
+
+`pg_dumpall` creates a logical backup of an entire PostgreSQL cluster.
+
+**Usage:**
+
+```bash
+pg_dumpall > cluster_backup.sql
+```
+
+This dumps all the databases in the cluster into the `cluster_backup.sql` file.
+
+---
+
+### 13. `pg_isready` — Check the connection status of a PostgreSQL server
+
+`pg_isready` checks if the PostgreSQL server is accepting connections.
+
+**Usage:**
+
+```bash
+pg_isready
+```
+
+This checks if the server is ready for connections.
+
+**Example:**
+
+```bash
+pg_isready -h localhost -p 5432
+```
+
+This checks if the PostgreSQL server on `localhost` is ready at port `5432`.
+
+---
+
+### 14. `pg_receivewal` — Stream write-ahead logs from a PostgreSQL server
+
+`pg_receivewal` is used to stream write-ahead logs from a PostgreSQL server for backup or replication purposes.
+
+**Usage:**
+
+```bash
+pg_receivewal -D /path/to/wal_archive
+```
+
+This streams WAL files to the specified directory.
+
+---
+
+### 15. `pg_recvlogical` — Control PostgreSQL logical decoding streams
+
+`pg_recvlogical` allows streaming of logical replication data.
+
+**Usage:**
+
+```bash
+pg_recvlogical -d my_database --start -f -
+```
+
+This streams logical changes from the `my_database`.
+
+---
+
+### 16. `pg_restore` — Restore a PostgreSQL database from an archive file
+
+`pg_restore` restores a database from a dump file created by `pg_dump`.
+
+**Usage:**
+
+```bash
+pg_restore -d my_database my_database.dump
+```
+
+This restores the `my_database` from `my_database.dump`.
+
+---
+
+### 17. `pg_verifybackup` — Verify the integrity of a base backup
+
+`pg_verifybackup` checks the integrity of a base backup.
+
+**Usage:**
+
+```bash
+pg_verifybackup /path/to/backup
+```
+
+This verifies the backup stored in `/path/to/backup`.
+
+---
+
+### 18. `psql` — PostgreSQL interactive terminal
+
+`psql` is an interactive terminal for running SQL commands.
+
+**Usage:**
+
+```bash
+psql -d my_database
+```
+
+This connects to the `my_database` database.
+
+---
+
+### 19. `reindexdb` — Reindex a PostgreSQL database
+
+`reindexdb` rebuilds indexes on a PostgreSQL database.
+
+**Usage:**
+
+```bash
+reindexdb my_database
+```
+
+This reindexes the `my_database`.
+
+**SQL Equivalent:**
+
+```sql
+REINDEX DATABASE my_database;
+```
+
+---
+
+### 20. `vacuumdb` — Garbage-collect and analyze a PostgreSQL database
+
+`vacuumdb` is used to clean up and analyze a database.
+
+**Usage:**
+
+```bash
+vacuumdb --analyze my_database
+```
+
+This performs garbage collection and analyzes `my_database`.
+
+**SQL Equivalent:**
+
+```sql
+VACUUM ANALYZE;
+```

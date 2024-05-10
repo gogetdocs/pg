@@ -1,0 +1,122 @@
+## Monitoring Disk Usage in PostgreSQL
+
+### Table of Contents
+
+1. **Determining Disk Usage**
+2. **Disk Full Failure**
+3. **Usage Examples**
+
+### 1. Determining Disk Usage
+
+PostgreSQL provides several methods to monitor disk usage, including SQL functions and command-line tools.
+
+#### SQL Functions
+
+- **Database Size**: Use `pg_database_size()` to find the size of a database.
+  ```sql
+  SELECT pg_size_pretty(pg_database_size('your_database_name'));
+  ```
+- **Table Size**: Use `pg_relation_size()` to find the size of a table.
+  ```sql
+  SELECT pg_size_pretty(pg_relation_size('your_table_name'));
+  ```
+- **Index Size**: Use `pg_relation_size()` with the index name to find the size of an index.
+  ```sql
+  SELECT pg_size_pretty(pg_relation_size('your_index_name'));
+  ```
+- **Total Table Size Including Indexes**: Use `pg_total_relation_size()` to find the total size of a table including its indexes.
+  ```sql
+  SELECT pg_size_pretty(pg_total_relation_size('your_table_name'));
+  ```
+
+#### Command-Line Tools
+
+- **Database Size**: Use `\l+` in `psql` to list all databases with their sizes.
+- **Table Size**: Use `\d+` in `psql` to show all tables with their sizes.
+
+### 2. Disk Full Failure
+
+High disk utilization can lead to performance issues and potential failures. Regular monitoring is crucial to prevent disk full failures.
+
+### 3. Usage Examples
+
+#### Example 1: Monitoring Database Size
+
+To monitor the size of a database named `learning`, use the following SQL query:
+
+```sql
+SELECT pg_size_pretty(pg_database_size('learning'));
+```
+
+This will return the size of the `learning` database in a human-readable format.
+
+#### Example 2: Monitoring Table Size
+
+To monitor the size of a table named `users`, use the following SQL query:
+
+```sql
+SELECT pg_size_pretty(pg_relation_size('users'));
+```
+
+This will return the size of the `users` table in a human-readable format.
+
+#### Example 3: Monitoring Index Size
+
+To monitor the size of an index named `users_pkey`, use the following SQL query:
+
+```sql
+SELECT pg_size_pretty(pg_relation_size('users_pkey'));
+```
+
+This will return the size of the `users_pkey` index in a human-readable format.
+
+#### Example 4: Monitoring Total Table Size Including Indexes
+
+To monitor the total size of a table named `users` including its indexes, use the following SQL query:
+
+```sql
+SELECT pg_size_pretty(pg_total_relation_size('users'));
+```
+
+This will return the total size of the `users` table including its indexes in a human-readable format.
+
+#### Example 5: Listing All Tables with Their Sizes
+
+To list all tables in a database with their sizes, use the following SQL query:
+
+```sql
+SELECT relname, pg_size_pretty(pg_relation_size(relname)) AS size
+FROM pg_class
+WHERE relkind = 'r'
+ORDER BY pg_relation_size(relname) DESC;
+```
+
+This will return a list of all tables in the database with their sizes in a human-readable format, sorted by size in descending order.
+
+#### Example 6: Finding the Largest Tables and Indexes
+
+To find the largest tables and indexes in a database, use the following SQL query:
+
+```sql
+SELECT relname, pg_size_pretty(pg_relation_size(relname)) AS size
+FROM pg_class
+ORDER BY pg_relation_size(relname) DESC;
+```
+
+This will return a list of all tables and indexes in the database with their sizes in a human-readable format, sorted by size in descending order.
+
+### Additional Tools and Commands
+
+- **`pg_stat_io`**: Provides insight into I/O statistics for each table and index in the database.
+- **`iostat`**: Useful for viewing system-level I/O statistics and diagnosing bottlenecks outside of PostgreSQL.
+- **`pg_statio_user_tables`**: Provides information on table I/O statistics, including blocks read and hit percentages.
+- **`pg_stat_all_indexes`**: Provides information on index I/O statistics.
+- **`pg_locks`** and **`pg_stat_activity`**: Useful for monitoring locks and deadlocks in the database.
+
+### References
+
+- [PostgreSQL Documentation: Determining Disk Usage][3]
+- [Postgres Guide: Tracking Disk Usage][2]
+- [Stack Overflow: PostgreSQL Find Total Disk Space Used by a Database][4]
+- [Timescale: 5 Ways to Monitor Your PostgreSQL Database][6]
+- [SigNoz: Decoding PostgreSQL Monitoring][7]
