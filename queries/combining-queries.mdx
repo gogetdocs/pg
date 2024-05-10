@@ -1,0 +1,142 @@
+**Combining Queries with UNION, INTERSECT, and EXCEPT**
+
+SQL provides three set operators to combine the results of two or more queries into a single result set: UNION, INTERSECT, and EXCEPT. These operators are useful when you need to combine data from multiple tables or queries.
+
+### UNION Operator
+
+The UNION operator combines the results of two or more queries into a single result set, removing duplicates. The syntax is:
+
+```sql
+query1 UNION [ALL] query2
+```
+
+**Example:**
+
+Suppose you have two tables, `Speakers` and `Authors`, with the following data:
+
+| Name  | Role    |
+| ----- | ------- |
+| John  | Speaker |
+| Jane  | Author  |
+| Joe   | Speaker |
+| Julia | Author  |
+
+To get a list of all speakers and authors, you can use the UNION operator:
+
+```sql
+SELECT Name FROM Speakers
+UNION
+SELECT Name FROM Authors
+```
+
+Result:
+
+| Name  |
+| ----- |
+| John  |
+| Jane  |
+| Joe   |
+| Julia |
+
+### INTERSECT Operator
+
+The INTERSECT operator returns only the rows that are common to both queries. The syntax is:
+
+```sql
+query1 INTERSECT query2
+```
+
+**Example:**
+
+Suppose you have two tables, `Dinner` and `Lunch`, with the following data:
+
+| Item       | Meal   |
+| ---------- | ------ |
+| Apple      | Dinner |
+| Aubergines | Lunch  |
+| Salad      | Dinner |
+| Steak      | Lunch  |
+| Wine       | Dinner |
+| Salad      | Lunch  |
+
+To get a list of food items that are common to both meals, you can use the INTERSECT operator:
+
+```sql
+SELECT Item FROM Dinner
+INTERSECT
+SELECT Item FROM Lunch
+```
+
+Result:
+
+| Item  |
+| ----- |
+| Salad |
+
+### EXCEPT Operator
+
+The EXCEPT operator returns only the rows that are in the first query but not in the second query. The syntax is:
+
+```sql
+query1 EXCEPT query2
+```
+
+**Example:**
+
+Suppose you have two tables, `Speakers` and `Authors`, with the following data:
+
+| Name  | Role    |
+| ----- | ------- |
+| John  | Speaker |
+| Jane  | Author  |
+| Joe   | Speaker |
+| Julia | Author  |
+
+To get a list of speakers who are not authors, you can use the EXCEPT operator:
+
+```sql
+SELECT Name FROM Speakers
+EXCEPT
+SELECT Name FROM Authors
+```
+
+Result:
+
+| Name |
+| ---- |
+| John |
+| Joe  |
+
+### Combining Set Operations
+
+You can combine set operations using parentheses to control the order of evaluation. For example:
+
+```sql
+query1 UNION query2 EXCEPT query3
+```
+
+is equivalent to:
+
+```sql
+(query1 UNION query2) EXCEPT query3
+```
+
+**Note:**
+
+- The UNION and EXCEPT operators are left-associative, meaning that they are evaluated from left to right.
+- The INTERSECT operator takes precedence over the UNION and EXCEPT operators.
+- The number and order of columns must be the same in both queries, and the corresponding columns must have compatible data types[1][2][3].
+
+### Usage
+
+- Use UNION to combine data from multiple tables or queries, removing duplicates.
+- Use INTERSECT to find common data between two queries.
+- Use EXCEPT to find data that is in one query but not in another.
+
+For example, you can use these operators to:
+
+- Get a list of all customers who are also suppliers.
+- Find the common products between two catalogs.
+- Get a list of employees who are not managers.
+
+By combining queries using UNION, INTERSECT, and EXCEPT, you can perform complex data analysis and manipulation tasks in SQL.

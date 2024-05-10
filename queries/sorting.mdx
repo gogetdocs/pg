@@ -1,0 +1,119 @@
+## Sorting Rows (ORDER BY)
+
+### Overview
+
+The `ORDER BY` clause is used to sort the output of a query in a specific order. If no sorting is specified, the rows will be returned in an unspecified order, which can depend on the scan and join plan types and the order on disk.
+
+### Syntax
+
+The `ORDER BY` clause has the following syntax:
+
+```sql
+SELECT select_list
+    FROM table_expression
+    ORDER BY sort_expression1 [ASC | DESC] [NULLS { FIRST | LAST }]
+             [, sort_expression2 [ASC | DESC] [NULLS { FIRST | LAST }] ...]
+```
+
+### Sort Expressions
+
+The sort expression(s) can be any expression that would be valid in the query's select list. For example:
+
+```sql
+SELECT a, b FROM table1 ORDER BY a + b, c;
+```
+
+### Sort Direction
+
+Each expression can be followed by an optional `ASC` or `DESC` keyword to set the sort direction to ascending or descending. `ASC` order is the default. Ascending order puts smaller values first, where “smaller” is defined in terms of the `<` operator. Similarly, descending order is determined with the `>` operator.
+
+### Nulls
+
+The `NULLS FIRST` and `NULLS LAST` options can be used to determine whether nulls appear before or after non-null values in the sort ordering. By default, null values sort as if larger than any non-null value; that is, `NULLS FIRST` is the default for `DESC` order, and `NULLS LAST` otherwise.
+
+### Independent Sorting
+
+The ordering options are considered independently for each sort column. For example:
+
+```sql
+SELECT a, b FROM table1 ORDER BY a, b DESC;
+```
+
+This is equivalent to:
+
+```sql
+SELECT a, b FROM table1 ORDER BY a ASC, b DESC;
+```
+
+### Sorting by Output Column
+
+A sort expression can also be the column label or number of an output column, as in:
+
+```sql
+SELECT a + b AS sum, c FROM table1 ORDER BY sum;
+SELECT a, max(b) FROM table1 GROUP BY a ORDER BY 1;
+```
+
+Both of these examples sort by the first output column.
+
+### Restrictions
+
+Note that an output column name has to stand alone, that is, it cannot be used in an expression — for example, this is not correct:
+
+```sql
+SELECT a + b AS sum, c FROM table1 ORDER BY sum + c;          -- wrong
+```
+
+This restriction is made to reduce ambiguity.
+
+### Union, Intersect, and Except
+
+`ORDER BY` can be applied to the result of a `UNION`, `INTERSECT`, or `EXCEPT` combination, but in this case it is only permitted to sort by output column names or numbers, not by expressions.
+
+### Examples
+
+**Example 1: Sorting by Multiple Columns**
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    salary INTEGER
+);
+
+INSERT INTO employees (name, salary) VALUES
+    ('John Doe', 50000),
+    ('Jane Doe', 60000),
+    ('Bob Smith', 50000);
+
+SELECT * FROM employees ORDER BY salary, name;
+```
+
+This will return the employees sorted by salary in ascending order, and then by name in ascending order.
+
+**Example 2: Sorting by Output Column**
+
+```sql
+SELECT name, salary AS annual_salary FROM employees ORDER BY annual_salary DESC;
+```
+
+This will return the employees sorted by annual salary in descending order.
+
+**Example 3: Sorting with Nulls**
+
+```sql
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    product VARCHAR(50),
+    quantity INTEGER
+);
+
+INSERT INTO sales (product, quantity) VALUES
+    ('Product A', 10),
+    ('Product B', NULL),
+    ('Product C', 20);
+
+SELECT * FROM sales ORDER BY quantity NULLS LAST;
+```
+
+This will return the sales sorted by quantity in ascending order, with null values at the end.

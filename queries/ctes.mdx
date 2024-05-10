@@ -1,0 +1,156 @@
+## Using Common Table Expressions (CTEs) in SQL
+
+### Overview
+
+Common Table Expressions (CTEs) are temporary result sets that are defined within the execution of a single SELECT, INSERT, UPDATE, or DELETE statement. They can be used to simplify complex queries, perform recursive operations, and improve readability.
+
+### Basic Usage
+
+CTEs are defined using the `WITH` keyword followed by the name of the CTE and a query that defines the CTE. The CTE can then be used in the main query like a regular table.
+
+```sql
+WITH regional_sales AS (
+  SELECT region, SUM(amount) AS total_sales
+  FROM orders
+  GROUP BY region
+)
+SELECT * FROM regional_sales;
+```
+
+### Recursive Queries
+
+Recursive CTEs allow a query to reference its own output. This is useful for querying hierarchical or tree-structured data.
+
+```sql
+WITH RECURSIVE included_parts(sub_part, part, quantity) AS (
+  SELECT sub_part, part, quantity FROM parts WHERE part = 'our_product'
+  UNION ALL
+  SELECT p.sub_part, p.part, p.quantity * pr.quantity
+  FROM included_parts pr, parts p
+  WHERE p.part = pr.sub_part
+)
+SELECT sub_part, SUM(quantity) AS total_quantity
+FROM included_parts
+GROUP BY sub_part;
+```
+
+### Search Order
+
+When computing a tree traversal using a recursive query, you might want to order the results in either depth-first or breadth-first order.
+
+**Depth-First Order**
+
+```sql
+WITH RECURSIVE search_tree(id, link, data, path) AS (
+  SELECT t.id, t.link, t.data, ARRAY[t.id]
+  FROM tree t
+  UNION ALL
+  SELECT t.id, t.link, t.data, path || t.id
+  FROM tree t, search_tree st
+  WHERE t.id = st.link
+)
+SELECT * FROM search_tree ORDER BY path;
+```
+
+**Breadth-First Order**
+
+```sql
+WITH RECURSIVE search_tree(id, link, data, depth) AS (
+  SELECT t.id, t.link, t.data, 0
+  FROM tree t
+  UNION ALL
+  SELECT t.id, t.link, t.data, depth + 1
+  FROM tree t, search_tree st
+  WHERE t.id = st.link
+)
+SELECT * FROM search_tree ORDER BY depth;
+```
+
+### Cycle Detection
+
+When working with recursive queries, it's important to detect cycles to prevent infinite loops.
+
+```sql
+WITH RECURSIVE search_graph(id, link, data, depth, is_cycle, path) AS (
+  SELECT g.id, g.link, g.data, 0, false, ARRAY[g.id]
+  FROM graph g
+  UNION ALL
+  SELECT g.id, g.link, g.data, sg.depth + 1, g.id = ANY(path), path || g.id
+  FROM graph g, search_graph sg
+  WHERE g.id = sg.link AND NOT is_cycle
+)
+SELECT * FROM search_graph;
+```
+
+### Materialization
+
+CTEs can be materialized, which means that the query is evaluated only once and the results are stored in a temporary table.
+
+```sql
+WITH w AS (
+  SELECT * FROM big_table
+)
+SELECT * FROM w WHERE key = 123;
+```
+
+**Non-Materialized CTE**
+
+```sql
+WITH w AS NOT MATERIALIZED (
+  SELECT * FROM big_table
+)
+SELECT * FROM w AS w1 JOIN w AS w2 ON w1.key = w2.ref
+WHERE w2.key = 123;
+```
+
+### Data-Modifying Statements in WITH
+
+CTEs can be used with data-modifying statements like INSERT, UPDATE, and DELETE.
+
+```sql
+WITH moved_rows AS (
+  DELETE FROM products
+  WHERE "date" >= '2010-10-01' AND "date" < '2010-11-01'
+  RETURNING *
+)
+INSERT INTO products_log
+SELECT * FROM moved_rows;
+```
+
+### Usage
+
+**Example 1: Finding all direct and indirect sub-parts of a product**
+
+```sql
+WITH RECURSIVE included_parts(sub_part, part) AS (
+  SELECT sub_part, part FROM parts WHERE part = 'our_product'
+  UNION ALL
+  SELECT p.sub_part, p.part
+  FROM included_parts pr, parts p
+  WHERE p.part = pr.sub_part
+)
+SELECT sub_part FROM included_parts;
+```
+
+**Example 2: Updating prices of products and logging changes**
+
+```sql
+WITH updated_prices AS (
+  UPDATE products SET price = price * 1.05
+  RETURNING *
+)
+INSERT INTO price_log
+SELECT * FROM updated_prices;
+```
+
+**Example 3: Deleting rows from a table and logging deleted rows**
+
+```sql
+WITH deleted_rows AS (
+  DELETE FROM products
+  WHERE "date" >= '2010-10-01' AND "date" < '2010-11-01'
+  RETURNING *
+)
+INSERT INTO deleted_log
+SELECT * FROM deleted_rows;
+```

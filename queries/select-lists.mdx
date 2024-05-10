@@ -1,0 +1,96 @@
+# **Select Lists**
+
+A select list is a crucial component of the SELECT command in PostgreSQL. It determines which columns of the intermediate table are actually output.
+
+### 7.3.1. Select-List Items
+
+The simplest kind of select list is `*`, which emits all columns that the table expression produces. Otherwise, a select list is a comma-separated list of value expressions.
+
+**Example:**
+
+```sql
+SELECT a, b, c FROM my_table;
+```
+
+In this example, `a`, `b`, and `c` are column names that are either actual names of columns in the tables referenced in the FROM clause or aliases given to them.
+
+**Working with Multiple Tables:**
+
+```sql
+SELECT tbl1.a, tbl2.a, tbl1.b FROM tbl1, tbl2;
+```
+
+When working with multiple tables, it can be useful to ask for all the columns of a particular table:
+
+```sql
+SELECT tbl1.*, tbl2.a FROM tbl1, tbl2;
+```
+
+**Using Arbitrary Value Expressions:**
+
+```sql
+SELECT a, b + c AS sum FROM my_table;
+```
+
+In this example, the value expression `b + c` is evaluated once for each result row, with the row's values substituted for any column references.
+
+### 7.3.2. Column Labels
+
+The entries in the select list can be assigned names for subsequent processing using the `AS` keyword.
+
+**Example:**
+
+```sql
+SELECT a AS value, b + c AS sum FROM my_table;
+```
+
+If no output column name is specified using `AS`, the system assigns a default column name.
+
+**Using AS with Key Words:**
+
+```sql
+SELECT a AS from, b + c AS sum FROM my_table;
+```
+
+In this example, the `AS` keyword is used to avoid ambiguity with the PostgreSQL key word `FROM`.
+
+### 7.3.3. DISTINCT
+
+The `DISTINCT` keyword can be used to eliminate duplicate rows from the result table.
+
+**Example:**
+
+```sql
+SELECT DISTINCT a, b, c FROM my_table;
+```
+
+Alternatively, an arbitrary expression can determine what rows are to be considered distinct:
+
+```sql
+SELECT DISTINCT ON (a, b) a, b, c FROM my_table;
+```
+
+In this example, the expression `a, b` is evaluated for all rows, and a set of rows for which all the expressions are equal are considered duplicates.
+
+**Note:**
+
+- The `DISTINCT ON` clause is not part of the SQL standard and is sometimes considered bad style because of the potentially indeterminate nature of its results.
+- With judicious use of `GROUP BY` and subqueries in `FROM`, this construct can be avoided, but it is often the most convenient alternative.
+
+**Usage:**
+
+Suppose we have a table `employees` with columns `id`, `name`, `department`, and `salary`. We want to retrieve the names and salaries of all employees in the `sales` department, without duplicates.
+
+```sql
+SELECT DISTINCT name, salary FROM employees WHERE department = 'sales';
+```
+
+This query uses the `DISTINCT` keyword to eliminate duplicate rows and returns only the names and salaries of employees in the `sales` department.
+
+Similarly, suppose we want to retrieve the names and salaries of all employees, along with their department names, without duplicates.
+
+```sql
+SELECT DISTINCT ON (name, salary) name, salary, department FROM employees;
+```
+
+This query uses the `DISTINCT ON` clause to eliminate duplicate rows based on the `name` and `salary` columns, and returns the department names along with the names and salaries of employees.

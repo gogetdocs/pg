@@ -1,0 +1,89 @@
+# **VALUES Lists in PostgreSQL**
+
+## **Overview**
+
+The `VALUES` clause in PostgreSQL provides a way to generate a "constant table" that can be used in a query without having to create and populate a table on-disk.
+
+## **Syntax**
+
+The syntax for `VALUES` is as follows:
+
+```sql
+VALUES ( expression [, ...] ) [, ...]
+```
+
+Each parenthesized list of expressions generates a row in the table. The lists must all have the same number of elements (i.e., the number of columns in the table), and corresponding entries in each list must have compatible data types.
+
+## **Example Usage**
+
+The following example creates a table with two columns and three rows:
+
+```sql
+VALUES (1, 'one'), (2, 'two'), (3, 'three');
+```
+
+This is equivalent to:
+
+```sql
+SELECT 1 AS column1, 'one' AS column2
+UNION ALL
+SELECT 2, 'two'
+UNION ALL
+SELECT 3, 'three';
+```
+
+## **Overriding Default Column Names**
+
+By default, PostgreSQL assigns the names `column1`, `column2`, etc. to the columns of a `VALUES` table. To override these default names, you can use a table alias list:
+
+```sql
+SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three')) AS t (num, letter);
+```
+
+This will return:
+
+```
+ num | letter
+-----+--------
+   1 | one
+   2 | two
+   3 | three
+(3 rows)
+```
+
+## **Using VALUES in Queries**
+
+`VALUES` can be used anywhere a `SELECT` can. For example, you can use it as part of a `UNION`, or attach a sort specification ( `ORDER BY`, `LIMIT`, and/or `OFFSET`) to it:
+
+```sql
+SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three')) AS t (num, letter)
+UNION ALL
+SELECT * FROM (VALUES (4, 'four'), (5, 'five')) AS t (num, letter)
+ORDER BY num;
+```
+
+This will return:
+
+```
+ num | letter
+-----+--------
+   1 | one
+   2 | two
+   3 | three
+   4 | four
+   5 | five
+(5 rows)
+```
+
+## **Common Use Cases**
+
+`VALUES` is most commonly used as the data source in an `INSERT` command, and next most commonly as a subquery.
+
+For example:
+
+```sql
+INSERT INTO mytable (num, letter)
+VALUES (1, 'one'), (2, 'two'), (3, 'three');
+```
+
+This will insert three rows into the `mytable` table.
