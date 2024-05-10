@@ -1,0 +1,94 @@
+## Returning Data from Modified Rows
+
+### Overview
+
+The `RETURNING` clause is a powerful feature in SQL that allows you to retrieve data from modified rows while they are being manipulated. This clause can be used with `INSERT`, `UPDATE`, and `DELETE` commands to avoid performing extra database queries to collect the data.
+
+### Allowed Contents of RETURNING Clause
+
+The allowed contents of a `RETURNING` clause are the same as a `SELECT` command's output list. It can contain:
+
+- Column names of the command's target table
+- Value expressions using those columns
+- A shorthand `RETURNING *` to select all columns of the target table in order
+
+### Usages
+
+#### INSERT with RETURNING
+
+The `RETURNING` clause is useful in `INSERT` statements when relying on computed default values, such as serial columns to provide unique identifiers.
+
+**Example:**
+
+```sql
+CREATE TABLE users (firstname text, lastname text, id serial primary key);
+
+INSERT INTO users (firstname, lastname) VALUES ('Joe', 'Cool') RETURNING id;
+```
+
+This will return the ID assigned to the new row.
+
+#### INSERT ... SELECT with RETURNING
+
+The `RETURNING` clause is also useful with `INSERT ... SELECT` statements.
+
+**Example:**
+
+```sql
+CREATE TABLE users (firstname text, lastname text, id serial primary key);
+CREATE TABLE new_users (firstname text, lastname text);
+
+INSERT INTO users (firstname, lastname)
+  SELECT firstname, lastname FROM new_users
+  RETURNING id;
+```
+
+This will return the IDs assigned to the new rows.
+
+#### UPDATE with RETURNING
+
+In an `UPDATE` statement, the `RETURNING` clause returns the new content of the modified row.
+
+**Example:**
+
+```sql
+UPDATE products SET price = price * 1.10
+  WHERE price <= 99.99
+  RETURNING name, price AS new_price;
+```
+
+This will return the name and new price of the modified rows.
+
+#### DELETE with RETURNING
+
+In a `DELETE` statement, the `RETURNING` clause returns the content of the deleted row.
+
+**Example:**
+
+```sql
+DELETE FROM products
+  WHERE obsoletion_date = 'today'
+  RETURNING *;
+```
+
+This will return all columns of the deleted rows.
+
+#### Triggers and RETURNING
+
+If there are triggers on the target table, the data available to `RETURNING` is the row as modified by the triggers.
+
+**Example:**
+
+```sql
+CREATE TABLE products (name text, price numeric, obsoletion_date date);
+CREATE TRIGGER update_obsoletion_date
+  BEFORE UPDATE ON products
+  FOR EACH ROW
+  SET NEW.obsoletion_date = CURRENT_DATE;
+
+UPDATE products SET price = price * 1.10
+  WHERE price <= 99.99
+  RETURNING name, price AS new_price, obsoletion_date;
+```
+
+This will return the name, new price, and updated obsoletion date of the modified rows.

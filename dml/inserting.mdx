@@ -1,0 +1,119 @@
+# **Inserting Data into a Database**
+
+### Overview
+
+Inserting data into a database is a crucial step in making it useful. In this section, we will cover the basics of inserting data into a PostgreSQL database using the `INSERT` command.
+
+### Basic Syntax
+
+The basic syntax of the `INSERT` command is as follows:
+
+```sql
+INSERT INTO table_name (column1, column2, ...) VALUES (value1, value2, ...);
+```
+
+Here, `table_name` is the name of the table where you want to insert the data, and `column1`, `column2`, etc. are the names of the columns where you want to insert the data. The `VALUES` clause specifies the values to be inserted into the corresponding columns.
+
+### Example Usage
+
+Let's consider an example using the `products` table:
+
+```sql
+CREATE TABLE products (
+    product_no integer,
+    name text,
+    price numeric
+);
+
+INSERT INTO products (product_no, name, price) VALUES (1, 'Cheese', 9.99);
+```
+
+This will insert a new row into the `products` table with the specified values.
+
+### Specifying Columns Explicitly
+
+To avoid relying on the order of the columns in the table, you can specify the columns explicitly:
+
+```sql
+INSERT INTO products (name, price, product_no) VALUES ('Cheese', 9.99, 1);
+```
+
+This will have the same effect as the previous example.
+
+### Omitting Columns
+
+If you don't have values for all the columns, you can omit some of them. In that case, the columns will be filled with their default values:
+
+```sql
+INSERT INTO products (product_no, name) VALUES (1, 'Cheese');
+```
+
+Alternatively, you can use the `DEFAULT` keyword to specify default values explicitly:
+
+```sql
+INSERT INTO products (product_no, name, price) VALUES (1, 'Cheese', DEFAULT);
+```
+
+### Inserting Multiple Rows
+
+You can insert multiple rows in a single command:
+
+```sql
+INSERT INTO products (product_no, name, price) VALUES
+    (1, 'Cheese', 9.99),
+    (2, 'Bread', 1.99),
+    (3, 'Milk', 2.99);
+```
+
+### Inserting the Result of a Query
+
+You can also insert the result of a query into a table:
+
+```sql
+INSERT INTO products (product_no, name, price)
+  SELECT product_no, name, price FROM new_products
+    WHERE release_date = 'today';
+```
+
+This provides the full power of the SQL query mechanism for computing the rows to be inserted.
+
+### Tip
+
+When inserting a large amount of data at the same time, consider using the `COPY` command. It is not as flexible as the `INSERT` command, but is more efficient. Refer to Section 14.4 for more information on improving bulk loading performance.
+
+### Usage
+
+Here's an example of inserting data into a database using Python and the `psycopg2` library:
+
+```python
+import psycopg2
+
+# Connect to the database
+conn = psycopg2.connect(
+    dbname="mydatabase",
+    user="myuser",
+    password="mypassword",
+    host="localhost",
+    port="5432"
+)
+
+# Create a cursor object
+cur = conn.cursor()
+
+# Insert data into the products table
+cur.execute("""
+    INSERT INTO products (product_no, name, price) VALUES
+        (1, 'Cheese', 9.99),
+        (2, 'Bread', 1.99),
+        (3, 'Milk', 2.99);
+""")
+
+# Commit the changes
+conn.commit()
+
+# Close the cursor and connection
+cur.close()
+conn.close()
+```
+
+This code connects to a PostgreSQL database, creates a cursor object, inserts data into the `products` table, and commits the changes. Finally, it closes the cursor and connection.

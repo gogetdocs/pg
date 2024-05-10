@@ -1,0 +1,98 @@
+## Updating Data in a Database
+
+=====================================================
+
+Updating data in a database involves modifying existing rows in a table. This can be done using the `UPDATE` command, which requires three pieces of information:
+
+- The name of the table and column to update
+- The new value of the column
+- Which row(s) to update
+
+### Basic Syntax
+
+---
+
+The basic syntax of the `UPDATE` command is as follows:
+
+```sql
+UPDATE table_name
+SET column_name = new_value
+WHERE condition;
+```
+
+### Example
+
+---
+
+Suppose we have a table called `products` with a column called `price`. We want to update all products that have a price of 5 to have a price of 10.
+
+```sql
+UPDATE products
+SET price = 10
+WHERE price = 5;
+```
+
+This command will update all rows in the `products` table where the `price` column is 5.
+
+### Updating Multiple Columns
+
+---
+
+You can update more than one column in an `UPDATE` command by listing more than one assignment in the `SET` clause.
+
+```sql
+UPDATE mytable
+SET a = 5, b = 3, c = 1
+WHERE a > 0;
+```
+
+This command will update all rows in the `mytable` table where the `a` column is greater than 0.
+
+### Using Expressions
+
+---
+
+The new value of the column can be any scalar expression, not just a constant. For example, if you want to raise the price of all products by 10%, you can use:
+
+```sql
+UPDATE products
+SET price = price * 1.10;
+```
+
+This command will update all rows in the `products` table by multiplying the current price by 1.10.
+
+### Omitting the WHERE Clause
+
+---
+
+If the `WHERE` clause is omitted, all rows in the table will be updated.
+
+```sql
+UPDATE products
+SET price = 10;
+```
+
+This command will update all rows in the `products` table to have a price of 10.
+
+### Using Conditions
+
+---
+
+The `WHERE` condition does not have to be an equality test. Many other operators are available (see Chapter 9). But the expression needs to evaluate to a Boolean result.
+
+```sql
+UPDATE products
+SET price = 10
+WHERE price > 5;
+```
+
+This command will update all rows in the `products` table where the `price` column is greater than 5.
+
+### Best Practices
+
+---
+
+- Always specify a `WHERE` clause to avoid updating all rows in the table.
+- Use primary keys to reliably address individual rows.
+- Use graphical database access tools to update rows individually.
+- Test your `UPDATE` commands before running them on a live database.

@@ -1,0 +1,62 @@
+## Deleting Data
+
+### Overview
+
+Deleting data in SQL involves removing entire rows from a table based on specified conditions. This is achieved using the `DELETE` command, which has a syntax similar to the `UPDATE` command.
+
+### Syntax
+
+The basic syntax of the `DELETE` command is as follows:
+
+```sql
+DELETE FROM table_name
+WHERE condition;
+```
+
+- `table_name`: The name of the table from which you want to delete rows.
+- `condition`: The condition that specifies which rows to delete. If omitted, all rows in the table will be deleted.
+
+### Usage
+
+#### Example 1: Deleting Specific Rows
+
+Suppose you have a `products` table with the following structure and data:
+
+```sql
+CREATE TABLE products (
+    id INT PRIMARY KEY,
+    name VARCHAR(100),
+    price DECIMAL(10, 2)
+);
+
+INSERT INTO products (id, name, price)
+VALUES
+(1, 'Product A', 10.00),
+(2, 'Product B', 20.00),
+(3, 'Product C', 10.00);
+```
+
+To delete all rows from the `products` table where the price is 10, you would use the following `DELETE` statement:
+
+```sql
+DELETE FROM products
+WHERE price = 10;
+```
+
+After executing this statement, the `products` table would contain only the row with `id` = 2.
+
+#### Example 2: Deleting All Rows
+
+To delete all rows from the `products` table, you would use the `DELETE` statement without specifying a condition:
+
+```sql
+DELETE FROM products;
+```
+
+**Caution**: This will remove all data from the table. Use with caution.
+
+### Best Practices
+
+- **Always specify a condition** unless you intend to delete all rows.
+- **Use transactions** when performing deletions to ensure data integrity and to allow for rollbacks in case of errors.
+- **Backup your data** regularly to prevent loss of important information.
