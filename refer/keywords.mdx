@@ -1,0 +1,3188 @@
+```sql
+
+-- ABORT
+-- Used to abort the current transaction
+BEGIN;
+INSERT INTO users (name, email) VALUES ('John Doe', 'john@example.com');
+ABORT;
+
+-- ABS
+-- Returns the absolute value of a number
+SELECT ABS(-15.5) AS absolute_value;
+
+-- ACOS
+-- Returns the arc cosine of a number
+SELECT ACOS(0.5) AS arc_cosine;
+
+-- ADD
+-- Used in ALTER TABLE statements to add a column
+ALTER TABLE users ADD COLUMN age INT;
+
+-- ALL
+-- Used in subqueries to compare a value with all values in a subquery
+SELECT * FROM products
+WHERE price > ALL (SELECT price FROM budget_products);
+
+-- ALLOCATE
+-- Used in PL/pgSQL to allocate a new variable
+DO $$
+DECLARE
+    new_var INT;
+BEGIN
+    new_var := 10;
+    RAISE NOTICE 'Value: %', new_var;
+END $$;
+
+-- ALTER
+-- Used to modify the structure of database objects
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+
+-- ANALYSE / ANALYZE
+-- Used to collect statistics about a database or table
+ANALYZE users;
+
+-- AND
+-- Logical operator used in WHERE clauses
+SELECT * FROM users WHERE age > 18 AND country = 'USA';
+
+-- ANY
+-- Used in subqueries to compare a value with any value in a subquery
+SELECT * FROM products
+WHERE price > ANY (SELECT price FROM competitors_products);
+
+-- ARE
+-- Used in array comparisons
+SELECT ARRAY[1,2,3] ARE NOT DISTINCT FROM ARRAY[1,2,3] AS array_comparison;
+
+-- ARRAY
+-- Used to create arrays
+SELECT ARRAY[1,2,3,4,5] AS number_array;
+
+-- ARRAY_AGG
+-- Aggregate function to create an array from a set of values
+SELECT department, ARRAY_AGG(name) AS employee_names
+FROM employees
+GROUP BY department;
+
+-- AS
+-- Used to alias columns or tables
+SELECT first_name || ' ' || last_name AS full_name FROM users;
+
+-- ASC
+-- Used in ORDER BY clauses for ascending order
+SELECT * FROM products ORDER BY price ASC;
+
+-- ASENSITIVE
+-- Keyword for cursor sensitivity (not commonly used in PostgreSQL)
+
+-- ASIN
+-- Returns the arc sine of a number
+SELECT ASIN(0.5) AS arc_sine;
+
+-- ASSERTION
+-- Used to define constraints (not implemented in PostgreSQL)
+
+-- ASYMMETRIC
+-- Used in encryption functions
+-- Example using pgcrypto extension:
+-- SELECT pgp_sym_encrypt('secret text', 'password', 'cipher-algo=aes256') AS encrypted_text;
+
+-- AT
+-- Used in time zone conversions
+SELECT NOW() AT TIME ZONE 'UTC' AS utc_time;
+
+-- ATAN
+-- Returns the arc tangent of a number
+SELECT ATAN(1) AS arc_tangent;
+
+-- ATOMIC
+-- Ensures that a set of statements execute as a single unit (used in some databases, but not a keyword in PostgreSQL)
+
+-- AUTHORIZATION
+-- Used in GRANT and REVOKE statements
+GRANT SELECT ON users TO read_only_user;
+
+-- AVG
+-- Aggregate function to calculate the average
+SELECT AVG(price) AS average_price FROM products;
+
+-- BACKWARD
+-- Used in cursor declarations (not commonly used)
+DECLARE my_cursor SCROLL CURSOR FOR SELECT * FROM users;
+FETCH BACKWARD 5 FROM my_cursor;
+
+-- BEGIN
+-- Starts a transaction block
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;
+
+-- BEGIN_FRAME
+-- Used in window function definitions (advanced feature)
+SELECT emp_no, salary,
+       AVG(salary) OVER (ORDER BY salary
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_avg
+FROM salaries;
+
+-- BEGIN_PARTITION
+-- Used in window function definitions (advanced feature)
+SELECT emp_no, department, salary,
+       AVG(salary) OVER (PARTITION BY department
+                         ORDER BY salary
+                         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS dept_running_avg
+FROM employees;
+
+-- BETWEEN
+-- Used for range queries
+SELECT * FROM products WHERE price BETWEEN 10 AND 20;
+
+-- BIGINT
+-- Data type for large integers
+CREATE TABLE big_numbers (id BIGINT PRIMARY KEY, value BIGINT);
+
+-- BINARY
+-- Used for binary data (in PostgreSQL, use BYTEA instead)
+CREATE TABLE files (id SERIAL PRIMARY KEY, data BYTEA);
+
+-- BIT
+-- Data type for bit strings
+CREATE TABLE flags (id SERIAL PRIMARY KEY, settings BIT(8));
+
+-- BIT_LENGTH
+-- Function to get the length of a bit string
+SELECT BIT_LENGTH(B'10110') AS bit_length;
+
+-- BLOB
+-- Binary Large Object (in PostgreSQL, use BYTEA instead)
+CREATE TABLE documents (id SERIAL PRIMARY KEY, content BYTEA);
+
+-- BOOLEAN
+-- Data type for true/false values
+CREATE TABLE tasks (id SERIAL PRIMARY KEY, completed BOOLEAN);
+
+-- BOTH
+-- Used with TRIM function
+SELECT TRIM(BOTH 'x' FROM 'xTestx') AS trimmed_string;
+
+-- BY
+-- Used in GROUP BY, ORDER BY clauses
+SELECT department, AVG(salary) FROM employees GROUP BY department;
+
+-- CALL
+-- Used to call a stored procedure
+CALL update_employee_salary(101, 5000);
+
+-- CALLED
+-- Used in function definitions
+CREATE FUNCTION increment(i INT)
+RETURNS INT AS $$
+BEGIN
+    RETURN i + 1;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT increment(5);
+
+-- CARDINALITY
+-- Function to get the number of elements in an array
+SELECT CARDINALITY(ARRAY[1,2,3,4,5]) AS array_length;
+
+-- CASCADE
+-- Used in DROP and ALTER statements to automatically drop dependent objects
+DROP TABLE users CASCADE;
+
+-- CASCADED
+-- Used in CHECK constraints
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    status TEXT,
+    CONSTRAINT valid_status CHECK (status IN ('pending', 'completed', 'cancelled')) NOT VALID
+);
+ALTER TABLE orders VALIDATE CONSTRAINT valid_status;
+
+-- CASE
+-- Conditional expression
+SELECT
+    name,
+    CASE
+        WHEN age < 18 THEN 'Minor'
+        WHEN age BETWEEN 18 AND 65 THEN 'Adult'
+        ELSE 'Senior'
+    END AS age_category
+FROM users;
+
+-- CAST
+-- Converts a value from one data type to another
+SELECT CAST('100' AS INTEGER) AS int_value;
+
+-- CATALOG
+-- Not commonly used in PostgreSQL (more relevant in other SQL implementations)
+
+-- CEIL
+-- Rounds a number up to the nearest integer
+SELECT CEIL(15.7) AS rounded_up;
+
+-- CEILING
+-- Alias for CEIL
+SELECT CEILING(15.2) AS rounded_up;
+
+-- CHAIN
+-- Used in transaction management
+BEGIN;
+-- Some operations
+COMMIT AND CHAIN;  -- Commits current transaction and starts a new one
+
+-- CHAR
+-- Fixed-length character string
+CREATE TABLE codes (id SERIAL PRIMARY KEY, code CHAR(5));
+
+-- CHARACTER
+-- Alias for CHAR
+CREATE TABLE alt_codes (id SERIAL PRIMARY KEY, code CHARACTER(5));
+
+-- CHARACTER_LENGTH
+-- Function to get the length of a string
+SELECT CHARACTER_LENGTH('Hello') AS string_length;
+
+-- CHAR_LENGTH
+-- Alias for CHARACTER_LENGTH
+SELECT CHAR_LENGTH('World') AS string_length;
+
+-- CHECK
+-- Constraint to enforce a condition
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    price NUMERIC CHECK (price > 0)
+);
+
+-- CLASSIFIER
+-- Not a standard PostgreSQL keyword
+
+-- CLOB
+-- Character Large Object (in PostgreSQL, use TEXT instead)
+CREATE TABLE articles (id SERIAL PRIMARY KEY, content TEXT);
+
+-- CLOSE
+-- Closes a cursor
+DECLARE cur CURSOR FOR SELECT * FROM users;
+FETCH NEXT FROM cur;
+CLOSE cur;
+
+-- CLUSTER
+-- Physically reorders a table based on an index
+CLUSTER users USING users_pkey;
+
+-- COALESCE
+-- Returns the first non-null value in a list
+SELECT COALESCE(NULL, NULL, 'Hello', 'World') AS first_non_null;
+
+-- COLLATE
+-- Specifies collation (sort order) for strings
+SELECT * FROM users ORDER BY name COLLATE "en_US";
+
+-- COLLATION
+-- Sets the collation for the current session
+SET LC_COLLATE = 'en_US.UTF-8';
+
+-- COLLECT
+-- Not a standard PostgreSQL function (similar functionality can be achieved with ARRAY_AGG)
+SELECT ARRAY_AGG(name) AS collected_names FROM users;
+
+-- COLUMN
+-- Used in various DDL statements
+ALTER TABLE users ADD COLUMN email VARCHAR(255);
+
+-- COMMIT
+-- Commits a transaction
+BEGIN;
+UPDATE accounts SET balance = balance - 100 WHERE id = 1;
+COMMIT;
+
+-- CONDITION
+-- Used in exception handling in PL/pgSQL
+DO $$
+BEGIN
+    -- some operation
+EXCEPTION
+    WHEN unique_violation THEN
+        RAISE NOTICE 'Caught unique violation';
+END $$;
+
+-- CONNECT
+-- Not directly used in PostgreSQL (connection is handled by client libraries)
+
+-- CONNECTION
+-- Not directly used in PostgreSQL (connection is handled by client libraries)
+
+-- CONSTRAINT
+-- Defines a constraint on a table
+ALTER TABLE users ADD CONSTRAINT unique_email UNIQUE (email);
+
+-- CONSTRAINTS
+-- Used in information schema queries
+SELECT * FROM information_schema.table_constraints;
+
+-- CONSTRUCTOR
+-- Not a standard PostgreSQL keyword (more relevant in object-oriented databases)
+
+-- CONTAINS
+-- Not a standard PostgreSQL operator (similar functionality can be achieved with LIKE or regular expressions)
+SELECT * FROM products WHERE description LIKE '%keyword%';
+
+-- CONTENT
+-- Not a standard PostgreSQL keyword (might be used in XML functions)
+
+-- CONTINUE
+-- Used in PL/pgSQL loops
+DO $$
+DECLARE
+    i INT := 0;
+BEGIN
+    LOOP
+        i := i + 1;
+        IF i = 5 THEN
+            CONTINUE;
+        END IF;
+        RAISE NOTICE 'i: %', i;
+        EXIT WHEN i >= 10;
+    END LOOP;
+END $$;
+
+-- CONTROL
+-- Not a standard PostgreSQL keyword
+
+-- CONVERSION
+-- Creates a new encoding conversion
+CREATE CONVERSION myconv FOR 'UTF8' TO 'LATIN1' FROM myfunc;
+
+-- CONVERT
+-- Converts a string from one encoding to another
+SELECT CONVERT('some text' USING UTF8) AS converted_text;
+
+-- COPY
+-- Copies data between tables and files
+COPY users TO '/tmp/users.csv' WITH CSV HEADER;
+
+-- CORR
+-- Calculates the correlation coefficient
+SELECT CORR(price, quantity) FROM sales;
+
+-- CORRESPONDING
+-- Not commonly used in PostgreSQL
+
+-- COS
+-- Calculates the cosine
+SELECT COS(0.5) AS cosine;
+
+-- COSH
+-- Calculates the hyperbolic cosine
+SELECT COSH(0.5) AS hyperbolic_cosine;
+
+-- COUNT
+-- Counts rows or non-null values
+SELECT COUNT(*) FROM users;
+
+-- COVAR_POP
+-- Calculates population covariance
+SELECT COVAR_POP(price, quantity) FROM sales;
+
+-- COVAR_SAMP
+-- Calculates sample covariance
+SELECT COVAR_SAMP(price, quantity) FROM sales;
+
+-- CREATE
+-- Creates a new database object
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    department TEXT
+);
+
+-- CROSS
+-- Performs a cross join between tables
+SELECT * FROM table1 CROSS JOIN table2;
+
+-- CUBE
+-- Generates a result set with all possible combinations of specified dimensions
+SELECT department, job_title, SUM(salary)
+FROM employees
+GROUP BY CUBE(department, job_title);
+
+-- CUME_DIST
+-- Calculates the cumulative distribution
+SELECT employee_id, salary,
+       CUME_DIST() OVER (ORDER BY salary) AS cumulative_distribution
+FROM employees;
+
+-- CURRENT
+-- Refers to the current row in window functions
+SELECT name, salary,
+       salary - LAG(salary) OVER (ORDER BY salary) AS salary_difference
+FROM employees;
+
+-- CURRENT_CATALOG
+-- Returns the name of the current database
+SELECT CURRENT_CATALOG;
+
+-- CURRENT_DATE
+-- Returns the current date
+SELECT CURRENT_DATE;
+
+-- CURRENT_DEFAULT_TRANSFORM_GROUP
+-- Not commonly used in PostgreSQL
+
+-- CURRENT_PATH
+-- Not commonly used in PostgreSQL
+
+-- CURRENT_ROLE
+-- Returns the current role name
+SELECT CURRENT_ROLE;
+
+-- CURRENT_ROW
+-- Used in window function frame clauses
+SELECT name, salary,
+       AVG(salary) OVER (ORDER BY salary ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) AS moving_average
+FROM employees;
+
+-- CURRENT_SCHEMA
+-- Returns the current schema
+SELECT CURRENT_SCHEMA;
+
+-- CURRENT_TIME
+-- Returns the current time with time zone
+SELECT CURRENT_TIME;
+
+-- CURRENT_TIMESTAMP
+-- Returns the current timestamp with time zone
+SELECT CURRENT_TIMESTAMP;
+
+-- CURRENT_TRANSFORM_GROUP_FOR_TYPE
+-- Not commonly used in PostgreSQL
+
+-- CURRENT_USER
+-- Returns the name of the current user
+SELECT CURRENT_USER;
+
+-- CURSOR
+-- Declares a cursor for traversing query results
+DECLARE cur CURSOR FOR SELECT * FROM users;
+
+-- CYCLE
+-- Used in recursive queries to handle cycles
+WITH RECURSIVE subordinates AS (
+    SELECT employee_id, manager_id, name
+    FROM employees
+    WHERE name = 'John Doe'
+    UNION ALL
+    SELECT e.employee_id, e.manager_id, e.name
+    FROM employees e
+    INNER JOIN subordinates s ON s.employee_id = e.manager_id
+)
+CYCLE employee_id SET is_cycle USING path
+SELECT * FROM subordinates;
+
+-- DATA
+-- Used in various contexts, often as part of other keywords
+
+-- DATABASE
+-- Used in database-level operations
+CREATE DATABASE my_new_db;
+
+-- DATALINK
+-- Not commonly used in PostgreSQL
+
+-- DATE
+-- Date data type
+CREATE TABLE events (id SERIAL PRIMARY KEY, event_date DATE);
+
+-- DAY
+-- Extracts the day from a date
+SELECT EXTRACT(DAY FROM TIMESTAMP '2023-07-15 20:38:40') AS day;
+
+-- DB
+-- Not a standard PostgreSQL keyword
+
+-- DEALLOCATE
+-- Deallocates a prepared statement
+DEALLOCATE ALL;
+
+-- DEC
+-- Alias for DECIMAL
+CREATE TABLE financial (id SERIAL PRIMARY KEY, amount DEC(10,2));
+
+-- DECFLOAT
+-- Not a standard PostgreSQL data type (use NUMERIC instead)
+
+-- DECIMAL
+-- Exact numeric data type
+CREATE TABLE prices (id SERIAL PRIMARY KEY, price DECIMAL(10,2));
+
+-- DECLARE
+-- Declares a variable in PL/pgSQL
+DO $$
+DECLARE
+    x INTEGER := 10;
+BEGIN
+    RAISE NOTICE 'x is %', x;
+END $$;
+
+-- DEFAULT
+-- Specifies a default value for a column
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    is_active BOOLEAN DEFAULT true
+);
+
+-- DEFERRABLE
+-- Specifies constraint check timing
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT,
+    CONSTRAINT fk_customer
+        FOREIGN KEY (customer_id)
+        REFERENCES customers(id)
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+-- DEFERRED
+-- Used with DEFERRABLE to postpone constraint checks
+BEGIN;
+SET CONSTRAINTS ALL DEFERRED;
+-- operations
+COMMIT;
+
+-- DEFINE
+-- Not a standard PostgreSQL keyword
+
+-- DEFINED
+-- Not a standard PostgreSQL keyword
+
+-- DEFINER
+-- Specifies the definer of a function
+CREATE FUNCTION get_user_count() RETURNS INTEGER
+    SECURITY DEFINER
+AS $$
+    SELECT COUNT(*) FROM users;
+$$ LANGUAGE SQL;
+
+-- DELETE
+-- Deletes rows from a table
+DELETE FROM users WHERE inactive = true;
+
+-- DELIMITER
+-- Used in COPY commands to specify field separator
+COPY
+
+-- Previous examples...
+
+-- DELIMITER
+-- Used in COPY commands to specify field separator
+COPY users FROM '/tmp/users.csv' WITH (FORMAT CSV, DELIMITER ',');
+
+-- DELIMITERS
+-- Used in various string manipulation functions
+SELECT regexp_split_to_array('apple,banana,cherry', E',') AS fruits;
+
+-- DENSE_RANK
+-- Window function that assigns a rank with no gaps
+SELECT name, score,
+       DENSE_RANK() OVER (ORDER BY score DESC) AS rank
+FROM scores;
+
+-- DEPENDS
+-- Not a standard PostgreSQL keyword
+
+-- DEPTH
+-- Used in recursive queries
+WITH RECURSIVE org_chart AS (
+    SELECT id, name, manager_id, 1 AS depth
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, oc.depth + 1
+    FROM employees e
+    JOIN org_chart oc ON e.manager_id = oc.id
+)
+SELECT * FROM org_chart;
+
+-- DEREF
+-- Not commonly used in PostgreSQL (more relevant in object-relational databases)
+
+-- DESC
+-- Used in ORDER BY clauses for descending order
+SELECT * FROM products ORDER BY price DESC;
+
+-- DESCRIBE
+-- Not a standard PostgreSQL command (use \d in psql instead)
+-- \d tablename
+
+-- DESCRIPTOR
+-- Not commonly used in PostgreSQL
+
+-- DETACH
+-- Used with partitioned tables
+ALTER TABLE sales DETACH PARTITION sales_2020;
+
+-- DETERMINISTIC
+-- Specifies that a function always returns the same result for the same input
+CREATE FUNCTION add(a INT, b INT) RETURNS INT
+    LANGUAGE SQL
+    IMMUTABLE
+    RETURN a + b;
+
+-- DIAGNOSTICS
+-- Used in exception handling
+GET DIAGNOSTICS error_count = ROW_COUNT;
+
+-- DISCONNECT
+-- Not directly used in PostgreSQL (connection handling is typically done by client libraries)
+
+-- DISPATCH
+-- Not a standard PostgreSQL keyword
+
+-- DISTINCT
+-- Removes duplicate rows from a result set
+SELECT DISTINCT category FROM products;
+
+-- DLNEWCOPY
+-- Not a standard PostgreSQL keyword
+
+-- DLPREVIOUSCOPY
+-- Not a standard PostgreSQL keyword
+
+-- DLURLCOMPLETE
+-- Not a standard PostgreSQL keyword
+
+-- DLURLCOMPLETEONLY
+-- Not a standard PostgreSQL keyword
+
+-- DLURLCOMPLETEWRITE
+-- Not a standard PostgreSQL keyword
+
+-- DLURLPATH
+-- Not a standard PostgreSQL keyword
+
+-- DLURLPATHONLY
+-- Not a standard PostgreSQL keyword
+
+-- DLURLPATHWRITE
+-- Not a standard PostgreSQL keyword
+
+-- DLURLSCHEME
+-- Not a standard PostgreSQL keyword
+
+-- DLURLSERVER
+-- Not a standard PostgreSQL keyword
+
+-- DLVALUE
+-- Not a standard PostgreSQL keyword
+
+-- DO
+-- Executes an anonymous code block
+DO $$
+BEGIN
+    RAISE NOTICE 'Hello, World!';
+END $$;
+
+-- DOCUMENT
+-- Used in XML functions
+SELECT xmlelement(name document, xmlelement(name title, 'Hello'), xmlelement(name body, 'World'));
+
+-- DOMAIN
+-- Creates a user-defined data type with constraints
+CREATE DOMAIN us_postal_code AS TEXT
+CHECK(
+    VALUE ~ '^\d{5}$'
+    OR VALUE ~ '^\d{5}-\d{4}$'
+);
+
+-- DOUBLE
+-- Floating-point data type
+CREATE TABLE measurements (
+    id SERIAL PRIMARY KEY,
+    value DOUBLE PRECISION
+);
+
+-- DROP
+-- Removes a database object
+DROP TABLE IF EXISTS old_users;
+
+-- DYNAMIC
+-- Used in dynamic SQL statements
+EXECUTE format('SELECT * FROM %I', table_name);
+
+-- DYNAMIC_FUNCTION
+-- Not commonly used in PostgreSQL
+
+-- DYNAMIC_FUNCTION_CODE
+-- Not commonly used in PostgreSQL
+
+-- EACH
+-- Used in PL/pgSQL for iterating over arrays
+DO $$
+DECLARE
+    fruits TEXT[] := ARRAY['apple', 'banana', 'cherry'];
+    fruit TEXT;
+BEGIN
+    FOREACH fruit IN ARRAY fruits
+    LOOP
+        RAISE NOTICE 'Fruit: %', fruit;
+    END LOOP;
+END $$;
+
+-- ELEMENT
+-- Used with array functions
+SELECT UNNEST(ARRAY[1,2,3]) AS element;
+
+-- ELSE
+-- Used in conditional statements
+DO $$
+BEGIN
+    IF (SELECT COUNT(*) FROM users) > 100 THEN
+        RAISE NOTICE 'Many users';
+    ELSE
+        RAISE NOTICE 'Few users';
+    END IF;
+END $$;
+
+-- EMPTY
+-- Used in array comparisons
+SELECT ARRAY[]::INTEGER[] = '{}' AS is_empty;
+
+-- ENABLE
+-- Enables a trigger or rule
+ALTER TABLE users ENABLE TRIGGER update_timestamp;
+
+-- ENCODING
+-- Specifies the character encoding
+CREATE DATABASE mydb WITH ENCODING 'UTF8';
+
+-- ENCRYPTED
+-- Used in CREATE ROLE statements for password encryption
+CREATE ROLE myuser WITH LOGIN ENCRYPTED PASSWORD 'mypassword';
+
+-- END
+-- Ends a block in PL/pgSQL
+DO $$
+BEGIN
+    RAISE NOTICE 'Start';
+    -- some operations
+END $$;
+
+-- END-EXEC
+-- Not used in PostgreSQL (more common in embedded SQL)
+
+-- END_FRAME
+-- Used in window function frame clauses
+SELECT AVG(salary) OVER (
+    ORDER BY hire_date
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+) AS cumulative_avg
+FROM employees;
+
+-- END_PARTITION
+-- Used in window function partition clauses
+SELECT department, AVG(salary) OVER (
+    PARTITION BY department
+    ORDER BY salary
+    ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+) AS dept_avg
+FROM employees;
+
+-- ENFORCED
+-- Used with constraints
+ALTER TABLE orders ADD CONSTRAINT valid_status
+CHECK (status IN ('pending', 'completed', 'cancelled')) NOT ENFORCED;
+
+-- ENUM
+-- Creates an enumerated type
+CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
+
+-- EQUALS
+-- Used in some comparison contexts
+SELECT ARRAY[1,2,3] = ARRAY[1,2,3] AS arrays_equal;
+
+-- ERROR
+-- Used in exception handling
+DO $$
+BEGIN
+    -- some operation that might fail
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'An error occurred: %', SQLERRM;
+END $$;
+
+-- ESCAPE
+-- Used in LIKE patterns
+SELECT * FROM users WHERE name LIKE 'John\%' ESCAPE '\';
+
+-- EVERY
+-- Aggregate function that returns true if all input values are true
+SELECT EVERY(price > 0) FROM products;
+
+-- EXCEPT
+-- Set operation that returns rows from the first query not in the second
+SELECT * FROM set1 EXCEPT SELECT * FROM set2;
+
+-- EXCEPTION
+-- Used in PL/pgSQL for error handling
+DO $$
+BEGIN
+    -- some operation
+EXCEPTION
+    WHEN division_by_zero THEN
+        RAISE NOTICE 'Cannot divide by zero';
+END $$;
+
+-- EXEC
+-- Not commonly used in PostgreSQL (more common in other SQL dialects)
+
+-- EXECUTE
+-- Executes a prepared statement or dynamic SQL
+PREPARE my_query AS SELECT * FROM users WHERE id = $1;
+EXECUTE my_query(5);
+
+-- EXISTS
+-- Subquery operator that returns true if the subquery returns any rows
+SELECT * FROM orders WHERE EXISTS (SELECT 1 FROM order_items WHERE order_items.order_id = orders.id);
+
+-- EXP
+-- Mathematical function that returns e raised to the power of a number
+SELECT EXP(1) AS e_value;
+
+-- EXPLAIN
+-- Shows the execution plan of a query
+EXPLAIN SELECT * FROM users WHERE id = 5;
+
+-- EXPRESSION
+-- Not a keyword itself, but refers to any valid SQL expression
+SELECT (price * quantity) AS total FROM order_items;
+
+-- EXTENSION
+-- Loads additional functionality into PostgreSQL
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- EXTERNAL
+-- Used with some external data wrappers
+CREATE FOREIGN TABLE ext_table (id INT, name TEXT)
+SERVER my_server
+OPTIONS (filename '/path/to/file', format 'csv');
+
+-- EXTRACT
+-- Extracts a part from a date/time value
+SELECT EXTRACT(YEAR FROM TIMESTAMP '2023-07-16 20:38:40') AS year;
+
+-- FALSE
+-- Boolean false value
+SELECT * FROM users WHERE is_active = FALSE;
+
+-- FETCH
+-- Retrieves rows from a cursor
+DECLARE cur CURSOR FOR SELECT * FROM users;
+FETCH NEXT FROM cur;
+
+-- FILTER
+-- Used with aggregate functions to filter input rows
+SELECT COUNT(*) FILTER (WHERE status = 'completed') AS completed_count FROM orders;
+
+-- FINAL
+-- Used in SECURITY DEFINER functions
+CREATE FUNCTION get_salary(emp_id INT) RETURNS NUMERIC
+    SECURITY DEFINER
+    RETURNS NULL ON NULL INPUT
+    LANGUAGE SQL
+AS $$
+    SELECT salary FROM employees WHERE id = emp_id;
+$$;
+
+-- FIRST
+-- Used in window functions
+SELECT name, salary,
+       FIRST_VALUE(salary) OVER (ORDER BY salary DESC) AS highest_salary
+FROM employees;
+
+-- FIRST_VALUE
+-- Window function that returns the first value in an ordered set
+SELECT name, department, salary,
+       FIRST_VALUE(salary) OVER (PARTITION BY department ORDER BY salary DESC) AS highest_dept_salary
+FROM employees;
+
+-- FLAG
+-- Not a standard PostgreSQL keyword
+
+-- FLOAT
+-- Floating-point data type
+CREATE TABLE measurements (
+    id SERIAL PRIMARY KEY,
+    value FLOAT
+);
+
+-- FLOOR
+-- Rounds down to the nearest integer
+SELECT FLOOR(3.7) AS rounded_down;
+
+-- FOLLOWING
+-- Used in window function frame clauses
+SELECT name, salary,
+       AVG(salary) OVER (ORDER BY salary ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) AS avg_with_next
+FROM employees;
+
+-- FOR
+-- Used in various contexts, such as loops
+DO $$
+BEGIN
+    FOR i IN 1..5 LOOP
+        RAISE NOTICE 'Iteration %', i;
+    END LOOP;
+END $$;
+
+-- FORCE
+-- Not commonly used in PostgreSQL
+
+-- FOREIGN
+-- Used in foreign key constraints and foreign tables
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- FORMAT
+-- Function for formatting strings
+SELECT FORMAT('Hello, %s', 'World') AS greeting;
+
+-- FORWARD
+-- Used with cursors
+DECLARE cur SCROLL CURSOR FOR SELECT * FROM users;
+FETCH FORWARD 2 FROM cur;
+
+-- FOUND
+-- Used in PL/pgSQL to check if a query returned any rows
+DO $$
+DECLARE
+    user_row users%ROWTYPE;
+BEGIN
+    SELECT * INTO user_row FROM users WHERE id = 1;
+    IF FOUND THEN
+        RAISE NOTICE 'User found: %', user_row.name;
+    ELSE
+        RAISE NOTICE 'User not found';
+    END IF;
+END $$;
+
+-- FRAME_ROW
+-- Used in window function frame clauses
+SELECT name, salary,
+       AVG(salary) OVER (ORDER BY salary ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS local_avg
+FROM employees;
+
+-- FREE
+-- Not commonly used in PostgreSQL
+
+-- FREEZE
+-- Used in VACUUM commands
+VACUUM FREEZE users;
+
+-- FROM
+-- Specifies the table in a SELECT statement
+SELECT * FROM users;
+
+-- FULL
+-- Used in FULL OUTER JOIN
+SELECT * FROM table1 FULL OUTER JOIN table2 ON table1.id = table2.id;
+
+-- FUNCTION
+-- Creates a new function
+CREATE OR REPLACE FUNCTION add_numbers(a INT, b INT) RETURNS INT AS $$
+BEGIN
+    RETURN a + b;
+END;
+$$ LANGUAGE plpgsql;
+
+-- FUSION
+-- Not a standard PostgreSQL keyword
+
+-- G
+-- Not a standard PostgreSQL keyword
+
+-- GENERAL
+-- Not commonly used in PostgreSQL
+
+-- GENERATED
+-- Used for generated columns
+CREATE TABLE squares (
+    num INT PRIMARY KEY,
+    square INT GENERATED ALWAYS AS (num * num) STORED
+);
+
+-- GET
+-- Used in GET DIAGNOSTICS statements
+DO $$
+DECLARE
+    rows_affected INT;
+BEGIN
+    DELETE FROM inactive_users;
+    GET DIAGNOSTICS rows_affected = ROW_COUNT;
+    RAISE NOTICE '% rows deleted', rows_affected;
+END $$;
+
+-- GLOBAL
+-- Used with some variable declarations
+-- Note: PostgreSQL doesn't support true global variables across sessions
+SET myvariable = 'some value';
+
+-- GO
+-- Not used in PostgreSQL (more common in other SQL dialects)
+
+-- GOTO
+-- Not used in PostgreSQL
+
+-- GRANT
+-- Gives specific privileges to a role
+GRANT SELECT, INSERT ON users TO read_write_role;
+
+-- GRANTED
+-- Used in information schema queries about privileges
+SELECT * FROM information_schema.role_table_grants WHERE grantee = 'myuser';
+
+-- GREATEST
+-- Returns the largest value in a list of expressions
+SELECT GREATEST(5, 3, 7, 1) AS largest_value;
+
+-- GROUP
+-- Used in GROUP BY clauses
+SELECT department, AVG(salary) FROM employees GROUP BY department;
+
+-- GROUPING
+-- Used in GROUPING SETS, CUBE, and ROLLUP operations
+SELECT department, job_title, SUM(salary),
+       GROUPING(department, job_title) AS grouping
+FROM employees
+GROUP BY GROUPING SETS ((department, job_title), (department), ());
+
+-- GROUPS
+-- Used in window function frame clauses
+SELECT name, salary,
+       AVG(salary) OVER (ORDER BY salary GROUPS BETWEEN 1 PRECEDING AND 1 FOLLOWING) AS group_avg
+FROM employees;
+
+-- HAVING
+-- Specifies a search condition for a group or aggregate
+SELECT department, AVG(salary)
+FROM employees
+GROUP BY department
+HAVING AVG(salary) > 50000;
+
+-- HEADER
+-- Used in COPY commands
+COPY users TO '/tmp/users.csv' WITH (FORMAT CSV, HEADER);
+
+-- HEX
+-- Function to convert a number to hexadecimal
+SELECT HEX(255) AS hex_value;
+
+-- HIERARCHY
+-- Not commonly used in PostgreSQL
+
+-- HOLD
+-- Used with cursors to keep them open across transactions
+DECLARE cur CURSOR WITH HOLD FOR SELECT * FROM users;
+
+-- HOUR
+-- Extracts the hour from a time or timestamp
+SELECT EXTRACT(HOUR FROM TIMESTAMP '2023-07-16 20:38:40') AS hour;
+
+-- ID
+-- Often used as a column name, but not a keyword itself
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);
+
+-- IDENTITY
+-- Used for identity columns (similar to auto-increment)
+CREATE TABLE users (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name TEXT
+);
+
+-- IF
+-- Used in conditional statements
+DO $$
+BEGIN
+    IF (SELECT COUNT(*) FROM users) > 100 THEN
+        RAISE NOTICE 'Many users';
+    END IF;
+END $$;
+
+-- IGNORE
+-- Not commonly used in PostgreSQL
+
+-- ILIKE
+-- Case-insensitive pattern matching
+SELECT * FROM users WHERE name ILIKE 'john%';
+
+-- IMMEDIATE
+-- Used with constraints
+SET CONSTRAINTS ALL IMMEDIATE;
+
+-- IMMEDIATELY
+-- Used in various contexts, often with triggers
+CREATE TRIGGER update_timestamp
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION update_modified_column();
+
+-- IMMUTABLE
+-- Specifies that a function always returns the same result for the same input
+CREATE FUNCTION square(x FLOAT) RETURNS FLOAT AS $$
+    SELECT x * x;
+$$ LANGUAGE SQL IMMUTABLE;
+
+-- IMPLEMENTATION
+-- Not commonly used in PostgreSQL
+
+-- IMPLICIT
+-- Used in type casts
+SELECT CAST('42' AS INTEGER);  -- explicit cast
+SELECT '42'::INTEGER;  -- implicit cast
+
+-- IMPORT
+-- Used with foreign data wrappers
+IMPORT FOREIGN SCHEMA public
+    FROM SERVER my_server INTO my_schema;
+
+-- IN
+-- Used in various contexts, often for subqueries or value lists
+SELECT * FROM users WHERE status IN ('active', 'pending');
+
+-- INCLUDE
+-- Used in index
+
+-- Previous examples...
+
+-- INCLUDE
+-- Used in index creation to add non-key columns
+CREATE INDEX idx_users_name ON users (name) INCLUDE (email);
+
+-- INCLUDING
+-- Used in table inheritance
+CREATE TABLE cities (
+    name text,
+    population integer
+) INCLUDING ALL;
+
+-- INCREMENT
+-- Used in sequence definitions
+CREATE SEQUENCE my_seq INCREMENT BY 2 START WITH 1;
+
+-- INDENT
+-- Not a standard PostgreSQL keyword
+
+-- INDEX
+-- Creates an index on a table column
+CREATE INDEX idx_users_email ON users (email);
+
+-- INDEXES
+-- Used in system catalog queries
+SELECT * FROM pg_indexes WHERE tablename = 'users';
+
+-- INDICATOR
+-- Not commonly used in PostgreSQL
+
+-- INHERIT
+-- Used in table inheritance
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE managers INHERIT (employees);
+
+-- INHERITS
+-- Another form of INHERIT
+CREATE TABLE supervisors INHERITS (employees);
+
+-- INITIAL
+-- Used in sequence definitions
+CREATE SEQUENCE my_seq START 100;
+
+-- INITIALLY
+-- Used with deferrable constraints
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) DEFERRABLE INITIALLY DEFERRED
+);
+
+-- INLINE
+-- Used in function definitions
+CREATE OR REPLACE FUNCTION add(a INTEGER, b INTEGER) RETURNS INTEGER AS $$
+    SELECT a + b;
+$$ LANGUAGE SQL INLINE;
+
+-- INNER
+-- Used in INNER JOIN operations
+SELECT * FROM users INNER JOIN orders ON users.id = orders.user_id;
+
+-- INOUT
+-- Used in function parameters
+CREATE FUNCTION swap(INOUT x INT, INOUT y INT) AS $$
+BEGIN
+    SELECT x, y INTO y, x;
+END;
+$$ LANGUAGE plpgsql;
+
+-- INPUT
+-- Used in function definitions
+CREATE FUNCTION my_func(IN param1 INT, OUT param2 INT) AS $$
+BEGIN
+    param2 := param1 * 2;
+END;
+$$ LANGUAGE plpgsql;
+
+-- INSENSITIVE
+-- Used with cursors
+DECLARE cur INSENSITIVE CURSOR FOR SELECT * FROM users;
+
+-- INSERT
+-- Inserts new rows into a table
+INSERT INTO users (name, email) VALUES ('John Doe', 'john@example.com');
+
+-- INSTANCE
+-- Not commonly used in PostgreSQL
+
+-- INSTANTIABLE
+-- Not commonly used in PostgreSQL
+
+-- INSTEAD
+-- Used in INSTEAD OF triggers for views
+CREATE OR REPLACE FUNCTION insert_user_view() RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO users (name, email) VALUES (NEW.name, NEW.email);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER insert_user_view_trigger
+INSTEAD OF INSERT ON user_view
+FOR EACH ROW EXECUTE FUNCTION insert_user_view();
+
+-- INT
+-- Integer data type
+CREATE TABLE scores (id SERIAL PRIMARY KEY, value INT);
+
+-- INTEGER
+-- Alias for INT
+CREATE TABLE counts (id SERIAL PRIMARY KEY, total INTEGER);
+
+-- INTEGRITY
+-- Used in constraint definitions
+ALTER TABLE users ADD CONSTRAINT email_check CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z]{2,}$');
+
+-- INTERSECT
+-- Set operation that returns rows common to two queries
+SELECT * FROM set1 INTERSECT SELECT * FROM set2;
+
+-- INTERSECTION
+-- Used with geometric data types
+SELECT box '((0,0),(1,1))' * box '((0.5,0.5),(2,2))' AS intersection;
+
+-- INTERVAL
+-- Time interval data type
+SELECT INTERVAL '1 day 2 hours 3 minutes' AS time_period;
+
+-- INTO
+-- Used in various contexts, often for inserting query results into a table
+SELECT * INTO backup_users FROM users;
+
+-- INVOKER
+-- Used in function security settings
+CREATE FUNCTION get_user_count() RETURNS INTEGER
+    SECURITY INVOKER
+AS $$
+    SELECT COUNT(*) FROM users;
+$$ LANGUAGE SQL;
+
+-- IS
+-- Used for NULL comparisons and boolean tests
+SELECT * FROM users WHERE email IS NULL;
+
+-- ISNULL
+-- Checks if a value is NULL
+SELECT * FROM users WHERE email ISNULL;
+
+-- ISOLATION
+-- Used in transaction isolation level settings
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+-- JOIN
+-- Combines rows from two or more tables
+SELECT * FROM users JOIN orders ON users.id = orders.user_id;
+
+-- JSON_ARRAY
+-- Creates a JSON array
+SELECT JSON_BUILD_ARRAY(1, 2, 'three', 4.5) AS json_array;
+
+-- JSON_ARRAYAGG
+-- Aggregates values into a JSON array
+SELECT JSON_AGG(name) AS names FROM users;
+
+-- JSON_EXISTS
+-- Checks if a JSON path exists
+SELECT JSON_EXISTS('{"a": 1, "b": 2}', '$.a') AS a_exists;
+
+-- JSON_OBJECT
+-- Creates a JSON object
+SELECT JSON_BUILD_OBJECT('name', 'John', 'age', 30) AS json_object;
+
+-- JSON_OBJECTAGG
+-- Aggregates key-value pairs into a JSON object
+SELECT JSON_OBJECT_AGG(name, salary) AS salary_by_name FROM employees;
+
+-- JSON_QUERY
+-- Extracts a JSON value
+SELECT JSON_EXTRACT_PATH('{"a": {"b": 1}}', 'a', 'b') AS extracted_value;
+
+-- JSON_TABLE
+-- Not directly supported in PostgreSQL, but similar functionality can be achieved with JSON functions
+
+-- JSON_TABLE_PRIMITIVE
+-- Not directly supported in PostgreSQL
+
+-- JSON_VALUE
+-- Extracts a scalar value from JSON
+SELECT (JSON_EXTRACT_PATH('{"name": "John"}', 'name')::json->>'name') AS name;
+
+-- K
+-- Not a standard PostgreSQL keyword
+
+-- KEEP
+-- Used in some aggregate functions
+SELECT FIRST_VALUE(salary) KEEP (DENSE_RANK FIRST ORDER BY hire_date)
+FROM employees;
+
+-- KEY
+-- Used in various contexts, often for constraints
+ALTER TABLE users ADD PRIMARY KEY (id);
+
+-- KEYS
+-- Used in system catalog queries
+SELECT * FROM information_schema.key_column_usage WHERE table_name = 'users';
+
+-- KEY_MEMBER
+-- Not commonly used in PostgreSQL
+
+-- KEY_TYPE
+-- Not commonly used in PostgreSQL
+
+-- LABEL
+-- Used in some extensions and custom types
+
+-- LAG
+-- Window function that accesses data from a previous row
+SELECT name, salary,
+       LAG(salary) OVER (ORDER BY salary) AS previous_salary
+FROM employees;
+
+-- LANGUAGE
+-- Specifies the language of a function
+CREATE FUNCTION hello() RETURNS text AS $$
+    SELECT 'Hello, World!';
+$$ LANGUAGE SQL;
+
+-- LARGE
+-- Used with OBJECT identifier
+SELECT OID, relname FROM pg_class WHERE relname = 'large_table';
+
+-- LAST
+-- Used in various contexts, often in window functions
+SELECT name, salary,
+       LAST_VALUE(salary) OVER (ORDER BY salary RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS highest_salary
+FROM employees;
+
+-- LAST_VALUE
+-- Window function that returns the last value in an ordered set
+SELECT name, department, salary,
+       LAST_VALUE(salary) OVER (PARTITION BY department ORDER BY salary
+           RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS highest_dept_salary
+FROM employees;
+
+-- LATERAL
+-- Allows subqueries in the FROM clause to reference columns from preceding items
+SELECT * FROM users u, LATERAL (SELECT * FROM orders o WHERE o.user_id = u.id LIMIT 3) recent_orders;
+
+-- LEAD
+-- Window function that accesses data from a subsequent row
+SELECT name, salary,
+       LEAD(salary) OVER (ORDER BY salary) AS next_salary
+FROM employees;
+
+-- LEADING
+-- Used in string functions
+SELECT TRIM(LEADING 'x' FROM 'xxxHello') AS trimmed_string;
+
+-- LEAKPROOF
+-- Declares a function as leakproof (doesn't reveal information about its arguments)
+CREATE FUNCTION leakproof_add(integer, integer) RETURNS integer
+    LANGUAGE SQL STRICT IMMUTABLE LEAKPROOF
+    AS 'SELECT $1 + $2';
+
+-- LEAST
+-- Returns the smallest value in a list of expressions
+SELECT LEAST(5, 3, 7, 1) AS smallest_value;
+
+-- LEFT
+-- String function that returns the leftmost characters
+SELECT LEFT('Hello, World!', 5) AS left_substring;
+
+-- LENGTH
+-- Returns the length of a string
+SELECT LENGTH('Hello') AS string_length;
+
+-- LEVEL
+-- Used in recursive queries and transaction isolation
+WITH RECURSIVE subordinates AS (
+    SELECT employee_id, manager_id, name, 1 AS level
+    FROM employees
+    WHERE name = 'John Doe'
+    UNION ALL
+    SELECT e.employee_id, e.manager_id, e.name, s.level + 1
+    FROM employees e
+    INNER JOIN subordinates s ON s.employee_id = e.manager_id
+)
+SELECT * FROM subordinates;
+
+-- LIKE
+-- Pattern matching operator
+SELECT * FROM users WHERE name LIKE 'J%';
+
+-- LIMIT
+-- Limits the number of rows returned by a query
+SELECT * FROM users ORDER BY id LIMIT 10;
+
+-- LISTEN
+-- Sets up a listener for an asynchronous notification
+LISTEN channel_name;
+
+-- LN
+-- Natural logarithm function
+SELECT LN(10) AS natural_log;
+
+-- LOAD
+-- Loads a shared library file
+LOAD 'my_library';
+
+-- LOCAL
+-- Used in various contexts, often with temporary tables
+CREATE LOCAL TEMPORARY TABLE temp_users (LIKE users);
+
+-- LOCALTIME
+-- Returns the current time without time zone
+SELECT LOCALTIME;
+
+-- LOCALTIMESTAMP
+-- Returns the current timestamp without time zone
+SELECT LOCALTIMESTAMP;
+
+-- LOCATION
+-- Used with foreign tables
+CREATE FOREIGN TABLE foreign_users (
+    id INTEGER,
+    name TEXT
+) SERVER my_fdw_server
+OPTIONS (filename '/path/to/users.csv', format 'csv');
+
+-- LOCATOR
+-- Not commonly used in PostgreSQL
+
+-- LOCK
+-- Locks a table
+LOCK TABLE users IN SHARE MODE;
+
+-- LOCKED
+-- Used in system views related to locks
+SELECT * FROM pg_locks WHERE relation = 'users'::regclass;
+
+-- LOG
+-- Logarithm function
+SELECT LOG(10) AS log_base_10;
+
+-- LOGGED
+-- Used with tables to specify that changes should be logged
+CREATE TABLE audit_log (
+    id SERIAL PRIMARY KEY,
+    action TEXT,
+    timestamp TIMESTAMP DEFAULT NOW()
+) WITH (OIDS=FALSE);
+
+-- LOGGING
+-- Used in CREATE TABLE statements
+CREATE TABLE my_table (id SERIAL PRIMARY KEY) WITH (OIDS=FALSE, logging=true);
+
+-- LOGICAL
+-- Used in replication contexts
+SELECT * FROM pg_replication_slots WHERE slot_type = 'logical';
+
+-- LOOP
+-- Used in PL/pgSQL for looping
+DO $$
+DECLARE
+    i INT := 0;
+BEGIN
+    LOOP
+        i := i + 1;
+        EXIT WHEN i > 10;
+        RAISE NOTICE 'i: %', i;
+    END LOOP;
+END $$;
+
+-- LOWER
+-- String function that converts to lowercase
+SELECT LOWER('Hello, World!') AS lowercase_string;
+
+-- M
+-- Not a standard PostgreSQL keyword
+
+-- MAP
+-- Not commonly used in PostgreSQL
+
+-- MAPPING
+-- Used with foreign data wrappers
+CREATE USER MAPPING FOR local_user
+SERVER foreign_server
+OPTIONS (user 'foreign_user', password 'secret');
+
+-- MATCH
+-- Used in foreign key constraints
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) MATCH FULL
+);
+
+-- MATCHED
+-- Used in MERGE statements (available in PostgreSQL 15+)
+MERGE INTO target_table t
+USING source_table s
+ON t.id = s.id
+WHEN MATCHED THEN
+    UPDATE SET column1 = s.column1, column2 = s.column2
+WHEN NOT MATCHED THEN
+    INSERT (id, column1, column2)
+    VALUES (s.id, s.column1, s.column2);
+
+-- MATERIALIZED
+-- Used with materialized views
+CREATE MATERIALIZED VIEW mv_user_stats AS
+SELECT department, COUNT(*) as user_count
+FROM users
+GROUP BY department;
+
+-- MAX
+-- Aggregate function that returns the maximum value
+SELECT MAX(salary) FROM employees;
+
+-- MAXVALUE
+-- Used in sequence definitions
+CREATE SEQUENCE my_sequence
+    INCREMENT BY 1
+    MINVALUE 1
+    MAXVALUE 1000
+    START WITH 1
+    CYCLE;
+
+-- MEASURE
+-- Not commonly used in PostgreSQL
+
+-- MEASURES
+-- Not commonly used in PostgreSQL
+
+-- MEMBER
+-- Not commonly used in PostgreSQL
+
+-- MERGE
+-- Performs insert, update, or delete operations based on a join condition (available in PostgreSQL 15+)
+MERGE INTO target_table t
+USING source_table s
+ON t.id = s.id
+WHEN MATCHED THEN
+    UPDATE SET column1 = s.column1
+WHEN NOT MATCHED THEN
+    INSERT (id, column1) VALUES (s.id, s.column1);
+
+-- METHOD
+-- Not commonly used in PostgreSQL
+
+-- MIN
+-- Aggregate function that returns the minimum value
+SELECT MIN(salary) FROM employees;
+
+-- MINUS
+-- Not used in PostgreSQL (use EXCEPT instead)
+SELECT * FROM set1 EXCEPT SELECT * FROM set2;
+
+-- MINUTE
+-- Extracts the minute from a time or timestamp
+SELECT EXTRACT(MINUTE FROM TIMESTAMP '2023-07-16 20:38:40') AS minute;
+
+-- MINVALUE
+-- Used in sequence definitions
+CREATE SEQUENCE my_sequence
+    INCREMENT BY 1
+    MINVALUE 1
+    MAXVALUE 1000
+    START WITH 1
+    CYCLE;
+
+-- MOD
+-- Modulo operator
+SELECT 15 % 4 AS remainder;  -- PostgreSQL uses % for modulo
+
+-- MODE
+-- Used in various contexts, such as function volatility
+CREATE FUNCTION get_random() RETURNS INTEGER AS $$
+    SELECT floor(random() * 100 + 1)::INTEGER;
+$$ LANGUAGE SQL VOLATILE;
+
+-- MODIFIES
+-- Not commonly used in PostgreSQL
+
+-- MODULE
+-- Not commonly used in PostgreSQL
+
+-- MONTH
+-- Extracts the month from a date or timestamp
+SELECT EXTRACT(MONTH FROM TIMESTAMP '2023-07-16 20:38:40') AS month;
+
+-- MORE
+-- Not commonly used in PostgreSQL
+
+-- MOVE
+-- Moves the cursor without retrieving data
+DECLARE cur CURSOR FOR SELECT * FROM users;
+MOVE NEXT FROM cur;
+
+-- MULTISET
+-- Not commonly used in PostgreSQL
+
+-- MUMPS
+-- Not used in PostgreSQL
+
+-- NAME
+-- Used as a data type for object names
+CREATE TABLE objects (id SERIAL PRIMARY KEY, obj_name NAME);
+
+-- NAMES
+-- Used in SET statements for client encoding
+SET NAMES 'UTF8';
+
+-- NAMESPACE
+-- Used in schema-related operations
+CREATE SCHEMA my_namespace;
+
+-- NATIONAL
+-- Used with character string types
+CREATE TABLE notes (id SERIAL PRIMARY KEY, content NATIONAL CHARACTER VARYING(1000));
+
+-- NATURAL
+-- Used in NATURAL JOIN operations
+SELECT * FROM users NATURAL JOIN orders;
+
+-- NCHAR
+-- National character string type
+CREATE TABLE codes (id SERIAL PRIMARY KEY, code NCHAR(5));
+
+-- NCLOB
+-- Not used in PostgreSQL (use TEXT instead)
+CREATE TABLE documents (id SERIAL PRIMARY KEY, content TEXT);
+
+-- NESTED
+-- Not commonly used in PostgreSQL
+
+-- NESTING
+-- Not commonly used in PostgreSQL
+
+-- NEW
+-- Used in trigger functions
+CREATE FUNCTION update_timestamp() RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- NEXT
+-- Used with sequences and cursors
+SELECT NEXTVAL('my_sequence');
+
+-- NFC
+-- Used in Unicode normalization functions
+SELECT NORMALIZE('ñ', NFC);
+
+-- NFD
+-- Used in Unicode normalization functions
+SELECT NORMALIZE('ñ', NFD);
+
+-- NFKC
+
+```
+
+```sql
+
+-- LEFT
+SELECT employees.name, departments.name AS department_name
+FROM employees
+LEFT JOIN departments ON employees.department_id = departments.id;
+
+-- LENGTH
+SELECT name, LENGTH(name) AS name_length
+FROM employees
+WHERE LENGTH(name) > 10;
+
+-- LEVEL (used in recursive queries)
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 1 AS level
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT * FROM employee_hierarchy;
+
+-- LIBRARY (Not a standard SQL keyword, but used in some extensions)
+-- Example using PL/Python:
+CREATE OR REPLACE FUNCTION py_max(a integer, b integer)
+RETURNS integer
+AS $$
+    return max(a, b)
+$$ LANGUAGE plpython3u;
+
+-- LIKE
+SELECT * FROM employees
+WHERE name LIKE 'J%';
+
+-- LIKE_REGEX (PostgreSQL uses ~ for regex matching instead)
+SELECT * FROM employees
+WHERE name ~ '^J.*n$';
+
+-- LIMIT
+SELECT * FROM employees
+ORDER BY salary DESC
+LIMIT 10;
+
+-- LINK (Not a standard SQL keyword, but used in some contexts for linking tables)
+-- Example using a foreign key constraint:
+ALTER TABLE orders
+ADD CONSTRAINT fk_customer
+FOREIGN KEY (customer_id) REFERENCES customers(id);
+
+-- LISTAGG (PostgreSQL uses STRING_AGG instead)
+SELECT department_id, STRING_AGG(name, ', ' ORDER BY name) AS employee_list
+FROM employees
+GROUP BY department_id;
+
+-- LISTEN
+-- In a session:
+LISTEN channel_name;
+
+-- LN (natural logarithm)
+SELECT name, salary, LN(salary) AS ln_salary
+FROM employees;
+
+-- LOAD (used with extensions, e.g., pgcrypto)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- LOCAL (used in transaction control)
+BEGIN;
+SAVEPOINT my_savepoint;
+-- Some operations
+ROLLBACK TO SAVEPOINT my_savepoint;
+COMMIT;
+
+-- LOCALTIME
+SELECT LOCALTIME;
+
+-- LOCALTIMESTAMP
+SELECT LOCALTIMESTAMP;
+
+-- LOCATION (used in CREATE FOREIGN TABLE)
+CREATE FOREIGN TABLE foreign_employees (
+    id INT,
+    name VARCHAR(100)
+)
+SERVER foreign_server
+OPTIONS (filename '/path/to/file', format 'csv');
+
+-- LOCK
+BEGIN;
+LOCK TABLE employees IN SHARE MODE;
+-- Perform operations
+COMMIT;
+
+-- LOG
+SELECT name, salary, LOG(salary) AS log_salary
+FROM employees;
+
+-- LOG10
+SELECT name, salary, LOG10(salary) AS log10_salary
+FROM employees;
+
+-- LOGGED (used with unlogged tables)
+CREATE UNLOGGED TABLE temp_data (
+    id SERIAL PRIMARY KEY,
+    data TEXT
+);
+
+ALTER TABLE temp_data SET LOGGED;
+
+-- LOWER
+SELECT LOWER(name) AS lowercase_name
+FROM employees;
+
+-- MAP (not a standard SQL keyword, but used in some extensions)
+-- Example using hstore extension:
+CREATE EXTENSION IF NOT EXISTS hstore;
+SELECT 'a=>1, b=>2'::hstore;
+
+-- MATCH (used in foreign key constraints)
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(id) MATCH FULL
+);
+
+-- MATERIALIZED
+CREATE MATERIALIZED VIEW high_salary_employees AS
+SELECT * FROM employees WHERE salary > 100000
+WITH DATA;
+
+-- MAX
+SELECT department_id, MAX(salary) AS max_salary
+FROM employees
+GROUP BY department_id;
+
+-- MAXVALUE (used in sequences)
+CREATE SEQUENCE my_sequence
+INCREMENT 1
+MINVALUE 1
+MAXVALUE 1000000
+START 1;
+
+-- MERGE
+MERGE INTO customers c
+USING (SELECT * FROM new_customers) nc
+ON (c.id = nc.id)
+WHEN MATCHED THEN
+    UPDATE SET name = nc.name, email = nc.email
+WHEN NOT MATCHED THEN
+    INSERT (id, name, email) VALUES (nc.id, nc.name, nc.email);
+
+-- MIN
+SELECT department_id, MIN(salary) AS min_salary
+FROM employees
+GROUP BY department_id;
+
+-- MINUTE
+SELECT EXTRACT(MINUTE FROM timestamp_column) AS minute
+FROM time_table;
+
+-- MOD
+SELECT employee_id, salary, MOD(salary, 1000) AS salary_remainder
+FROM employees;
+
+-- MODE (used in window functions)
+SELECT
+    department_id,
+    salary,
+    MODE() WITHIN GROUP (ORDER BY salary) OVER (PARTITION BY department_id) AS mode_salary
+FROM employees;
+
+-- MONTH
+SELECT EXTRACT(MONTH FROM hire_date) AS hire_month
+FROM employees;
+
+-- MOVE (used with cursors)
+BEGIN;
+DECLARE emp_cursor CURSOR FOR SELECT * FROM employees;
+MOVE FORWARD 5 FROM emp_cursor;
+FETCH NEXT FROM emp_cursor;
+CLOSE emp_cursor;
+COMMIT;
+
+-- MULTISET (not directly supported in PostgreSQL, but similar functionality can be achieved with arrays)
+SELECT ARRAY(SELECT name FROM employees WHERE department_id = 1) AS employee_names;
+
+-- NAME (used in various contexts, e.g., column names, table names)
+ALTER TABLE employees RENAME COLUMN employee_name TO full_name;
+
+-- NAMES (used in various contexts, e.g., column names, table names)
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'employees';
+
+-- NATIONAL (used with character types)
+CREATE TABLE example (
+    id SERIAL PRIMARY KEY,
+    description NATIONAL CHARACTER VARYING(200)
+);
+
+-- NATURAL (used in joins)
+SELECT * FROM employees
+NATURAL JOIN departments;
+
+-- NCHAR (national character type)
+CREATE TABLE example (
+    id SERIAL PRIMARY KEY,
+    code NCHAR(10)
+);
+
+-- NEW (used in triggers)
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.modified_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- NEXT (used with sequences)
+SELECT NEXTVAL('my_sequence');
+
+-- NO (used in various contexts, e.g., NO ACTION in foreign key constraints)
+ALTER TABLE orders
+ADD CONSTRAINT fk_customer
+FOREIGN KEY (customer_id) REFERENCES customers(id)
+ON DELETE NO ACTION;
+
+-- NONE (used in various contexts, e.g., DEFAULT NONE in CREATE FUNCTION)
+CREATE FUNCTION my_function(INT) RETURNS INT
+LANGUAGE SQL
+AS 'SELECT $1 * 2'
+SECURITY DEFINER
+SET search_path = admin, public, pg_temp;
+
+-- NOT
+SELECT * FROM employees WHERE NOT (salary > 50000);
+
+-- NOTNULL
+CREATE TABLE example (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+-- NULLIF
+SELECT name, NULLIF(department, '') AS department
+FROM employees;
+
+-- NULLS (used in ORDER BY clauses)
+SELECT * FROM employees
+ORDER BY manager_id NULLS FIRST;
+
+-- NUMERIC
+CREATE TABLE financial_data (
+    id SERIAL PRIMARY KEY,
+    amount NUMERIC(10, 2)
+);
+
+-- OBJECT (used in various contexts, e.g., object identifiers)
+SELECT oid, relname
+FROM pg_class
+WHERE relkind = 'r';
+
+-- OFFSET
+SELECT * FROM employees
+ORDER BY hire_date
+OFFSET 10 LIMIT 5;
+
+-- ON
+CREATE INDEX idx_employee_name ON employees (name);
+
+-- ONLY (used in table inheritance)
+CREATE TABLE cities (
+    name TEXT,
+    population INT
+);
+
+CREATE TABLE capitals (
+    state TEXT
+) INHERITS (cities);
+
+SELECT * FROM ONLY cities;
+
+-- OPEN (used with cursors)
+BEGIN;
+DECLARE emp_cursor CURSOR FOR SELECT * FROM employees;
+OPEN emp_cursor;
+FETCH NEXT FROM emp_cursor;
+CLOSE emp_cursor;
+COMMIT;
+
+-- OR
+SELECT * FROM employees WHERE department = 'Sales' OR salary > 50000;
+
+-- ORDER
+SELECT * FROM employees ORDER BY last_name, first_name;
+
+-- OUT (used in function parameters)
+CREATE FUNCTION get_employee_details(IN emp_id INT, OUT full_name TEXT, OUT emp_salary NUMERIC)
+AS $$
+    SELECT name, salary
+    FROM employees
+    WHERE id = emp_id;
+$$ LANGUAGE SQL;
+
+-- OUTER
+SELECT employees.name, departments.name AS department_name
+FROM employees
+LEFT OUTER JOIN departments ON employees.department_id = departments.id;
+
+-- OVER (used in window functions)
+SELECT
+    name,
+    salary,
+    AVG(salary) OVER (PARTITION BY department_id) AS avg_department_salary
+FROM employees;
+
+-- OVERLAY
+SELECT OVERLAY(name PLACING '***' FROM 2 FOR 3) AS masked_name
+FROM employees;
+
+-- OWNED (used with sequences)
+CREATE SEQUENCE employee_id_seq OWNED BY employees.id;
+
+-- OWNER (used to change object ownership)
+ALTER TABLE employees OWNER TO admin_user;
+
+-- PAD (not a keyword in PostgreSQL, but used in some string functions)
+SELECT LPAD(name, 20, ' ') AS padded_name FROM employees;
+
+-- PARAMETER (used in various contexts, e.g., function parameters)
+CREATE FUNCTION multiply(a INT, b INT) RETURNS INT
+AS $$
+    SELECT a * b;
+$$ LANGUAGE SQL;
+
+-- PARALLEL (used in query execution)
+CREATE TABLE large_table (id SERIAL, data TEXT);
+INSERT INTO large_table (data) SELECT 'Data ' || generate_series(1, 1000000);
+ANALYZE large_table;
+
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT COUNT(*) FROM large_table WHERE data LIKE 'Data 1%';
+
+-- PARAMETER (used in prepared statements)
+PREPARE emp_query (INT) AS
+SELECT * FROM employees WHERE department_id = $1;
+
+EXECUTE emp_query(3);
+
+-- PARSER (used in text search configurations)
+CREATE TEXT SEARCH CONFIGURATION my_config (
+    PARSER = pg_catalog.default
+);
+
+-- PARTIAL (used in indexes)
+CREATE INDEX idx_employee_name ON employees (name) WHERE active = true;
+
+-- PARTITION (used in table partitioning)
+CREATE TABLE sales (
+    id SERIAL,
+    sale_date DATE,
+    amount NUMERIC
+) PARTITION BY RANGE (sale_date);
+
+CREATE TABLE sales_2023 PARTITION OF sales
+    FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+
+-- PASSING (used in XML functions)
+SELECT xmlelement(name foo, xmlattributes('bar' as a, 'baz' as b, 'bat' as c));
+
+-- PATH (used in XML functions and COPY command)
+COPY employees TO '/tmp/employees.csv' WITH (FORMAT CSV, HEADER);
+
+-- PERCENT (used in FETCH clauses)
+BEGIN;
+DECLARE c CURSOR FOR SELECT * FROM employees;
+FETCH FORWARD 50 PERCENT FROM c;
+COMMIT;
+
+-- PERIOD (used in time periods, not a keyword but a concept)
+CREATE TABLE reservations (
+    id SERIAL PRIMARY KEY,
+    room_id INT,
+    reserved_period TSTZRANGE,
+    EXCLUDE USING GIST (room_id WITH =, reserved_period WITH &&)
+);
+
+-- PERMUTE (not a standard keyword, but used in some extensions)
+-- Example using intarray extension:
+CREATE EXTENSION IF NOT EXISTS intarray;
+SELECT permute(ARRAY[1,2,3]);
+
+-- PLACING (used in OVERLAY function)
+SELECT OVERLAY('abcdef' PLACING 'XX' FROM 3 FOR 2);
+
+-- PLAN (used in EXPLAIN command)
+EXPLAIN (FORMAT JSON)
+SELECT * FROM employees WHERE salary > 50000;
+
+-- PLANS (used in planner statistics)
+SELECT * FROM pg_stat_statements;
+
+-- POSITION (string function)
+SELECT POSITION('world' IN 'Hello, world!');
+
+-- PRECISION (used in timestamp and interval data types)
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    event_time TIMESTAMP(3) WITH TIME ZONE
+);
+
+-- PREPARE (used for prepared statements)
+PREPARE emp_insert (TEXT, INT) AS
+INSERT INTO employees (name, salary) VALUES ($1, $2);
+
+EXECUTE emp_insert('John Doe', 50000);
+
+-- PREPARED (used with prepared transactions)
+BEGIN;
+-- Perform some operations
+PREPARE TRANSACTION 'my_transaction';
+
+-- PRESERVE (used with temporary tables)
+CREATE TEMPORARY TABLE temp_data (
+    id SERIAL,
+    value TEXT
+) ON COMMIT PRESERVE ROWS;
+
+-- PRIMARY (used in primary key constraints)
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+-- PRIOR (used in recursive queries)
+WITH RECURSIVE subordinates AS (
+    SELECT id, name, manager_id
+    FROM employees
+    WHERE id = 1
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id
+    FROM employees e
+    INNER JOIN subordinates s ON s.id = e.manager_id
+)
+SELECT * FROM subordinates;
+
+-- PRIVILEGES (used in GRANT and REVOKE statements)
+GRANT SELECT, INSERT ON TABLE employees TO regular_user;
+
+-- PROCEDURAL (used in procedural languages)
+CREATE PROCEDURAL LANGUAGE plpython3u;
+
+-- PROCEDURE (used to create stored procedures)
+CREATE OR REPLACE PROCEDURE transfer_funds(
+    sender_id INT,
+    receiver_id INT,
+    amount NUMERIC
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Deduct from sender
+    UPDATE accounts SET balance = balance - amount
+    WHERE id = sender_id;
+
+    -- Add to receiver
+    UPDATE accounts SET balance = balance + amount
+    WHERE id = receiver_id;
+
+    COMMIT;
+END;
+$$;
+
+-- PROGRAM (used in COPY command to execute a command)
+COPY (SELECT * FROM employees) TO PROGRAM 'gzip > /tmp/employees.gz';
+
+-- PUBLICATION (used in logical replication)
+CREATE PUBLICATION emp_pub FOR TABLE employees;
+
+-- QUOTE (used for quoting identifiers)
+SELECT * FROM "My Table";
+
+-- RANGE (used in various contexts, e.g., range types, table partitioning)
+CREATE TYPE daterange AS RANGE (
+    subtype = date,
+    subtype_diff = age
+);
+
+-- READ (used in transaction isolation levels)
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+-- REAL (floating-point data type)
+CREATE TABLE measurements (
+    id SERIAL PRIMARY KEY,
+    value REAL
+);
+
+-- REASSIGN (used to reassign owned objects)
+REASSIGN OWNED BY old_user TO new_user;
+
+-- RECHECK (used in GiST indexes)
+CREATE INDEX idx_geo ON cities USING GIST (location);
+
+-- RECURSIVE (used in CTEs)
+WITH RECURSIVE t(n) AS (
+    VALUES (1)
+    UNION ALL
+    SELECT n+1 FROM t WHERE n < 100
+)
+SELECT sum(n) FROM t;
+
+-- REF (not directly supported in PostgreSQL, but similar functionality with references)
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(id)
+);
+
+-- REFERENCES (used in foreign key constraints)
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT REFERENCES customers(id)
+);
+
+-- REFERENCING (used in triggers)
+CREATE TRIGGER update_customer_status
+AFTER UPDATE ON orders
+REFERENCING NEW TABLE AS updated_orders
+FOR EACH STATEMENT
+EXECUTE FUNCTION update_customer_status();
+
+-- REFRESH (used with materialized views)
+REFRESH MATERIALIZED VIEW summary_stats;
+
+-- REGCLASS (used for object identifier types)
+SELECT 'mytable'::regclass;
+
+-- REINDEX (used to rebuild indexes)
+REINDEX TABLE mytable;
+
+-- RELATIVE (used in cursor operations)
+MOVE RELATIVE -2 FROM my_cursor;
+
+-- RELEASE (used with savepoints)
+SAVEPOINT my_savepoint;
+-- Some operations
+RELEASE SAVEPOINT my_savepoint;
+
+-- RENAME (used to rename database objects)
+ALTER TABLE employees RENAME TO staff;
+
+-- REPEATABLE (used in transaction isolation levels)
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+-- REPLACE (used in various contexts, e.g., CREATE OR REPLACE)
+CREATE OR REPLACE FUNCTION my_function() RETURNS void AS $$
+BEGIN
+    -- Function body
+END;
+$$ LANGUAGE plpgsql;
+
+-- REPLICA (used in replication settings)
+ALTER SYSTEM SET hot_standby = 'on';
+
+-- RESET (used to reset parameters)
+RESET ALL;
+
+-- RESTART (used with sequences)
+ALTER SEQUENCE my_sequence RESTART WITH 1000;
+
+-- RESTRICT (used in DROP commands)
+DROP TABLE mytable RESTRICT;
+
+-- RETURN (used in functions and procedures)
+CREATE FUNCTION add(a INT, b INT) RETURNS INT AS $$
+BEGIN
+    RETURN a + b;
+END;
+$$ LANGUAGE plpgsql;
+
+-- RETURNING (used to return values from INSERT, UPDATE, or DELETE)
+INSERT INTO employees (name, salary) VALUES ('John Doe', 50000)
+RETURNING id, name;
+
+-- RETURNS (used in function definitions)
+CREATE FUNCTION get_high_salaries(min_salary INT)
+RETURNS TABLE (id INT, name TEXT, salary NUMERIC) AS $$
+    SELECT id, name, salary
+    FROM employees
+    WHERE salary > min_salary;
+$$ LANGUAGE SQL;
+
+-- REVOKE (used to remove privileges)
+REVOKE INSERT ON TABLE employees FROM PUBLIC;
+
+-- RIGHT (used in joins)
+SELECT employees.name, departments.name AS department_name
+FROM employees
+RIGHT JOIN departments ON employees.department_id = departments.id;
+
+-- ROLE (used in role management)
+CREATE ROLE readonly_user LOGIN PASSWORD 'secure_password';
+
+-- ROLLBACK (used in transaction management)
+BEGIN;
+-- Some operations
+ROLLBACK;
+
+-- ROLLUP (used in GROUP BY clauses)
+SELECT department, job_title, SUM(salary)
+FROM employees
+GROUP BY ROLLUP (department, job_title);
+
+-- ROUTINE (used in information schema)
+SELECT * FROM information_schema.routines
+WHERE routine_type = 'FUNCTION';
+
+-- ROW (used in various contexts, e.g., row constructors)
+INSERT INTO employees (name, salary) VALUES (ROW('John Doe', 50000));
+
+-- ROWS (used in window functions and FETCH clauses)
+SELECT name, salary,
+       AVG(salary) OVER (ORDER BY salary ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)
+       AS moving_average
+FROM employees;
+
+-- RULE (used to define rules on tables)
+CREATE RULE prevent_deletion AS ON DELETE TO employees DO INSTEAD NOTHING;
+
+-- SAVEPOINT (used in transaction management)
+BEGIN;
+SAVEPOINT my_savepoint;
+-- Some operations
+ROLLBACK TO SAVEPOINT my_savepoint;
+COMMIT;
+
+-- SCHEMA (used to define database schemas)
+CREATE SCHEMA hr;
+CREATE TABLE hr.employees (id SERIAL PRIMARY KEY, name TEXT);
+
+-- SCROLL (used with cursors)
+BEGIN;
+DECLARE c SCROLL CURSOR FOR SELECT * FROM employees;
+FETCH LAST FROM c;
+FETCH PRIOR FROM c;
+COMMIT;
+
+-- SEARCH (used in recursive queries)
+WITH RECURSIVE search_tree(id, parent_id, name, depth) AS (
+    SELECT id, parent_id, name, 0
+    FROM tree_nodes
+    WHERE parent_id IS NULL
+    UNION ALL
+    SELECT t.id, t.parent_id, t.name, s.depth + 1
+    FROM tree_nodes t, search_tree s
+    WHERE t.parent_id = s.id
+)
+SEARCH DEPTH FIRST BY id SET ordercol
+SELECT * FROM search_tree ORDER BY ordercol;
+
+-- SECOND (used in time/interval operations)
+SELECT EXTRACT(SECOND FROM TIMESTAMP '2001-02-16 20:38:40');
+
+-- SECURITY (used in function definitions)
+CREATE FUNCTION get_salary(employee_id INT) RETURNS NUMERIC
+SECURITY DEFINER
+AS $$
+    SELECT salary FROM employees WHERE id = employee_id;
+$$ LANGUAGE SQL;
+
+-- SELECT (used to query data)
+SELECT name, salary FROM employees WHERE department = 'Sales';
+
+-- SEQUENCE (used to create sequences)
+CREATE SEQUENCE order_id_seq
+INCREMENT 1
+START 1000;
+
+-- SEQUENCES (used in information schema)
+SELECT * FROM information_schema.sequences;
+
+-- SERIALIZABLE (used in transaction isolation levels)
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+-- SERVER (used in foreign data wrappers)
+CREATE SERVER foreign_server
+FOREIGN DATA WRAPPER postgres_fdw
+OPTIONS (host 'remote_host', dbname 'remote_db');
+
+-- SESSION (used in various contexts, e.g., session variables)
+SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+-- SESSION_USER (returns current session user)
+SELECT SESSION_USER;
+
+-- SET (used to set parameters and in UPDATE statements)
+SET work_mem = '50MB';
+UPDATE employees SET salary = 60000 WHERE id = 1;
+
+-- SETOF (used in function return types)
+CREATE FUNCTION get_employees() RETURNS SETOF employees AS $$
+    SELECT * FROM employees;
+$$ LANGUAGE SQL;
+
+-- SETS (used in information schema)
+SELECT * FROM information_schema.character_sets;
+
+-- SHARE (used in locking clauses)
+SELECT * FROM accounts WHERE id = 1 FOR SHARE;
+
+-- SHOW (used to display parameter values)
+SHOW work_mem;
+
+-- SIMILAR (used in pattern matching)
+SELECT * FROM employees WHERE name SIMILAR TO '(John|Jane)%';
+
+-- SIMPLE (used in CASE expressions)
+SELECT name,
+       CASE WHEN salary > 50000 THEN 'High'
+            WHEN salary > 30000 THEN 'Medium'
+            ELSE 'Low'
+       END AS salary_category
+FROM employees;
+
+-- SKIP (used in COPY command)
+COPY employees FROM '/tmp/employees.csv' WITH (FORMAT CSV, HEADER, SKIP 2);
+
+-- SMALLINT (integer data type)
+CREATE TABLE small_numbers (
+    id SERIAL PRIMARY KEY,
+    value SMALLINT
+);
+
+-- SNAPSHOT (used in transaction management)
+SELECT pg_export_snapshot();
+
+-- SOME (used in subqueries, equivalent to ANY)
+SELECT * FROM products
+WHERE price > SOME (SELECT price FROM competitor_products);
+
+-- SQL (used in various contexts, e.g., language specification)
+CREATE FUNCTION multiply(a INT, b INT) RETURNS INT
+AS $$
+    SELECT a * b;
+$$ LANGUAGE SQL;
+
+-- STABLE (used in function volatility)
+CREATE FUNCTION get_current_time() RETURNS TIMESTAMP
+STABLE
+AS $$
+    SELECT CURRENT_TIMESTAMP;
+$$ LANGUAGE SQL;
+
+-- STANDALONE (used in prepared transactions)
+SET max_prepared_transactions = 10;
+
+-- START (used in transaction management and sequences)
+START TRANSACTION;
+ALTER SEQUENCE my_sequence RESTART WITH 1000;
+
+-- STATEMENT (used in various contexts, e.g., trigger definitions)
+CREATE TRIGGER update_timestamp
+BEFORE UPDATE ON mytable
+FOR EACH STATEMENT
+EXECUTE FUNCTION update_timestamp_column();
+
+-- STATISTICS (used to gather statistics on database objects)
+ANALYZE employees;
+
+-- STDIN (used in COPY command)
+COPY employees FROM STDIN WITH (FORMAT CSV);
+
+-- STDOUT (used in COPY command)
+COPY (SELECT * FROM employees) TO STDOUT WITH (FORMAT CSV, HEADER);
+
+-- STORAGE (used in table and column options)
+CREATE TABLE large_objects (
+    id SERIAL PRIMARY KEY,
+    data TEXT,
+    STORAGE EXTERNAL
+);
+
+-- STRICT (used in function definitions)
+CREATE FUNCTION divide(a INT, b INT) RETURNS NUMERIC
+STRICT
+AS $$
+    SELECT a::NUMERIC / b;
+$$ LANGUAGE SQL;
+
+-- STRIP (used in XML functions)
+SELECT XMLPARSE(CONTENT '<foo>bar</foo>');
+
+-- SUBSCRIPTION (used in logical replication)
+CREATE SUBSCRIPTION mysub
+CONNECTION 'host=192.168.1.50 port=5432 dbname=postgres'
+PUBLICATION mypublication;
+
+-- SUBSTRING (string function)
+SELECT SUBSTRING(name FROM 1 FOR 3) AS name_prefix FROM employees;
+
+-- SYMMETRIC (used in range operations)
+SELECT '[1,10]'::INT4RANGE @> 5 AS contains_symmetric;
+
+-- SYSID (used in role management, deprecated)
+CREATE ROLE old_user WITH SYSID 123;
+
+-- SYSTEM (used in various contexts, e.g., system columns)
+SELECT tableoid::regclass, * FROM employees;
+
+-- TABLE (used to create tables and in queries)
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL
+);
+
+SELECT * FROM employees;
+
+-- TABLES (used in information schema)
+SELECT * FROM information_schema.tables WHERE table_schema = 'public';
+
+-- TABLESAMPLE (used for table sampling)
+SELECT * FROM large_table TABLESAMPLE BERNOULLI (1);
+
+-- TABLESPACE (used to define storage locations)
+CREATE TABLESPACE fast_space LOCATION '/ssd/postgresql/data';
+
+-- TEMP (used to create temporary tables)
+CREATE TEMP TABLE temp_results AS SELECT * FROM heavy_calculation();
+
+-- TEMPLATE (used in database creation)
+CREATE DATABASE new_db TEMPLATE template0;
+
+-- TEMPORARY (used to create temporary objects)
+CREATE TEMPORARY TABLE temp_data (id SERIAL
+```
+
+```sql
+-- PAD
+-- Used in string functions to add padding
+SELECT LPAD('hello', 10, ' '); -- Pads 'hello' to 10 characters with spaces on the left
+
+-- PARALLEL
+-- Used in CREATE TABLE to specify parallel processing for table scans
+CREATE TABLE parallel_example (id INT, data TEXT) WITH (parallel_workers = 4);
+
+-- PARAMETER
+-- Used in function definitions to specify input parameters
+CREATE FUNCTION add_numbers(a INT, b INT) RETURNS INT AS $$
+BEGIN
+    RETURN a + b;
+END;
+$$ LANGUAGE plpgsql;
+
+-- PARTITION
+-- Used to create partitioned tables
+CREATE TABLE sales (
+    id INT,
+    sale_date DATE,
+    amount DECIMAL(10,2)
+) PARTITION BY RANGE (sale_date);
+
+CREATE TABLE sales_2023 PARTITION OF sales
+    FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+
+-- PASSING
+-- Used in XML functions to pass values
+SELECT xmlelement(name "foo",
+                  xmlattributes('bar' AS name),
+                  xmlelement(name "ins", passing "c")
+                 )
+FROM (SELECT 'baz' AS c) AS tab;
+
+-- PASSWORD
+-- Used in CREATE ROLE to set a password
+CREATE ROLE example_user WITH LOGIN PASSWORD 'secure_password';
+
+-- PATH
+-- Used in various contexts, such as setting search_path
+SET search_path TO myschema, public;
+
+-- PATTERN
+-- Used in SIMILAR TO pattern matching
+SELECT 'abc' SIMILAR TO '%(b|d)%' AS result;
+
+-- PERCENT
+-- Used in LIKE pattern matching
+SELECT * FROM users WHERE name LIKE 'John%';
+
+-- PERCENTILE_CONT
+-- Used for continuous percentile calculation
+SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY salary) FROM employees;
+
+-- PERCENTILE_DISC
+-- Used for discrete percentile calculation
+SELECT percentile_disc(0.5) WITHIN GROUP (ORDER BY salary) FROM employees;
+
+-- PERCENT_RANK
+-- Window function to calculate percent rank
+SELECT name, salary,
+       percent_rank() OVER (ORDER BY salary) AS percent_rank
+FROM employees;
+
+-- PERIOD
+-- Not a specific keyword in PostgreSQL, but used in interval specifications
+SELECT NOW() - INTERVAL '1 YEAR 3 MONTHS';
+
+-- PERMISSION
+-- Used in GRANT statements to give permissions
+GRANT SELECT, INSERT ON TABLE example TO user_role;
+
+-- PLACING
+-- Used in ORDER BY clauses to specify placement of NULLs
+SELECT * FROM example ORDER BY column1 NULLS FIRST;
+
+-- POSITION
+-- String function to find position of a substring
+SELECT POSITION('world' IN 'Hello, world!');
+
+-- PRECISION
+-- Used in numeric data type definitions
+CREATE TABLE example (
+    id SERIAL,
+    amount NUMERIC(10,2)  -- 10 is precision, 2 is scale
+);
+
+-- PREPARE
+-- Used to create a prepared statement
+PREPARE my_query(int) AS
+    SELECT * FROM users WHERE id = $1;
+
+EXECUTE my_query(5);
+
+-- PRIMARY
+-- Used in table definitions to specify primary key
+CREATE TABLE example (
+    id SERIAL PRIMARY KEY,
+    name TEXT
+);
+
+-- PROCEDURE
+-- Used to create stored procedures (PostgreSQL 11+)
+CREATE PROCEDURE transfer(
+    sender INT,
+    recipient INT,
+    amount DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Transfer logic here
+END;
+$$;
+
+CALL transfer(1, 2, 100.00);
+
+-- PRIVILEGES
+-- Used in GRANT statements to give privileges
+GRANT ALL PRIVILEGES ON DATABASE example_db TO example_user;
+
+-- PROCEDURAL
+-- Used in language definitions, often for creating functions
+CREATE FUNCTION example_function() RETURNS void AS $$
+BEGIN
+  -- Function body
+END;
+$$ LANGUAGE plpgsql;
+
+-- PROGRAM
+-- Used in COPY command to execute a program
+COPY (SELECT * FROM users) TO PROGRAM 'gzip > users.gz';
+
+-- PUBLICATION
+-- Used in logical replication to define a set of changes to be replicated
+CREATE PUBLICATION example_pub FOR TABLE users, orders;
+
+-- QUOTE
+-- Function used to quote identifiers
+SELECT quote_ident('User Name') AS quoted_name;
+
+-- RANGE
+-- Used in various contexts, including range types and partitioning
+CREATE TABLE reservations (
+    id INT,
+    room INT,
+    during DATERANGE
+);
+
+INSERT INTO reservations VALUES (1, 1101, '[2023-01-01, 2023-01-05)');
+
+-- RANK
+-- Window function to compute rank
+SELECT name, department, salary,
+       RANK() OVER (PARTITION BY department ORDER BY salary DESC) AS salary_rank
+FROM employees;
+
+-- READ
+-- Used in transaction isolation level settings
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+-- REAL
+-- Floating-point data type
+CREATE TABLE measurements (
+    id SERIAL PRIMARY KEY,
+    value REAL
+);
+
+-- REASSIGN
+-- Used to change the ownership of database objects
+REASSIGN OWNED BY old_user TO new_user;
+
+-- RECURSIVE
+-- Used in CTEs (Common Table Expressions) for recursive queries
+WITH RECURSIVE subordinates AS (
+    SELECT employee_id, manager_id, name
+    FROM employees
+    WHERE name = 'John Doe'
+    UNION ALL
+    SELECT e.employee_id, e.manager_id, e.name
+    FROM employees e
+    INNER JOIN subordinates s ON s.employee_id = e.manager_id
+)
+SELECT * FROM subordinates;
+
+-- REFERENCES
+-- Used in foreign key constraints
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id)
+);
+
+-- REFRESH
+-- Used with materialized views
+CREATE MATERIALIZED VIEW order_summary AS
+SELECT date_trunc('day', created_at) AS day, COUNT(*) AS total_orders
+FROM orders
+GROUP BY 1;
+
+REFRESH MATERIALIZED VIEW order_summary;
+
+-- REINDEX
+-- Used to rebuild indexes
+REINDEX TABLE users;
+
+-- RELEASE
+-- Used with savepoints in transactions
+BEGIN;
+SAVEPOINT my_savepoint;
+-- some operations
+RELEASE SAVEPOINT my_savepoint;
+COMMIT;
+
+-- RENAME
+-- Used to rename database objects
+ALTER TABLE users RENAME TO accounts;
+
+-- REPEATABLE
+-- Used in transaction isolation level settings
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+-- REPLACE
+-- Used in various string functions
+SELECT REPLACE('Hello World', 'World', 'PostgreSQL');
+
+-- REPLICA
+-- Used in replication settings
+ALTER SYSTEM SET hot_standby_feedback = on;  -- Setting for replica
+
+-- RESET
+-- Used to reset parameters to their default values
+RESET work_mem;
+
+-- RESTART
+-- Used with sequences
+ALTER SEQUENCE users_id_seq RESTART WITH 1000;
+
+-- RESTRICT
+-- Used in DROP commands to prevent dropping objects with dependencies
+DROP TABLE users RESTRICT;
+
+-- RETURN
+-- Used in function definitions to specify return type and in queries
+CREATE FUNCTION get_user_count() RETURNS INTEGER AS $$
+BEGIN
+    RETURN (SELECT COUNT(*) FROM users);
+END;
+$$ LANGUAGE plpgsql;
+
+-- RETURNING
+-- Used in data modification queries to return affected rows
+INSERT INTO users (name, email) VALUES ('John', 'john@example.com')
+RETURNING id, name;
+
+-- RETURNS
+-- Used in function definitions to specify return type
+CREATE FUNCTION add(a INTEGER, b INTEGER) RETURNS INTEGER AS $$
+BEGIN
+    RETURN a + b;
+END;
+$$ LANGUAGE plpgsql;
+
+-- REVOKE
+-- Used to remove privileges
+REVOKE ALL PRIVILEGES ON DATABASE example_db FROM example_user;
+
+-- RIGHT
+-- Used in joins and string functions
+SELECT * FROM users u RIGHT JOIN orders o ON u.id = o.user_id;
+SELECT RPAD('SQL', 10, '_');
+
+-- ROLE
+-- Used for database role management
+CREATE ROLE readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly;
+
+-- ROLLBACK
+-- Used in transaction management
+BEGIN;
+-- some operations
+ROLLBACK;
+
+-- ROLLUP
+-- Used in GROUP BY clauses for subtotal rows
+SELECT category, subcategory, SUM(sales)
+FROM sales
+GROUP BY ROLLUP(category, subcategory);
+
+-- ROUTINE
+-- General term for stored procedures and functions
+-- (No direct keyword usage in PostgreSQL, but related to CREATE FUNCTION and CREATE PROCEDURE)
+
+-- ROW
+-- Used in various contexts, including row constructors
+SELECT ROW(1, 'foo', 'bar'::TEXT);
+
+-- ROWS
+-- Used in window function definitions and FETCH clauses
+SELECT *, AVG(salary) OVER (ORDER BY hired_on ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING)
+FROM employees;
+
+-- RULE
+-- Used to define rules on tables
+CREATE RULE insert_to_logs AS ON INSERT TO users
+DO ALSO INSERT INTO user_logs (user_id, action) VALUES (NEW.id, 'inserted');
+
+-- SAVEPOINT
+-- Used in transaction management
+BEGIN;
+SAVEPOINT my_savepoint;
+-- some operations
+ROLLBACK TO SAVEPOINT my_savepoint;
+COMMIT;
+
+-- SCHEMA
+-- Used to create and manage schemas
+CREATE SCHEMA marketing;
+SET search_path TO marketing, public;
+
+-- SCOPE
+-- Not directly used as a keyword in PostgreSQL, but related to variable scoping in PL/pgSQL
+
+-- SCROLL
+-- Used with cursors
+BEGIN;
+DECLARE c SCROLL CURSOR FOR SELECT * FROM users;
+FETCH LAST FROM c;
+FETCH FIRST FROM c;
+COMMIT;
+
+```
+
+```sql
+-- Example SQL script showcasing various PostgreSQL keywords
+
+-- UNION
+SELECT id FROM users WHERE active = true
+UNION
+SELECT id FROM admins WHERE active = true;
+
+-- UNIQUE
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    user_id INT UNIQUE,
+    amount NUMERIC NOT NULL
+);
+
+-- UNKNOWN
+SELECT CASE WHEN id IS NULL THEN 'UNKNOWN' END AS status FROM products;
+
+-- UNLINK
+-- (Assuming a hypothetical scenario since UNLINK is not standard in SQL)
+
+-- UNLISTEN
+-- (Used in the context of notifications; not demonstrable in a static example)
+
+-- UNLOGGED
+CREATE UNLOGGED TABLE temp_data (
+    data TEXT
+);
+
+-- UNMATCHED
+-- (Example with LEFT JOIN where there might be unmatched records)
+
+SELECT a.id, b.id
+FROM users a
+LEFT JOIN orders b ON a.id = b.user_id
+WHERE b.id IS NULL;
+
+-- UNNAMED
+-- (Typically used in the context of unnamed constraints or types)
+
+CREATE TABLE example (
+    col1 INT,
+    col2 TEXT,
+    CONSTRAINT col1_check CHECK (col1 > 0) -- unnamed constraint
+);
+
+-- UNNEST
+SELECT UNNEST(ARRAY[1, 2, 3]) AS numbers;
+
+-- UNTIL
+-- (Example with a time series or date range; not standard SQL)
+
+-- UNTYPED
+CREATE FUNCTION example_function() RETURNS VOID AS $$
+BEGIN
+    RAISE NOTICE 'This is an untyped function';
+END;
+$$ LANGUAGE plpgsql;
+
+-- UPDATE
+UPDATE users SET last_login = NOW() WHERE id = 1;
+
+-- UPPER
+SELECT UPPER(username) FROM users;
+
+-- URI
+SELECT uri FROM resources;
+
+-- USAGE
+GRANT USAGE ON SCHEMA public TO my_role;
+
+-- USER
+SELECT CURRENT_USER;
+
+-- USER_DEFINED_TYPE_CATALOG
+-- (Used in the context of custom types, not directly demonstrable)
+
+-- USER_DEFINED_TYPE_CODE
+-- (Similarly used in custom types)
+
+-- USER_DEFINED_TYPE_NAME
+-- (Used when referencing user-defined types)
+
+-- USER_DEFINED_TYPE_SCHEMA
+-- (Referencing a schema for user-defined types)
+
+-- USING
+SELECT * FROM users USING (user_id);
+
+-- UTF16, UTF32, UTF8
+-- (Typically applied in data encoding settings, not a direct SQL keyword usage)
+
+-- VACUUM
+VACUUM my_table;
+
+-- VALID
+SELECT 1 AS VALID;
+
+-- VALIDATE
+-- (Used in the context of constraints, not a direct SQL statement)
+
+-- VALIDATOR
+CREATE DOMAIN my_domain INT CHECK (VALUE > 0) VALIDATE;
+
+-- VALUE
+SELECT VALUE FROM configurations WHERE key = 'max_users';
+
+-- VALUES
+INSERT INTO products (name, price) VALUES ('Widget', 19.99);
+
+-- VALUE_OF
+-- (Not a direct SQL usage)
+
+-- VARBINARY
+CREATE TABLE binary_data (
+    data VARBINARY
+);
+
+-- VARCHAR
+CREATE TABLE text_data (
+    name VARCHAR(255)
+);
+
+-- VARIADIC
+CREATE FUNCTION concat_names(VARIADIC name TEXT[]) RETURNS TEXT AS $$
+BEGIN
+    RETURN array_to_string(name, ', ');
+END;
+$$ LANGUAGE plpgsql;
+
+-- VARYING
+CREATE TABLE varying_example (
+    description VARCHAR(255)
+);
+
+-- VAR_POP
+SELECT VAR_POP(amount) FROM orders;
+
+-- VAR_SAMP
+SELECT VAR_SAMP(amount) FROM orders;
+
+-- VERBOSE
+-- (Used in the context of more detailed output, e.g., VACUUM VERBOSE)
+
+-- VERSION
+SELECT version();
+
+-- VERSIONING
+-- (Typically used in the context of database migrations, not a direct SQL usage)
+
+-- VIEW
+CREATE VIEW active_users AS
+SELECT * FROM users WHERE active = true;
+
+-- VIEWS
+-- (Referencing multiple views in a query)
+
+-- VOLATILE
+CREATE FUNCTION example_function() RETURNS INT VOLATILE AS $$
+BEGIN
+    RETURN RANDOM();
+END;
+$$ LANGUAGE plpgsql;
+
+-- WHEN
+SELECT CASE WHEN active THEN 'Active' ELSE 'Inactive' END AS status FROM users;
+
+-- WHENEVER
+-- (This is more of a procedural keyword, not directly usable in SQL)
+
+-- WHERE
+SELECT * FROM orders WHERE amount > 100;
+
+-- WHITESPACE
+-- (Generally, handled implicitly; not a keyword per se)
+
+-- WIDTH_BUCKET
+SELECT WIDTH_BUCKET(amount, 0, 100, 5) AS bucket FROM orders;
+
+-- WINDOW
+SELECT id, amount,
+       SUM(amount) OVER (ORDER BY created_at) AS running_total
+FROM orders;
+
+-- WITH
+WITH recent_orders AS (
+    SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '30 days'
+)
+SELECT * FROM recent_orders;
+
+-- WITHIN
+-- (Used in time frame queries)
+
+-- WITHOUT
+-- (Typically used in various contexts but not direct SQL statements)
+
+-- WORK
+-- (In context of setting work session parameters)
+
+-- WRAPPER
+-- (Not applicable in direct SQL context)
+
+-- WRITE
+-- (More of a permission than a direct SQL usage)
+
+-- XML
+SELECT '<root><element>data</element></root>'::XML AS xml_data;
+
+-- XMLAGG
+SELECT XMLAGG(XMLELEMENT(name, username)) AS xml_users FROM users;
+
+-- XMLATTRIBUTES
+SELECT XMLATTRIBUTES(username AS 'user') AS user_attributes FROM users;
+
+-- XMLBINARY
+-- (Referencing binary XML storage)
+
+-- XMLCAST
+SELECT XMLCAST(XMLQUERY('$d/root/element' PASSING xml_data RETURNING CONTENT) AS TEXT) AS element_data;
+
+-- XMLCOMMENT
+SELECT XMLCOMMENT('This is a comment') AS xml_comment;
+
+-- XMLCONCAT
+SELECT XMLCONCAT('<a/>', '<b/>') AS concatenated_xml;
+
+-- XMLDECLARATION
+SELECT XMLDECLARATION('1.0', 'UTF-8') AS xml_decl;
+
+-- XMLDOCUMENT
+SELECT XMLDOCUMENT('<root><data>Sample</data></root>') AS xml_doc;
+
+-- XMLELEMENT
+SELECT XMLELEMENT(name 'element', 'Value') AS xml_elem;
+
+-- XMLEXISTS
+SELECT XMLEXISTS('/root/data' PASSING xml_data) AS exists_check;
+
+-- XMLFOREST
+SELECT XMLFOREST(username AS 'user', created_at AS 'date') AS xml_forest FROM users;
+
+-- XMLITERATE
+-- (In hypothetical XML processing)
+
+-- XMLNAMESPACES
+-- (Generally in XML context)
+
+-- XMLPARSE
+SELECT XMLPARSE(DOCUMENT '<root><data>Sample</data></root>') AS parsed_xml;
+
+-- XMLPI
+SELECT XMLPI('xml-stylesheet', 'href="style.xsl"') AS xml_pi;
+
+-- XMLQUERY
+SELECT XMLQUERY('/root/data' PASSING xml_data RETURNING CONTENT) AS xml_query_result;
+
+-- XMLROOT
+-- (Referencing the root of an XML document)
+
+-- XMLSCHEMA
+-- (XML Schema definition context)
+
+-- XMLSERIALIZE
+SELECT XMLSERIALIZE(CONTENT xml_data AS TEXT) AS serialized_xml;
+
+-- XMLTABLE
+SELECT * FROM XMLTABLE(
+    '/root/data'
+    PASSING XMLPARSE(DOCUMENT '<root><data>Sample</data></root>')
+    COLUMNS data TEXT PATH '.'
+) AS xml_table;
+
+-- XMLTEXT
+SELECT XMLTEXT('<data>Example</data>') AS xml_text;
+
+-- XMLVALIDATE
+-- (Used for validating XML data against schema)
+
+-- YEAR
+SELECT EXTRACT(YEAR FROM NOW()) AS current_year;
+
+-- YES
+SELECT CASE WHEN true THEN 'YES' END AS response;
+
+-- ZONE
+SELECT CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AS utc_time;
+
+-- End of SQL script
+
+
+```

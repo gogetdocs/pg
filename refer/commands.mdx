@@ -1,0 +1,501 @@
+### PostgreSQL SQL Commands
+
+PostgreSQL SQL commands, their purpose, and examples of usage. Commands are grouped by category, and each section includes SQL code demonstrating practical implementations.
+
+---
+
+### **ABORT** — Abort the Current Transaction
+
+The `ABORT` command is used to terminate the current transaction. It is equivalent to `ROLLBACK`.
+
+#### Example:
+
+```sql
+BEGIN;
+UPDATE employees SET salary = salary + 5000 WHERE id = 10;
+-- Oops, something went wrong
+ABORT;  -- This cancels the transaction, no changes are applied
+```
+
+---
+
+### **ALTER AGGREGATE** — Change the Definition of an Aggregate Function
+
+This command modifies an existing aggregate function.
+
+#### Example:
+
+Assume you have an aggregate function that calculates the median.
+
+```sql
+ALTER AGGREGATE median(float8) SET SCHEMA analytics;
+```
+
+---
+
+### **ALTER COLLATION** — Change the Definition of a Collation
+
+Modify an existing collation.
+
+#### Example:
+
+```sql
+ALTER COLLATION "en_US" RENAME TO "english_us";
+```
+
+---
+
+### **ALTER DATABASE** — Change a Database
+
+Used to modify settings or properties of a database.
+
+#### Example:
+
+```sql
+ALTER DATABASE sales SET search_path = public, analytics;
+```
+
+---
+
+### **ALTER DEFAULT PRIVILEGES** — Define Default Access Privileges
+
+Sets the default permissions for objects created within a schema.
+
+#### Example:
+
+```sql
+ALTER DEFAULT PRIVILEGES IN SCHEMA reports
+GRANT SELECT ON TABLES TO analyst_role;
+```
+
+---
+
+### **ALTER DOMAIN** — Change the Definition of a Domain
+
+Modify the constraints or default values of a domain.
+
+#### Example:
+
+```sql
+ALTER DOMAIN email DROP NOT NULL;
+```
+
+---
+
+### **ALTER EVENT TRIGGER** — Change the Definition of an Event Trigger
+
+Modify an existing event trigger.
+
+#### Example:
+
+```sql
+ALTER EVENT TRIGGER my_trigger ENABLE;
+```
+
+---
+
+### **ALTER EXTENSION** — Change the Definition of an Extension
+
+Modify properties of a PostgreSQL extension.
+
+#### Example:
+
+```sql
+ALTER EXTENSION hstore UPDATE;
+```
+
+---
+
+### **ALTER FUNCTION** — Change the Definition of a Function
+
+This command changes properties of an existing function.
+
+#### Example:
+
+```sql
+ALTER FUNCTION calculate_salary() SET search_path = hr, public;
+```
+
+---
+
+### **ALTER GROUP** — Change Role Name or Membership
+
+Modify the membership of a role group.
+
+#### Example:
+
+```sql
+ALTER GROUP sales_team ADD USER john_doe;
+```
+
+---
+
+### **ALTER INDEX** — Change the Definition of an Index
+
+Modify an existing index.
+
+#### Example:
+
+```sql
+ALTER INDEX sales_idx RENAME TO idx_sales;
+```
+
+---
+
+### **ALTER LANGUAGE** — Change the Definition of a Procedural Language
+
+Modify an existing procedural language.
+
+#### Example:
+
+```sql
+ALTER LANGUAGE plpythonu OWNER TO admin;
+```
+
+---
+
+### **ALTER LARGE OBJECT** — Change the Definition of a Large Object
+
+Change properties of a large object in PostgreSQL.
+
+#### Example:
+
+```sql
+ALTER LARGE OBJECT 123456 OWNER TO john_doe;
+```
+
+---
+
+### **ALTER MATERIALIZED VIEW** — Change the Definition of a Materialized View
+
+Modify a materialized view, such as changing its storage parameters.
+
+#### Example:
+
+```sql
+ALTER MATERIALIZED VIEW sales_summary REFRESH;
+```
+
+---
+
+### **ALTER OPERATOR** — Change the Definition of an Operator
+
+Modify the definition of a custom operator.
+
+#### Example:
+
+```sql
+ALTER OPERATOR + (integer, integer) SET SCHEMA operations;
+```
+
+---
+
+### **ALTER POLICY** — Change the Definition of a Row-Level Security Policy
+
+Modify a security policy on a table.
+
+#### Example:
+
+```sql
+ALTER POLICY sales_policy ON sales_table
+  USING (region = 'US');
+```
+
+---
+
+### **ALTER ROLE** — Change a Database Role
+
+Modify a database role's settings.
+
+#### Example:
+
+```sql
+ALTER ROLE john_doe WITH LOGIN PASSWORD 'new_password';
+```
+
+---
+
+### **ALTER SCHEMA** — Change the Definition of a Schema
+
+Rename or modify properties of a schema.
+
+#### Example:
+
+```sql
+ALTER SCHEMA old_schema_name RENAME TO new_schema_name;
+```
+
+---
+
+### **ALTER SEQUENCE** — Change the Definition of a Sequence Generator
+
+Modify properties of an existing sequence.
+
+#### Example:
+
+```sql
+ALTER SEQUENCE order_id_seq RESTART WITH 1000;
+```
+
+---
+
+### **ALTER SERVER** — Change the Definition of a Foreign Server
+
+Modify a foreign server’s configuration.
+
+#### Example:
+
+```sql
+ALTER SERVER remote_db OPTIONS (host 'new_host', port '5433');
+```
+
+---
+
+### **ALTER TABLE** — Change the Definition of a Table
+
+Modify the structure of an existing table, such as adding a column or constraint.
+
+#### Example:
+
+```sql
+ALTER TABLE employees ADD COLUMN department_id INT;
+ALTER TABLE employees ADD CONSTRAINT fk_department FOREIGN KEY (department_id) REFERENCES departments(id);
+```
+
+---
+
+### **ALTER TYPE** — Change the Definition of a Data Type
+
+Modify a custom data type.
+
+#### Example:
+
+```sql
+ALTER TYPE status_enum ADD VALUE 'on_hold';
+```
+
+---
+
+### **ANALYZE** — Collect Statistics About a Database
+
+Analyze the distribution of data to optimize query performance.
+
+#### Example:
+
+```sql
+ANALYZE employees;
+```
+
+---
+
+### **BEGIN** — Start a Transaction Block
+
+Begins a new transaction.
+
+#### Example:
+
+```sql
+BEGIN;
+UPDATE inventory SET stock = stock - 5 WHERE product_id = 100;
+COMMIT;
+```
+
+---
+
+### **CALL** — Invoke a Procedure
+
+Calls a stored procedure.
+
+#### Example:
+
+```sql
+CALL process_end_of_day();
+```
+
+---
+
+### **COMMIT** — Commit the Current Transaction
+
+Save the changes made during the transaction.
+
+#### Example:
+
+```sql
+BEGIN;
+UPDATE orders SET status = 'processed' WHERE id = 1001;
+COMMIT;  -- This will save the changes
+```
+
+---
+
+### **COPY** — Copy Data Between a File and a Table
+
+Copies data to and from tables.
+
+#### Example:
+
+```sql
+COPY sales TO '/tmp/sales.csv' DELIMITER ',' CSV HEADER;
+COPY sales FROM '/tmp/sales.csv' DELIMITER ',' CSV HEADER;
+```
+
+---
+
+### **CREATE AGGREGATE** — Define a New Aggregate Function
+
+Creates a new aggregate function.
+
+#### Example:
+
+```sql
+CREATE AGGREGATE median(float8) (
+  SFUNC = array_append,
+  STYPE = float8[],
+  FINALFUNC = array_median,
+  INITCOND = '{}'
+);
+```
+
+---
+
+### **CREATE DATABASE** — Create a New Database
+
+Create a new PostgreSQL database.
+
+#### Example:
+
+```sql
+CREATE DATABASE sales_db;
+```
+
+---
+
+### **CREATE FUNCTION** — Define a New Function
+
+Create a new function.
+
+#### Example:
+
+```sql
+CREATE FUNCTION calculate_tax(price NUMERIC) RETURNS NUMERIC AS $$
+BEGIN
+  RETURN price * 0.08;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+### **CREATE INDEX** — Define a New Index
+
+Creates a new index on a table to improve query performance.
+
+#### Example:
+
+```sql
+CREATE INDEX idx_order_date ON orders (order_date);
+```
+
+---
+
+### **CREATE TABLE** — Define a New Table
+
+Creates a new table.
+
+#### Example:
+
+```sql
+CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100),
+  salary NUMERIC(10, 2),
+  department_id INT
+);
+```
+
+---
+
+### **CREATE TRIGGER** — Define a New Trigger
+
+Creates a trigger that will automatically execute a function when certain events occur.
+
+#### Example:
+
+```sql
+CREATE TRIGGER update_employee_log
+AFTER INSERT OR UPDATE ON employees
+FOR EACH ROW EXECUTE FUNCTION log_employee_changes();
+```
+
+---
+
+### **DELETE** — Delete Rows from a Table
+
+Removes rows from a table.
+
+#### Example:
+
+```sql
+DELETE FROM employees WHERE id = 100;
+```
+
+---
+
+### **EXPLAIN** — Show the Execution Plan of a Statement
+
+Displays the execution plan for a query, which can help optimize performance.
+
+#### Example:
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM orders WHERE order_date > '2023-01-01';
+```
+
+---
+
+### **INSERT** — Insert New Rows into a Table
+
+Adds new data to a table.
+
+#### Example:
+
+```sql
+INSERT INTO employees (name, salary, department_id)
+VALUES ('John Doe', 55000, 2);
+```
+
+---
+
+### **SELECT** — Retrieve Rows from a Table or View
+
+Fetches data from a table or view.
+
+#### Example:
+
+```sql
+SELECT name, salary FROM employees WHERE department_id = 2;
+```
+
+---
+
+### **UPDATE** — Update Rows of a Table
+
+Modifies existing rows in a table.
+
+#### Example:
+
+```sql
+UPDATE employees SET salary = salary * 1.05 WHERE department_id = 2;
+```
+
+---
+
+### **VACUUM** — Garbage-Collect and Optionally Analyze a Database
+
+Reclaims storage and improves performance.
+
+#### Example:
+
+```sql
+VACUUM FULL ANALYZE;
+```
