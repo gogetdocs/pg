@@ -1,0 +1,62 @@
+## Expressions in PL/pgSQL
+
+### Overview
+
+In PL/pgSQL, expressions are processed using the server's main SQL executor. This means that when you write a PL/pgSQL statement like `IF expression THEN ...`, it is evaluated by feeding a query like `SELECT expression` to the main SQL engine.
+
+### How Expressions are Evaluated
+
+When an expression is first used, a `PREPARE` command is essentially executed behind the scenes. For example, if you have declared two integer variables `x` and `y`, and you write `IF x < y THEN ...`, what happens is equivalent to:
+
+```sql
+PREPARE statement_name(integer, integer) AS SELECT $1 < $2;
+```
+
+This prepared statement is then `EXECUTEd` for each execution of the `IF` statement, with the current values of the PL/pgSQL variables supplied as parameter values.
+
+### Usage
+
+Here is an example of using an expression in a PL/pgSQL function:
+
+```sql
+CREATE OR REPLACE FUNCTION check_table_empty()
+RETURNS boolean AS $$
+DECLARE
+    my_table_count integer;
+BEGIN
+    IF (SELECT count(*) FROM my_table) > 0 THEN
+        RETURN FALSE;
+    ELSE
+        RETURN TRUE;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this example, the expression `(SELECT count(*) FROM my_table)` is evaluated as a `SELECT` statement, and the result is used to determine whether the table is empty.
+
+### Using Clauses in Expressions
+
+Since an expression is converted to a `SELECT` command, it can contain the same clauses that an ordinary `SELECT` would, except that it cannot include a top-level `UNION`, `INTERSECT`, or `EXCEPT` clause. Here is an example of using a `FROM` clause in an expression:
+
+```sql
+CREATE OR REPLACE FUNCTION check_table_empty()
+RETURNS boolean AS $$
+DECLARE
+    my_table_count integer;
+BEGIN
+    IF count(*) > 0 FROM my_table THEN
+        RETURN FALSE;
+    ELSE
+        RETURN TRUE;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this example, the expression `count(*) > 0 FROM my_table` is parsed as though it were `SELECT count(*) > 0 FROM my_table`.
+
+### Important Notes
+
+- The `SELECT` must produce a single column, and not more than one row. If it produces no rows, the result is taken as `NULL`.
+- The details of how expressions are evaluated are not usually important to a PL/pgSQL user, but they can be useful to know when trying to diagnose a problem. More information can be found in Section 43.11.2.

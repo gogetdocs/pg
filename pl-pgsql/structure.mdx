@@ -1,0 +1,170 @@
+## PL/pgSQL Structure and Usage
+
+PL/pgSQL is a procedural language for PostgreSQL that allows you to write functions, triggers, and other database objects. Here's an overview of the structure and usage of PL/pgSQL.
+
+### Creating a PL/pgSQL Function
+
+To create a PL/pgSQL function, you use the `CREATE FUNCTION` command. The basic syntax is:
+
+```sql
+CREATE FUNCTION function_name(data_type1, data_type2, ...) RETURNS data_type
+AS 'function_body'
+LANGUAGE plpgsql;
+```
+
+For example:
+
+```sql
+CREATE FUNCTION add_two_numbers(integer, integer) RETURNS integer
+AS $$
+BEGIN
+    RETURN $1 + $2;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this example, `add_two_numbers` is the function name, `integer` is the data type of the two input parameters, and `integer` is the return data type. The function body is defined using dollar quoting (`$$`).
+
+### Block Structure
+
+PL/pgSQL is a block-structured language. A block is defined as:
+
+```sql
+[ <<label>> ]
+[ DECLARE
+    declarations ]
+BEGIN
+    statements
+END [ label ];
+```
+
+Each declaration and statement within a block is terminated by a semicolon. A block that appears within another block must have a semicolon after `END`.
+
+### Labels and Variables
+
+A label is only needed if you want to identify the block for use in an `EXIT` statement or to qualify the names of variables declared in the block. Variables declared in a block mask any similarly-named variables of outer blocks for the duration of the block.
+
+For example:
+
+```sql
+CREATE FUNCTION somefunc() RETURNS integer AS $$
+<< outerblock >>
+DECLARE
+    quantity integer := 30;
+BEGIN
+    RAISE NOTICE 'Quantity here is %', quantity;  -- Prints 30
+    quantity := 50;
+    --
+    -- Create a subblock
+    --
+    DECLARE
+        quantity integer := 80;
+    BEGIN
+        RAISE NOTICE 'Quantity here is %', quantity;  -- Prints 80
+        RAISE NOTICE 'Outer quantity here is %', outerblock.quantity;  -- Prints 50
+    END;
+
+    RAISE NOTICE 'Quantity here is %', quantity;  -- Prints 50
+
+    RETURN quantity;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this example, the `outerblock` label is used to qualify the `quantity` variable in the outer block.
+
+### Subblocks
+
+Subblocks can be used for logical grouping or to localize variables to a small group of statements. For example:
+
+```sql
+CREATE FUNCTION somefunc() RETURNS integer AS $$
+BEGIN
+    --
+    -- Create a subblock
+    --
+    DECLARE
+        quantity integer := 80;
+    BEGIN
+        RAISE NOTICE 'Quantity here is %', quantity;  -- Prints 80
+    END;
+
+    RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Comments
+
+Comments work the same way in PL/pgSQL code as in ordinary SQL. A double dash (`--`) starts a comment that extends to the end of the line. A `/*` starts a block comment that extends to the matching occurrence of `*/`. Block comments nest.
+
+### Transaction Control
+
+PL/pgSQL's `BEGIN`/`END` are only for grouping statements and do not start or end a transaction. To manage transactions in PL/pgSQL, use the `BEGIN`/`COMMIT`/`ROLLBACK` commands. For example:
+
+```sql
+CREATE FUNCTION somefunc() RETURNS integer AS $$
+BEGIN
+    BEGIN;  -- Start a transaction
+    --
+    -- Perform some operations
+    --
+    COMMIT;  -- Commit the transaction
+    RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+Note that a block containing an `EXCEPTION` clause effectively forms a subtransaction that can be rolled back without affecting the outer transaction.
+
+### Usage
+
+Here's an example of a PL/pgSQL function that uses a subblock to localize variables:
+
+```sql
+CREATE FUNCTION calculate_total(integer, integer) RETURNS integer AS $$
+BEGIN
+    --
+    -- Create a subblock to localize variables
+    --
+    DECLARE
+        subtotal integer := $1 * $2;
+    BEGIN
+        RAISE NOTICE 'Subtotal is %', subtotal;
+        RETURN subtotal + 10;
+    END;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+You can call this function using the `SELECT` statement:
+
+```sql
+SELECT calculate_total(2, 3);
+```
+
+This will return the result of the calculation, which is 16.
+
+Another example is a function that uses a loop to iterate over a table:
+
+```sql
+CREATE FUNCTION sum_values() RETURNS integer AS $$
+DECLARE
+    total integer := 0;
+    row record;
+BEGIN
+    FOR row IN SELECT * FROM mytable LOOP
+        total := total + row.value;
+    END LOOP;
+    RETURN total;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+You can call this function using the `SELECT` statement:
+
+```sql
+SELECT sum_values();
+```
+
+This will return the sum of the values in the `mytable` table.

@@ -1,0 +1,153 @@
+## Using Cursors in PL/pgSQL
+
+Cursors in PL/pgSQL are used to encapsulate a query and read its result a few rows at a time. This is particularly useful for handling large result sets and for returning references to cursors from functions.
+
+### Declaring Cursor Variables
+
+Cursor variables are declared using the `refcursor` data type. There are two ways to declare a cursor variable:
+
+1. **Simple Declaration**: Declare a variable of type `refcursor`.
+2. **Cursor Declaration Syntax**: Use the cursor declaration syntax to specify the query and optional parameters.
+
+#### Examples
+
+```sql
+DECLARE
+    curs1 refcursor;
+    curs2 CURSOR FOR SELECT * FROM tenk1;
+    curs3 CURSOR (key integer) FOR SELECT * FROM tenk1 WHERE unique1 = key;
+```
+
+- **curs1** is an unbound cursor variable that can be used with any query.
+- **curs2** is bound to a specific query.
+- **curs3** is bound to a parameterized query.
+
+### Opening Cursors
+
+Before a cursor can be used to retrieve rows, it must be opened. There are three forms of the `OPEN` statement:
+
+1. **OPEN FOR Query**: Opens an unbound cursor variable and gives it a query to execute.
+2. **OPEN FOR EXECUTE**: Opens an unbound cursor variable and gives it a dynamic query to execute.
+3. **Opening a Bound Cursor**: Opens a cursor variable whose query was bound to it when it was declared.
+
+#### Examples
+
+```sql
+-- OPEN FOR Query
+OPEN curs1 FOR SELECT * FROM foo WHERE key = mykey;
+
+-- OPEN FOR EXECUTE
+OPEN curs1 FOR EXECUTE format('SELECT * FROM %I WHERE col1 = $1', tabname) USING keyvalue;
+
+-- Opening a Bound Cursor
+OPEN curs2;
+OPEN curs3(42);
+OPEN curs3(key := 42);
+```
+
+### Using Cursors
+
+Once a cursor has been opened, it can be manipulated with the following statements:
+
+1. **FETCH**: Retrieves the next row from the cursor into a target variable.
+2. **MOVE**: Repositions the cursor without retrieving any data.
+3. **UPDATE/DELETE WHERE CURRENT OF**: Updates or deletes the row at the current cursor position.
+4. **CLOSE**: Closes the portal underlying an open cursor.
+
+#### Examples
+
+```sql
+-- FETCH
+FETCH curs1 INTO rowvar;
+FETCH curs2 INTO foo, bar, baz;
+FETCH LAST FROM curs3 INTO x, y;
+FETCH RELATIVE -2 FROM curs4 INTO x;
+
+-- MOVE
+MOVE curs1;
+MOVE LAST FROM curs3;
+MOVE RELATIVE -2 FROM curs4;
+MOVE FORWARD 2 FROM curs4;
+
+-- UPDATE/DELETE WHERE CURRENT OF
+UPDATE foo SET dataval = myval WHERE CURRENT OF curs1;
+
+-- CLOSE
+CLOSE curs1;
+```
+
+### Returning Cursors
+
+PL/pgSQL functions can return cursors to the caller. This is useful for returning multiple rows or columns, especially with very large result sets.
+
+#### Examples
+
+```sql
+-- Specifying a Portal Name
+CREATE FUNCTION reffunc(refcursor) RETURNS refcursor AS $$
+BEGIN
+    OPEN $1 FOR SELECT col FROM test;
+    RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT reffunc('funccursor');
+FETCH ALL IN funccursor;
+COMMIT;
+
+-- Automatic Cursor Name Generation
+CREATE FUNCTION reffunc2() RETURNS refcursor AS $$
+DECLARE
+    ref refcursor;
+BEGIN
+    OPEN ref FOR SELECT col FROM test;
+    RETURN ref;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT reffunc2();
+FETCH ALL IN "";
+COMMIT;
+
+-- Returning Multiple Cursors
+CREATE FUNCTION myfunc(refcursor, refcursor) RETURNS SETOF refcursor AS $$
+BEGIN
+    OPEN $1 FOR SELECT * FROM table_1;
+    RETURN NEXT $1;
+    OPEN $2 FOR SELECT * FROM table_2;
+    RETURN NEXT $2;
+END;
+$$ LANGUAGE plpgsql;
+
+BEGIN;
+SELECT * FROM myfunc('a', 'b');
+FETCH ALL FROM a;
+FETCH ALL FROM b;
+COMMIT;
+```
+
+### Looping through a Cursor's Result
+
+The `FOR` statement can be used to iterate through the rows returned by a cursor.
+
+#### Example
+
+```sql
+FOR recordvar IN bound_cursorvar [ ( [ argument_name := ] argument_value [, ...] ) ] LOOP
+    statements
+END LOOP [ label ];
+
+-- Example Usage
+DECLARE
+    curs CURSOR FOR SELECT * FROM tenk1;
+    rowvar record;
+BEGIN
+    FOR rowvar IN curs LOOP
+        -- Process each row
+    END LOOP;
+END;
+```
+
+This example demonstrates how to loop through the rows returned by a cursor using the `FOR` statement. The cursor variable `curs` is bound to a query, and the loop iterates through each row, assigning it to the `rowvar` variable.

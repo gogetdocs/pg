@@ -1,0 +1,139 @@
+## PL/pgSQL Under the Hood
+
+### Variable Substitution
+
+PL/pgSQL substitutes query parameters for references to variables and parameters within a function. This substitution occurs only where syntactically permissible, meaning it cannot dynamically change which database objects are referenced by the command.
+
+#### Example: Ambiguous References
+
+Consider the following example where `foo` and `bar` could refer to either variables or table columns:
+
+```sql
+INSERT INTO dest (col) SELECT foo + bar FROM src;
+```
+
+To resolve this ambiguity, you can rename the variables or columns, qualify the references, or specify the interpretation preference.
+
+#### Qualifying References
+
+You can use labeled blocks to qualify variable references:
+
+```sql
+<<block>>
+DECLARE
+    foo int;
+BEGIN
+    foo := ...;
+    INSERT INTO dest (col) SELECT block.foo + bar FROM src;
+END;
+```
+
+Alternatively, you can qualify function parameters and special variables by the function's name:
+
+```sql
+CREATE FUNCTION stamp_user(id int, comment text) RETURNS void AS $$
+BEGIN
+    UPDATE users SET last_modified = now(), comment = stamp_user.comment
+    WHERE users.id = stamp_user.id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Specifying Interpretation Preference
+
+You can set the `plpgsql.variable_conflict` configuration parameter to `error`, `use_variable`, or `use_column` to specify how PL/pgSQL should resolve ambiguous references. This can be done system-wide or on a function-by-function basis using special commands:
+
+```sql
+CREATE FUNCTION stamp_user(id int, comment text) RETURNS void AS $$
+#variable_conflict use_variable
+DECLARE
+    curtime timestamp := now();
+BEGIN
+    UPDATE users SET last_modified = curtime, comment = comment
+    WHERE users.id = id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Plan Caching
+
+PL/pgSQL parses the function's source text and produces an internal binary instruction tree the first time the function is called within each session. Individual SQL expressions and commands are not translated immediately but are parsed and analyzed as they are first executed to create prepared statements. Subsequent visits to these expressions or commands reuse the prepared statements.
+
+#### Example: Plan Caching
+
+Consider the following function:
+
+```sql
+CREATE FUNCTION logfunc1(logtxt text) RETURNS void AS $$
+BEGIN
+    INSERT INTO logtable VALUES (logtxt, 'now');
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this case, the string `'now'` is converted to a timestamp constant when the `INSERT` is analyzed and then used in all invocations of `logfunc1` during the session. This is not the intended behavior. A better approach is to use the `now()` function:
+
+```sql
+CREATE FUNCTION logfunc2(logtxt text) RETURNS void AS $$
+BEGIN
+    INSERT INTO logtable VALUES (logtxt, now());
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Dynamic Commands
+
+To use non-constant names or values in utility statements, you must construct the statement as a string and execute it using `EXECUTE`. This allows for dynamic table or column names:
+
+```sql
+CREATE FUNCTION dynamic_insert(tablename text, columnname text, value text) RETURNS void AS $$
+BEGIN
+    EXECUTE format('INSERT INTO %I (%I) VALUES (%L)', tablename, columnname, value);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Usage
+
+#### Trigger Functions
+
+Trigger functions can be used with multiple tables, and PL/pgSQL prepares and caches statements independently for each table:
+
+```sql
+CREATE TABLE table1 (id int, data text);
+CREATE TABLE table2 (id int, data text);
+
+CREATE FUNCTION trigger_func() RETURNS trigger AS $$
+BEGIN
+    INSERT INTO logtable VALUES (NEW.id, NEW.data);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger1 AFTER INSERT ON table1 FOR EACH ROW EXECUTE PROCEDURE trigger_func();
+CREATE TRIGGER trigger2 AFTER INSERT ON table2 FOR EACH ROW EXECUTE PROCEDURE trigger_func();
+```
+
+#### Polymorphic Functions
+
+Functions with polymorphic argument types have separate statement caches for each combination of actual argument types:
+
+```sql
+CREATE FUNCTION polymorphic_func(anyelement) RETURNS void AS $$
+BEGIN
+    INSERT INTO logtable VALUES ($1);
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT polymorphic_func('text_value');
+SELECT polymorphic_func(123);
+```
+
+### Tips for Developing in PL/pgSQL
+
+- **Use consistent naming conventions** to avoid conflicts between variable and column names.
+- **Qualify ambiguous references** using labeled blocks or function names.
+- **Specify interpretation preference** using `plpgsql.variable_conflict` or special commands.
+- **Use dynamic commands** with `EXECUTE` for non-constant table or column names.
+- **Consider plan caching** when writing functions to optimize performance.
+- **Use `now()` or `current_timestamp`** instead of the string `'now'` for time-sensitive values[1].

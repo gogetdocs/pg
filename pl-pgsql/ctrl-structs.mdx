@@ -1,0 +1,257 @@
+## Control Structures in PL/pgSQL
+
+Control structures are essential components of PL/pgSQL, enabling flexible and powerful manipulation of PostgreSQL data. This documentation covers various control structures, including returning from functions and procedures, conditionals, loops, and error handling.
+
+### Returning from Functions
+
+Functions in PL/pgSQL can return data using the `RETURN` and `RETURN NEXT` commands.
+
+#### RETURN
+
+The `RETURN` command terminates a function and returns the value of an expression to the caller. It is used for functions that do not return a set.
+
+- **Scalar Return**: For functions returning a scalar type, the expression's result is automatically cast into the function's return type.
+- **Composite Return**: For functions returning a composite type, an expression delivering exactly the requested column set must be written. This may require explicit casting.
+
+```sql
+-- Example of a function returning a scalar type
+CREATE OR REPLACE FUNCTION add_two_numbers(a int, b int) RETURNS int AS
+$$
+BEGIN
+    RETURN a + b;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Example of a function returning a composite type
+CREATE OR REPLACE FUNCTION get_employee_info(id int) RETURNS TABLE(name text, age int) AS
+$$
+DECLARE
+    r record;
+BEGIN
+    SELECT name, age INTO r FROM employees WHERE employee_id = id;
+    RETURN r;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### RETURN NEXT and RETURN QUERY
+
+`RETURN NEXT` and `RETURN QUERY` are used for functions declared to return `SETOF sometype`. These commands append rows to the function's result set.
+
+- **RETURN NEXT**: Appends a single row to the result set.
+- **RETURN QUERY**: Appends the results of executing a query to the result set.
+
+```sql
+-- Example using RETURN NEXT
+CREATE OR REPLACE FUNCTION get_all_employees() RETURNS SETOF employees AS
+$$
+DECLARE
+    r employees%rowtype;
+BEGIN
+    FOR r IN SELECT * FROM employees LOOP
+        RETURN NEXT r;
+    END LOOP;
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Example using RETURN QUERY
+CREATE OR REPLACE FUNCTION get_available_flights(date) RETURNS SETOF integer AS
+$$
+BEGIN
+    RETURN QUERY SELECT flightid FROM flights WHERE flightdate >= $1 AND flightdate < ($1 + 1);
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Returning from Procedures
+
+Procedures do not have return values. They can end without a `RETURN` statement, or use `RETURN` with no expression to exit early.
+
+```sql
+-- Example of a procedure
+CREATE OR REPLACE PROCEDURE update_employee_salary(id int, new_salary numeric) AS
+$$
+BEGIN
+    UPDATE employees SET salary = new_salary WHERE employee_id = id;
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Calling a Procedure
+
+Procedures are called using the `CALL` statement. Output parameters are handled by assigning the procedure's return values to variables.
+
+```sql
+-- Example of calling a procedure
+DO $$
+DECLARE
+    myvar int := 5;
+BEGIN
+    CALL triple(myvar);
+    RAISE NOTICE 'myvar = %', myvar;
+END;
+$$;
+```
+
+### Conditionals
+
+PL/pgSQL supports `IF` and `CASE` statements for conditional execution.
+
+#### IF-THEN
+
+The simplest form of `IF` statement executes statements if a condition is true.
+
+```sql
+-- Example of IF-THEN
+IF v_user_id <> 0 THEN
+    UPDATE users SET email = v_email WHERE user_id = v_user_id;
+END IF;
+```
+
+#### IF-THEN-ELSE
+
+This form adds an alternative set of statements to execute if the condition is not true.
+
+```sql
+-- Example of IF-THEN-ELSE
+IF parentid IS NULL OR parentid = '' THEN
+    RETURN fullname;
+ELSE
+    RETURN hp_true_filename(parentid) || '/' || fullname;
+END IF;
+```
+
+#### IF-THEN-ELSIF
+
+This form checks multiple conditions in succession.
+
+```sql
+-- Example of IF-THEN-ELSIF
+IF number = 0 THEN
+    result := 'zero';
+ELSIF number > 0 THEN
+    result := 'positive';
+ELSIF number < 0 THEN
+    result := 'negative';
+ELSE
+    result := 'NULL';
+END IF;
+```
+
+#### Simple CASE
+
+Executes statements based on equality of operands.
+
+```sql
+-- Example of simple CASE
+CASE x
+    WHEN 1, 2 THEN
+        msg := 'one or two';
+    ELSE
+        msg := 'other value than one or two';
+END CASE;
+```
+
+#### Searched CASE
+
+Executes statements based on truth of Boolean expressions.
+
+```sql
+-- Example of searched CASE
+CASE
+    WHEN x BETWEEN 0 AND 10 THEN
+        msg := 'value is between zero and ten';
+    WHEN x BETWEEN 11 AND 20 THEN
+        msg := 'value is between eleven and twenty';
+END CASE;
+```
+
+### Loops
+
+PL/pgSQL supports several types of loops.
+
+#### LOOP
+
+An unconditional loop that repeats indefinitely until terminated by an `EXIT` or `RETURN` statement.
+
+```sql
+-- Example of LOOP
+LOOP
+    -- some computations
+    IF count > 0 THEN
+        EXIT;
+    END IF;
+END LOOP;
+```
+
+#### EXIT
+
+Terminates the innermost loop and executes the statement following `END LOOP`.
+
+```sql
+-- Example of EXIT
+LOOP
+    -- some computations
+    EXIT WHEN count > 0;
+END LOOP;
+```
+
+#### CONTINUE
+
+Skips the remaining statements in the loop body and returns to the loop control expression.
+
+```sql
+-- Example of CONTINUE
+LOOP
+    -- some computations
+    CONTINUE WHEN count < 50;
+    -- some computations for count IN [50 .. 100]
+END LOOP;
+```
+
+#### WHILE
+
+Repeats a sequence of statements as long as a condition is true.
+
+```sql
+-- Example of WHILE
+WHILE amount_owed > 0 AND gift_certificate_balance > 0 LOOP
+    -- some computations here
+END LOOP;
+```
+
+#### FOR (Integer Variant)
+
+Creates a loop that iterates over a range of integer values.
+
+```sql
+-- Example of FOR (Integer Variant)
+FOR i IN 1..10 LOOP
+    -- i will take on the values 1,2,3,4,5,6,7,8,9,10 within the loop
+END LOOP;
+```
+
+#### FOR (Query Variant)
+
+Iterates through the results of a query and manipulates the data accordingly.
+
+```sql
+-- Example of FOR (Query Variant)
+FOR mviews IN
+    SELECT n.nspname AS mv_schema,
+           c.relname AS mv_name,
+           pg_catalog.pg_get_userbyid(c.relowner) AS owner
+    FROM pg_catalog.pg_class c
+    LEFT JOIN pg_catalog.pg_namespace n ON (n.oid = c.relnamespace)
+    WHERE c.relkind = 'm'
+LOOP
+    -- Now "mviews" has one record with information about the materialized view
+    RAISE NOTICE 'Refreshing materialized view %.% (owner: %)...',
+                 quote_ident(mviews.mv_schema),
+                 quote_ident(mviews.mv_name),
+                 quote_ident(m
+
+```

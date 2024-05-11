@@ -1,0 +1,101 @@
+## Developing in PL/pgSQL
+
+Developing in PL/pgSQL can be streamlined by using a combination of text editors and GUI database access tools. Here are some tips and best practices for developing in PL/pgSQL.
+
+### Handling of Quotation Marks
+
+When writing PL/pgSQL functions, it is essential to handle quotation marks correctly. The code of a PL/pgSQL function is specified in `CREATE FUNCTION` as a string literal. To avoid tedious and error-prone doubling of quotes, it is recommended to use dollar-quoted string literals.
+
+**Example: Using Dollar-Quoted String Literals**
+
+```sql
+CREATE OR REPLACE FUNCTION testfunc(integer) RETURNS integer AS $PROC$
+    -- function body
+$PROC$ LANGUAGE plpgsql;
+```
+
+Within the dollar-quoted string literal, you can use single quotes for simple literal strings in SQL commands and `$$` to delimit fragments of SQL commands that you are assembling as strings.
+
+**Example: Using Single Quotes and Dollar-Quoted Delimiters**
+
+```sql
+CREATE OR REPLACE FUNCTION testfunc(integer) RETURNS integer AS $PROC$
+    a_output := 'Blah';
+    SELECT * FROM users WHERE f_name='foobar';
+$PROC$ LANGUAGE plpgsql;
+```
+
+### Additional Compile-Time and Run-Time Checks
+
+PL/pgSQL provides additional checks to aid in finding instances of simple but common problems before they cause harm. These checks can be enabled through the configuration variables `plpgsql.extra_warnings` and `plpgsql.extra_errors`.
+
+**Example: Enabling Additional Checks**
+
+```sql
+SET plpgsql.extra_warnings TO 'all';
+SET plpgsql.extra_errors TO 'all';
+```
+
+Available checks include:
+
+- `shadowed_variables`: Checks if a declaration shadows a previously defined variable.
+- `strict_multi_assignment`: Checks if the number of target variables and the number of source variables are different in a multi-assignment statement.
+- `too_many_rows`: Checks if a query returns more than one row when an `INTO` clause is used.
+
+**Example: Using Additional Checks**
+
+```sql
+SET plpgsql.extra_warnings TO 'shadowed_variables';
+
+CREATE FUNCTION foo(f1 int) RETURNS int AS $$
+DECLARE
+    f1 int;
+BEGIN
+    RETURN f1;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+This will produce a warning:
+
+```
+WARNING:  variable "f1" shadows a previously defined variable
+LINE 3: f1 int;
+        ^
+```
+
+### Usage
+
+Here is an example of a PL/pgSQL function that uses dollar-quoted string literals and additional checks:
+
+```sql
+CREATE OR REPLACE FUNCTION public.foo()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    x int;
+    y int;
+BEGIN
+    SELECT 1 INTO x;
+    SELECT 1, 2 INTO x, y;
+END;
+$$;
+
+SELECT foo();
+```
+
+This will produce a warning:
+
+```
+WARNING:  number of source and target fields in assignment does not match
+DETAIL:  strict_multi_assignment check of extra_warnings is active.
+HINT:  Make sure the query returns the exact list of columns.
+```
+
+### Best Practices
+
+- Use dollar-quoted string literals to avoid tedious and error-prone doubling of quotes.
+- Enable additional checks through the configuration variables `plpgsql.extra_warnings` and `plpgsql.extra_errors`.
+- Use GUI database access tools, such as pgAdmin, to facilitate development in PL/pgSQL.
+- Test your functions in a separate development environment to avoid errors in production.

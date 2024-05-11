@@ -1,0 +1,193 @@
+## PL/pgSQL Variable Declarations
+
+PL/pgSQL variables must be declared in the declarations section of the block. Here are the details on how to declare variables, including function parameters, aliases, and various data types.
+
+### 1. General Syntax
+
+The general syntax for declaring a variable is:
+
+```sql
+name [ CONSTANT ] type [ COLLATE collation_name ] [ NOT NULL ] [ { DEFAULT | := | = } expression ];
+```
+
+- **CONSTANT**: Prevents the variable from being reassigned after initialization.
+- **COLLATE**: Specifies a collation to use for the variable.
+- **NOT NULL**: Ensures the variable cannot be assigned a null value.
+- **DEFAULT**: Specifies the initial value of the variable.
+
+### 2. Declaring Function Parameters
+
+Function parameters are named with identifiers `$1`, `$2`, etc. Aliases can be declared for these parameters for better readability.
+
+#### 2.1 Using CREATE FUNCTION
+
+```sql
+CREATE FUNCTION sales_tax(subtotal real) RETURNS real AS $$
+BEGIN
+    RETURN subtotal * 0.06;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 2.2 Explicitly Declaring Aliases
+
+```sql
+CREATE FUNCTION sales_tax(real) RETURNS real AS $$
+DECLARE
+    subtotal ALIAS FOR $1;
+BEGIN
+    RETURN subtotal * 0.06;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 3. ALIAS
+
+The ALIAS syntax is used to declare an alias for any variable, not just function parameters.
+
+```sql
+newname ALIAS FOR oldname;
+```
+
+#### 3.1 Example
+
+```sql
+DECLARE
+    prior ALIAS FOR old;
+    updated ALIAS FOR new;
+```
+
+### 4. Copying Types
+
+`%TYPE` is used to declare variables that will hold database values without specifying the data type explicitly.
+
+```sql
+variable%TYPE
+```
+
+#### 4.1 Example
+
+```sql
+user_id users.user_id%TYPE;
+```
+
+### 5. Row Types
+
+Row variables can hold a whole row of a SELECT or FOR query result.
+
+```sql
+name table_name%ROWTYPE;
+name composite_type_name;
+```
+
+#### 5.1 Example
+
+```sql
+CREATE FUNCTION merge_fields(t_row table1) RETURNS text AS $$
+DECLARE
+    t2_row table2%ROWTYPE;
+BEGIN
+    SELECT * INTO t2_row FROM table2 WHERE ... ;
+    RETURN t_row.f1 || t2_row.f3 || t_row.f5 || t2_row.f7;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 6. Record Types
+
+Record variables have no predefined structure and take on the actual row structure of the row they are assigned during a SELECT or FOR command.
+
+```sql
+name RECORD;
+```
+
+#### 6.1 Example
+
+```sql
+CREATE FUNCTION process_record() RETURNS void AS $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT * FROM table1 LOOP
+        -- Process each row
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 7. Collation of PL/pgSQL Variables
+
+Collation-sensitive operations within a function are affected by the collations of the parameters.
+
+```sql
+CREATE FUNCTION less_than(a text, b text) RETURNS boolean AS $$
+BEGIN
+    RETURN a < b;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 7.1 Overriding Collation
+
+```sql
+CREATE FUNCTION less_than_c(a text, b text) RETURNS boolean AS $$
+BEGIN
+    RETURN a < b COLLATE "C";
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 8. Usage
+
+#### 8.1 Function with Multiple Output Parameters
+
+```sql
+CREATE FUNCTION sum_n_product(x int, y int, OUT sum int, OUT prod int) AS $$
+BEGIN
+    sum := x + y;
+    prod := x * y;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT * FROM sum_n_product(2, 4);
+```
+
+#### 8.2 Procedure with Output Parameters
+
+```sql
+CREATE PROCEDURE sum_n_product(x int, y int, OUT sum int, OUT prod int) AS $$
+BEGIN
+    sum := x + y;
+    prod := x * y;
+END;
+$$ LANGUAGE plpgsql;
+
+CALL sum_n_product(2, 4, NULL, NULL);
+```
+
+#### 8.3 Function Returning a Table
+
+```sql
+CREATE FUNCTION extended_sales(p_itemno int)
+RETURNS TABLE(quantity int, total numeric) AS $$
+BEGIN
+    RETURN QUERY SELECT s.quantity, s.quantity * s.price FROM sales AS s
+    WHERE s.itemno = p_itemno;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 8.4 Polymorphic Function
+
+```sql
+CREATE FUNCTION add_three_values(v1 anycompatible, v2 anycompatible, v3 anycompatible)
+RETURNS anycompatible AS $$
+BEGIN
+    RETURN v1 + v2 + v3;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT add_three_values(1, 2, 4.7);
+```
+
+These examples demonstrate how to use PL/pgSQL variables, including function parameters, aliases, and various data types, in scenarios.

@@ -1,0 +1,104 @@
+## Error Handling and Messages in PostgreSQL
+
+Error handling and messages are crucial components of any database management system. PostgreSQL provides several mechanisms for reporting errors and messages, as well as checking assertions.
+
+### Reporting Errors and Messages
+
+The `RAISE` statement is used to report messages and raise errors in PostgreSQL. The general syntax of the `RAISE` statement is as follows:
+
+```sql
+RAISE [ level ] 'format' [, expression [, ... ]] [ USING option = expression [, ... ] ];
+RAISE [ level ] condition_name [ USING option = expression [, ... ] ];
+RAISE [ level ] SQLSTATE 'sqlstate' [ USING option = expression [, ... ] ];
+RAISE [ level ] USING option = expression [, ... ];
+RAISE ;
+```
+
+The `level` option specifies the error severity, which can be one of the following:
+
+- `DEBUG`
+- `LOG`
+- `INFO`
+- `NOTICE`
+- `WARNING`
+- `EXCEPTION` (default)
+
+The `format` string specifies the error message text to be reported. The format string can be followed by optional argument expressions to be inserted into the message.
+
+#### Example 1: Reporting a Notice
+
+```sql
+DO $$
+DECLARE
+    v_job_id integer := 123;
+BEGIN
+    RAISE NOTICE 'Calling cs_create_job(%)', v_job_id;
+END $$;
+```
+
+This will output:
+
+```
+NOTICE:  Calling cs_create_job(123)
+```
+
+#### Example 2: Reporting an Error with a Hint
+
+```sql
+DO $$
+DECLARE
+    user_id integer := 123;
+BEGIN
+    RAISE EXCEPTION 'Nonexistent ID --> %', user_id
+      USING HINT = 'Please check your user ID';
+END $$;
+```
+
+This will output:
+
+```
+ERROR:  Nonexistent ID --> 123
+HINT:  Please check your user ID
+```
+
+#### Example 3: Reporting an Error with a Custom SQLSTATE
+
+```sql
+DO $$
+DECLARE
+    user_id integer := 123;
+BEGIN
+    RAISE 'Duplicate user ID: %', user_id USING ERRCODE = 'unique_violation';
+END $$;
+```
+
+This will output:
+
+```
+ERROR:  Duplicate user ID: 123
+```
+
+### Checking Assertions
+
+The `ASSERT` statement is used to insert debugging checks into PL/pgSQL functions. The general syntax of the `ASSERT` statement is as follows:
+
+```sql
+ASSERT condition [ , message ];
+```
+
+The `condition` is a Boolean expression that is expected to always evaluate to true. If the result is false or null, then an `ASSERT_FAILURE` exception is raised.
+
+#### Example 1: Checking an Assertion
+
+```sql
+DO $$
+DECLARE
+    x integer := 5;
+BEGIN
+    ASSERT x > 0, 'x must be greater than 0';
+END $$;
+```
+
+This will do nothing if `x` is indeed greater than 0. If `x` is not greater than 0, it will raise an `ASSERT_FAILURE` exception.
+
+Note that assertions can be enabled or disabled via the configuration parameter `plpgsql.check_asserts`, which takes a Boolean value; the default is on. If this parameter is off, then `ASSERT` statements do nothing.

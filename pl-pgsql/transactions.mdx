@@ -1,0 +1,117 @@
+## Transaction Management in PostgreSQL
+
+Transaction management is a crucial aspect of database operations, allowing for the control of transactions in procedures and anonymous code blocks. In this section, we will explore the concepts and usage of transaction management in PostgreSQL.
+
+### Ending Transactions
+
+In PostgreSQL, transactions can be ended using the `COMMIT` and `ROLLBACK` commands. A new transaction is started automatically after a transaction is ended using these commands.
+
+#### Example: Simple Transaction Management
+
+```sql
+CREATE PROCEDURE transaction_test1()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    FOR i IN 0..9 LOOP
+        INSERT INTO test1 (a) VALUES (i);
+        IF i % 2 = 0 THEN
+            COMMIT;
+        ELSE
+            ROLLBACK;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+CALL transaction_test1();
+```
+
+In this example, a procedure `transaction_test1` is created, which inserts values into a table `test1` and commits or rolls back the transaction based on the value of `i`.
+
+### Starting New Transactions with Same Characteristics
+
+In cases where transactions are committed in a loop, it might be desirable to start new transactions automatically with the same characteristics as the previous one. The commands `COMMIT AND CHAIN` and `ROLLBACK AND CHAIN` accomplish this.
+
+#### Example: Chaining Transactions
+
+```sql
+CREATE PROCEDURE transaction_test3()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    FOR i IN 0..9 LOOP
+        INSERT INTO test1 (a) VALUES (i);
+        IF i % 2 = 0 THEN
+            COMMIT AND CHAIN;
+        ELSE
+            ROLLBACK AND CHAIN;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+CALL transaction_test3();
+```
+
+In this example, the `COMMIT AND CHAIN` and `ROLLBACK AND CHAIN` commands are used to start new transactions with the same characteristics as the previous one.
+
+### Transaction Control in Nested Calls
+
+Transaction control is only possible in `CALL` or `DO` invocations from the top level or nested `CALL` or `DO` invocations without any other intervening command.
+
+#### Example: Nested Transaction Control
+
+```sql
+CREATE PROCEDURE proc1()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    CALL proc2();
+END;
+$$;
+
+CREATE PROCEDURE proc2()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO test1 (a) VALUES (1);
+    COMMIT;
+END;
+$$;
+
+CALL proc1();
+```
+
+In this example, the procedure `proc1` calls the procedure `proc2`, which performs a transaction control action.
+
+### Special Considerations for Cursor Loops
+
+Cursors are automatically closed at transaction commit. However, a cursor created as part of a loop is automatically converted to a holdable cursor by the first `COMMIT` or `ROLLBACK`.
+
+#### Example: Cursor Loop with Transaction Control
+
+```sql
+CREATE PROCEDURE transaction_test2()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT * FROM test2 ORDER BY x LOOP
+        INSERT INTO test1 (a) VALUES (r.x);
+        COMMIT;
+    END LOOP;
+END;
+$$;
+
+CALL transaction_test2();
+```
+
+In this example, a cursor loop is used to insert values into a table `test1`, and the transaction is committed after each insertion.
+
+### Restrictions on Transaction Control
+
+Transaction commands are not allowed in cursor loops driven by commands that are not read-only (for example `UPDATE ... RETURNING`). Additionally, a transaction cannot be ended inside a block with exception handlers.
+
+By understanding these concepts and usage examples, you can effectively manage transactions in your PostgreSQL database.
