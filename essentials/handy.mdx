@@ -1,0 +1,1841 @@
+PostgreSQL is a powerful, open-source relational database management system that supports a wide variety of data types and advanced features. Below are some use cases, basic and advanced tips, tricks, and techniques to enhance your workflow with PostgreSQL. This guide covers a range of topics including optimization, data manipulation, and unique PostgreSQL features that are often underutilized.
+
+## Basics
+
+### 1. **Installation and Setup**
+
+- **Docker Installation**: Use Docker for easy setup and deployment:
+  ```bash
+  docker run --name postgres -e POSTGRES_PASSWORD=mysecretpassword -d -p 5432:5432 postgres
+  ```
+
+### 2. **Basic Commands**
+
+- **Creating a Database**:
+  ```sql
+  CREATE DATABASE my_database;
+  ```
+- **Connecting to a Database**:
+  ```bash
+  psql -U username -d my_database
+  ```
+- **Creating a Table**:
+  ```sql
+  CREATE TABLE users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100),
+      email VARCHAR(100) UNIQUE
+  );
+  ```
+- **Inserting Data**:
+  ```sql
+  INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com');
+  ```
+- **Basic Query**:
+  ```sql
+  SELECT * FROM users;
+  ```
+
+### 3. **Data Types**
+
+- **JSONB Support**: Store JSON data efficiently.
+  ```sql
+  CREATE TABLE products (
+      id SERIAL PRIMARY KEY,
+      data JSONB
+  );
+  ```
+
+### 4. **Indexes**
+
+- **Creating Indexes**: Speed up query performance.
+  ```sql
+  CREATE INDEX idx_users_email ON users (email);
+  ```
+
+### 5. **Data Integrity**
+
+- **Foreign Keys**: Maintain referential integrity.
+  ```sql
+  CREATE TABLE orders (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id)
+  );
+  ```
+
+## Advanced Usages
+
+### 1. **Common Table Expressions (CTE)**
+
+- Use CTEs for improved readability and modular queries.
+  ```sql
+  WITH active_users AS (
+      SELECT * FROM users WHERE is_active = true
+  )
+  SELECT * FROM active_users;
+  ```
+
+### 2. **Window Functions**
+
+- Perform calculations across a set of table rows related to the current row.
+  ```sql
+  SELECT
+      name,
+      email,
+      ROW_NUMBER() OVER (ORDER BY name) AS row_num
+  FROM users;
+  ```
+
+### 3. **Full Text Search**
+
+- Implement advanced search functionality on text columns.
+
+  ```sql
+  CREATE INDEX idx_gin_fts ON documents USING GIN(to_tsvector('english', content));
+
+  SELECT * FROM documents WHERE to_tsvector('english', content) @@ to_tsquery('search & term');
+  ```
+
+### 4. **Partitioning**
+
+- Optimize large tables by partitioning data for faster access.
+
+  ```sql
+  CREATE TABLE orders (
+      id SERIAL PRIMARY KEY,
+      order_date DATE,
+      amount DECIMAL
+  ) PARTITION BY RANGE (order_date);
+
+  CREATE TABLE orders_2023 PARTITION OF orders FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+  ```
+
+### 5. **Triggers**
+
+- Automate tasks in response to certain events on a table.
+
+  ```sql
+  CREATE OR REPLACE FUNCTION update_timestamp()
+  RETURNS TRIGGER AS $$
+  BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  CREATE TRIGGER update_timestamp_trigger
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+  ```
+
+### 6. **Materialized Views**
+
+- Store the result of a query physically, refreshing it when needed.
+
+  ```sql
+  CREATE MATERIALIZED VIEW monthly_sales AS
+  SELECT date_trunc('month', order_date) AS month, SUM(amount) AS total
+  FROM orders
+  GROUP BY month;
+
+  REFRESH MATERIALIZED VIEW monthly_sales;
+  ```
+
+## Lesser-Known Facts and Techniques
+
+### 1. **Data Generation with `generate_series`**
+
+- Create sample data easily for testing or development.
+  ```sql
+  SELECT generate_series(1, 100) AS number;
+  ```
+
+### 2. **`EXPLAIN` for Query Optimization**
+
+- Analyze query performance and understand how PostgreSQL executes queries.
+  ```sql
+  EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'alice@example.com';
+  ```
+
+### 3. **Using `pg_dump` and `pg_restore`**
+
+- Backup and restore databases easily.
+  ```bash
+  pg_dump my_database > my_database.sql
+  pg_restore -d new_database my_database.sql
+  ```
+
+### 4. **`pgAdmin` for GUI Management**
+
+- Use pgAdmin for a user-friendly interface for database management.
+
+### 5. **Role-Based Access Control**
+
+- Manage permissions effectively with roles.
+  ```sql
+  CREATE ROLE readonly_user WITH LOGIN PASSWORD 'password';
+  GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
+  ```
+
+### 6. **Replication and High Availability**
+
+- Use streaming replication for load balancing and redundancy:
+  - Set up a primary and a replica server to maintain data availability.
+
+### 7. **PostGIS for Geographic Data**
+
+- Extend PostgreSQL with PostGIS for spatial data:
+  ```sql
+  CREATE EXTENSION postgis;
+  ```
+
+## Handy Techniques
+
+### 1. **Using `COALESCE` for Default Values**
+
+- Handle NULL values effectively.
+  ```sql
+  SELECT COALESCE(email, 'no-email@example.com') FROM users;
+  ```
+
+### 2. **Using `CASE` for Conditional Logic**
+
+- Implement conditional logic within queries.
+  ```sql
+  SELECT name,
+         CASE
+             WHEN is_active THEN 'Active'
+             ELSE 'Inactive'
+         END AS status
+  FROM users;
+  ```
+
+### 3. **Using `WITH ORDINALITY`**
+
+- Generate a series with indexes, especially useful for array data.
+  ```sql
+  SELECT unnest(array['apple', 'banana', 'cherry']) WITH ORDINALITY AS (fruit, index);
+  ```
+
+### 4. **Table Inheritance**
+
+- Implement inheritance in table design for hierarchical data structures.
+  ```sql
+  CREATE TABLE base (id SERIAL PRIMARY KEY);
+  CREATE TABLE derived () INHERITS (base);
+  ```
+
+### 5. **Storing Arrays and Composite Types**
+
+- Leverage PostgreSQL's support for arrays and composite types for complex data.
+  ```sql
+  CREATE TABLE orders (
+      id SERIAL PRIMARY KEY,
+      item_ids INT[]
+  );
+  ```
+
+### 6. **JSONB Indexing**
+
+- Optimize JSONB queries with indexes.
+  ```sql
+  CREATE INDEX idx_gin ON products USING GIN(data);
+  ```
+
+### 7. **Using `RANK()` and `DENSE_RANK()`**
+
+- Implement ranking in result sets for ordered data.
+  ```sql
+  SELECT name, RANK() OVER (ORDER BY sales DESC) AS rank
+  FROM sales_data;
+  ```
+
+### 8. **Using `PL/pgSQL` for Stored Procedures**
+
+- Create stored procedures for encapsulating complex logic.
+  ```sql
+  CREATE OR REPLACE FUNCTION update_user_email(user_id INT, new_email VARCHAR)
+  RETURNS VOID AS $$
+  BEGIN
+      UPDATE users SET email = new_email WHERE id = user_id;
+  END;
+  $$ LANGUAGE plpgsql;
+  ```
+
+### 9. **Monitoring and Performance Tuning**
+
+- Use built-in functions like `pg_stat_activity` to monitor current queries and performance:
+  ```sql
+  SELECT * FROM pg_stat_activity;
+  ```
+
+### 10. **Using `ALTER TABLE` for Modifications**
+
+- Modify existing tables seamlessly.
+  ```sql
+  ALTER TABLE users ADD COLUMN last_login TIMESTAMP;
+  ```
+
+---
+
+## Handy Techniques and Lesser-Known Facts
+
+### 1. **Using the `RETURNING` Clause**
+
+- The `RETURNING` clause allows you to retrieve values from rows that were modified by `INSERT`, `UPDATE`, or `DELETE` operations.
+  ```sql
+  INSERT INTO users (name, email) VALUES ('Bob', 'bob@example.com') RETURNING id;
+  ```
+
+### 2. **Using `pg_trgm` for Fuzzy String Matching**
+
+- The `pg_trgm` extension provides functions and operators for determining the similarity of text based on trigram matching.
+
+  ```sql
+  CREATE EXTENSION pg_trgm;
+
+  SELECT * FROM users WHERE name ILIKE '%Al%' AND name % 'Alice';
+  ```
+
+### 3. **Using `EXCLUDE` Constraints**
+
+- You can enforce unique constraints on the combination of multiple columns, allowing for more flexible constraints than traditional primary keys.
+  ```sql
+  CREATE TABLE my_table (
+      id SERIAL,
+      event_date DATE,
+      location TEXT,
+      EXCLUDE USING GIST (event_date WITH &&, location WITH =)
+  );
+  ```
+
+### 4. **Creating Custom Aggregate Functions**
+
+- You can create your own aggregate functions to perform specific calculations over a set of rows.
+
+  ```sql
+  CREATE AGGREGATE my_agg (sfunc = array_append, stype = text[]);
+
+  SELECT my_agg(name) FROM users;
+  ```
+
+### 5. **Using `CREATE DOMAIN` for Data Validation**
+
+- Domains allow you to define a custom data type with constraints.
+
+  ```sql
+  CREATE DOMAIN email_domain AS VARCHAR(255) CHECK (VALUE LIKE '%_@_%._%');
+
+  CREATE TABLE users (
+      id SERIAL PRIMARY KEY,
+      email email_domain UNIQUE
+  );
+  ```
+
+### 6. **Using `INSERT ... ON CONFLICT`**
+
+- This allows you to insert a new row or update an existing one if a conflict arises on a unique constraint.
+  ```sql
+  INSERT INTO users (email, name) VALUES ('alice@example.com', 'Alice')
+  ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+  ```
+
+### 7. **Using `UNNEST` with Arrays**
+
+- Extract array elements into a result set.
+  ```sql
+  SELECT unnest(ARRAY[1, 2, 3, 4]) AS number;
+  ```
+
+### 8. **Using `pgAdmin` for Query Planning**
+
+- Use the query planner in `pgAdmin` to visualize how your queries are executed and find opportunities for optimization.
+
+### 9. **Common Table Expressions (CTE) for Recursive Queries**
+
+- Use recursive CTEs to query hierarchical data like organizational structures or folder paths.
+  ```sql
+  WITH RECURSIVE subordinates AS (
+      SELECT id, name FROM employees WHERE manager_id IS NULL
+      UNION ALL
+      SELECT e.id, e.name FROM employees e
+      INNER JOIN subordinates s ON s.id = e.manager_id
+  )
+  SELECT * FROM subordinates;
+  ```
+
+### 10. **PostgreSQL Extensions**
+
+- PostgreSQL supports various extensions that can extend its functionality, such as `hstore` for key-value pairs or `pg_partman` for managing partitioned tables.
+
+### 11. **Using `RANDOM()` for Random Selections**
+
+- Retrieve random rows from a table using the `RANDOM()` function.
+  ```sql
+  SELECT * FROM users ORDER BY RANDOM() LIMIT 1;
+  ```
+
+### 12. **Using `ARRAY_AGG` for Aggregation**
+
+- Aggregate multiple rows into a single array.
+  ```sql
+  SELECT ARRAY_AGG(name) FROM users;
+  ```
+
+### 13. **Using `JSONB` for Dynamic Schemas**
+
+- Store semi-structured data in a `JSONB` column, allowing for flexibility in your schema.
+
+  ```sql
+  CREATE TABLE events (
+      id SERIAL PRIMARY KEY,
+      event_data JSONB
+  );
+
+  INSERT INTO events (event_data) VALUES ('{"event": "Concert", "location": "Stadium"}');
+  ```
+
+### 14. **Using `SET` to Change Session Parameters**
+
+- Modify session-level settings using the `SET` command for specific queries or transactions.
+  ```sql
+  SET work_mem TO '64MB';
+  ```
+
+### 15. **Indexing Expressions**
+
+- Create indexes on expressions to optimize queries that involve computed values.
+  ```sql
+  CREATE INDEX idx_lower_email ON users (LOWER(email));
+  ```
+
+### 16. **Role-Based Security with Row-Level Security (RLS)**
+
+- Enable row-level security for fine-grained access control.
+  ```sql
+  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY user_policy ON users FOR SELECT USING (user_id = current_user_id());
+  ```
+
+### 17. **Using `pg_stat_statements` for Query Monitoring**
+
+- Enable the `pg_stat_statements` extension to monitor query performance and identify slow queries.
+  ```sql
+  CREATE EXTENSION pg_stat_statements;
+  ```
+
+### 18. **Using `CROSS JOIN LATERAL`**
+
+- Use lateral joins for more complex queries that involve functions that return sets.
+  ```sql
+  SELECT a.*, b.*
+  FROM users a
+  CROSS JOIN LATERAL (SELECT * FROM orders WHERE orders.user_id = a.id) b;
+  ```
+
+### 19. **Creating a Full-Text Index**
+
+- Optimize full-text searches by creating an index on a text search vector.
+  ```sql
+  CREATE INDEX idx_fts ON documents USING GIN(to_tsvector('english', content));
+  ```
+
+### 20. **PostgreSQL as a Time-Series Database**
+
+- Leverage PostgreSQL for time-series data with appropriate indexing and partitioning strategies.
+
+  ```sql
+  CREATE TABLE sensor_data (
+      id SERIAL PRIMARY KEY,
+      sensor_id INT,
+      reading FLOAT,
+      recorded_at TIMESTAMPTZ DEFAULT NOW()
+  );
+
+  CREATE INDEX idx_sensor_data_time ON sensor_data (recorded_at);
+  ```
+
+### 21. **Using `TABLESAMPLE` for Random Sampling**
+
+- Obtain a random sample of rows from a table.
+  ```sql
+  SELECT * FROM users TABLESAMPLE SYSTEM (10);
+  ```
+
+### 22. **Utilizing the `pg_restore` Options for Partial Restores**
+
+- Use the `-t` option in `pg_restore` to restore specific tables from a backup.
+  ```bash
+  pg_restore -d my_database -t users my_backup.dump
+  ```
+
+### 23. **Using `pg_dump` with Compression**
+
+- Compress your database dumps for more efficient storage.
+  ```bash
+  pg_dump my_database | gzip > my_database.sql.gz
+  ```
+
+### 24. **Custom Functions with `plpgsql`**
+
+- Create complex business logic within the database using PL/pgSQL.
+  ```sql
+  CREATE OR REPLACE FUNCTION get_user_email(user_id INT) RETURNS VARCHAR AS $$
+  DECLARE
+      email VARCHAR;
+  BEGIN
+      SELECT email INTO email FROM users WHERE id = user_id;
+      RETURN email;
+  END;
+  $$ LANGUAGE plpgsql;
+  ```
+
+### 25. **Setting Up Scheduled Jobs with `pgAgent`**
+
+- Use `pgAgent` to schedule and automate tasks within PostgreSQL.
+  - Install `pgAgent` and create jobs for routine maintenance or reporting tasks.
+
+### 26. **Temporary Tables for Complex Operations**
+
+- Use temporary tables to store intermediate results in complex queries.
+  ```sql
+  CREATE TEMP TABLE temp_users AS SELECT * FROM users WHERE is_active = TRUE;
+  ```
+
+### 27. **Using `GIST` Indexes for Geospatial Data**
+
+- Utilize Generalized Search Tree (GiST) indexes for efficient querying of geometric data types.
+  ```sql
+  CREATE EXTENSION postgis;
+  CREATE TABLE geolocations (
+      id SERIAL PRIMARY KEY,
+      location GEOMETRY(Point, 4326)
+  );
+  CREATE INDEX idx_location ON geolocations USING GIST (location);
+  ```
+
+### 28. **Implementing Partitioned Indexes**
+
+- Create indexes on partitions to improve query performance on partitioned tables.
+  ```sql
+  CREATE INDEX idx_orders_date ON orders_2023 (order_date);
+  ```
+
+### 29. **Use `pgBadger` for Log Analysis**
+
+- Analyze PostgreSQL logs using `pgBadger` to identify performance bottlenecks.
+
+### 30. **Using `LISTEN` and `NOTIFY` for Pub/Sub Mechanisms**
+
+- Implement real-time notifications using the `LISTEN` and `NOTIFY` commands.
+  ```sql
+  LISTEN new_user;
+  NOTIFY new_user, 'A new user has been added';
+  ```
+
+---
+
+PostgreSQL offers a rich set of built-in functions that enhance data manipulation, retrieval, and overall database management. Below, I’ll provide a comprehensive list of some of the most useful built-in functions in PostgreSQL, categorized by their purpose along with usage examples for each function.
+
+### 1. **Date and Time Functions**
+
+- **`current_database()`**: Returns the name of the current database.
+  ```sql
+  SELECT current_database();
+  ```
+- **`now()`**: Returns the current date and time.
+  ```sql
+  SELECT now();
+  ```
+- **`current_date`**: Returns the current date.
+  ```sql
+  SELECT current_date;
+  ```
+- **`current_time`**: Returns the current time.
+  ```sql
+  SELECT current_time;
+  ```
+- **`age(timestamp)`**: Returns the interval between the current date and a specified timestamp.
+  ```sql
+  SELECT age('2024-10-05');
+  ```
+- **`date_trunc('field', source)`**: Truncates a timestamp or interval to the specified precision.
+  ```sql
+  SELECT date_trunc('day', now());
+  ```
+- **`extract(field FROM source)`**: Extracts sub-parts from date/time values.
+  ```sql
+  SELECT extract(year FROM now());
+  ```
+
+### 2. **String Functions**
+
+- **`length(string)`**: Returns the length of a string.
+  ```sql
+  SELECT length('Hello, world!');
+  ```
+- **`upper(string)`**: Converts a string to uppercase.
+  ```sql
+  SELECT upper('hello');
+  ```
+- **`lower(string)`**: Converts a string to lowercase.
+  ```sql
+  SELECT lower('HELLO');
+  ```
+- **`trim(both 'x' FROM string)`**: Removes the specified characters from both sides of the string.
+  ```sql
+  SELECT trim(both ' ' FROM '   Hello   ');
+  ```
+- **`substring(string FROM start FOR length)`**: Extracts a substring from a string.
+  ```sql
+  SELECT substring('Hello, world!' FROM 1 FOR 5);
+  ```
+
+### 3. **Mathematical Functions**
+
+- **`random()`**: Returns a random value between 0 (inclusive) and 1 (exclusive).
+  ```sql
+  SELECT random();
+  ```
+- **`round(numeric)`**: Rounds a number to the nearest integer or specified decimal places.
+  ```sql
+  SELECT round(123.456, 2);
+  ```
+- **`floor(numeric)`**: Returns the largest integer less than or equal to a numeric value.
+  ```sql
+  SELECT floor(3.14);
+  ```
+- **`ceil(numeric)`**: Returns the smallest integer greater than or equal to a numeric value.
+  ```sql
+  SELECT ceil(3.14);
+  ```
+
+### 4. **Array Functions**
+
+- **`array_length(array, dimension)`**: Returns the length of the array in the specified dimension.
+  ```sql
+  SELECT array_length(ARRAY[1, 2, 3], 1);
+  ```
+- **`unnest(array)`**: Expands an array into a set of rows.
+  ```sql
+  SELECT unnest(ARRAY[1, 2, 3]);
+  ```
+- **`array_agg(value)`**: Aggregates values into an array.
+  ```sql
+  SELECT array_agg(column_name) FROM table_name;
+  ```
+
+### 5. **JSON Functions**
+
+- **`jsonb_build_object(key, value)`**: Builds a JSON object.
+  ```sql
+  SELECT jsonb_build_object('name', 'John', 'age', 30);
+  ```
+- **`jsonb_array_elements(jsonb)`**: Expands a JSON array to a set of rows.
+  ```sql
+  SELECT jsonb_array_elements('[1, 2, 3]');
+  ```
+- **`jsonb_extract_path(jsonb, path_elems)`**: Extracts a value from a JSON object using a path.
+  ```sql
+  SELECT jsonb_extract_path('{"a": {"b": "c"}}', 'a', 'b');
+  ```
+
+### 6. **Conditional Expressions**
+
+- **`COALESCE(value1, value2, ...)`**: Returns the first non-null value in the list.
+  ```sql
+  SELECT COALESCE(NULL, NULL, 'Hello', 'World');
+  ```
+- **`NULLIF(value1, value2)`**: Returns NULL if the two values are equal; otherwise, it returns the first value.
+  ```sql
+  SELECT NULLIF(10, 10);
+  ```
+
+### 7. **Aggregation Functions**
+
+- **`count(*)`**: Counts the number of rows.
+  ```sql
+  SELECT count(*) FROM table_name;
+  ```
+- **`sum(column)`**: Returns the sum of a numerical column.
+  ```sql
+  SELECT sum(column_name) FROM table_name;
+  ```
+- **`avg(column)`**: Returns the average of a numerical column.
+  ```sql
+  SELECT avg(column_name) FROM table_name;
+  ```
+- **`max(column)`**: Returns the maximum value in a column.
+  ```sql
+  SELECT max(column_name) FROM table_name;
+  ```
+- **`min(column)`**: Returns the minimum value in a column.
+  ```sql
+  SELECT min(column_name) FROM table_name;
+  ```
+
+### 8. **Miscellaneous Functions**
+
+- **`pg_sleep(seconds)`**: Delays for a specified amount of time.
+  ```sql
+  SELECT pg_sleep(5);
+  ```
+- **`pg_current_xact_id()`**: Returns the current transaction ID.
+  ```sql
+  SELECT pg_current_xact_id();
+  ```
+- **`pg_is_in_recovery()`**: Returns true if the server is in recovery mode.
+  ```sql
+  SELECT pg_is_in_recovery();
+  ```
+
+### 9. **Window Functions**
+
+- **`row_number() OVER (PARTITION BY column ORDER BY column)`**: Assigns a unique sequential integer to rows within a partition.
+  ```sql
+  SELECT column_name, row_number() OVER (PARTITION BY another_column ORDER BY column_name) as row_num FROM table_name;
+  ```
+- **`rank() OVER (ORDER BY column)`**: Similar to row_number(), but allows for gaps in ranking.
+  ```sql
+  SELECT column_name, rank() OVER (ORDER BY column_name) as rank_num FROM table_name;
+  ```
+
+---
+
+### 10. **String Aggregation Functions**
+
+- **`string_agg(expression, delimiter)`**: Concatenates non-null values into a string with a specified delimiter.
+  ```sql
+  SELECT string_agg(name, ', ') FROM employees;
+  ```
+  **Use Case**: Useful for generating a comma-separated list of employee names.
+
+### 11. **Type Conversion Functions**
+
+- **`CAST(expression AS target_data_type)`**: Converts a value to a specified data type.
+  ```sql
+  SELECT CAST('2024-10-05' AS date);
+  ```
+- **`::` Operator**: An alternative method for type casting.
+  ```sql
+  SELECT '2024-10-05'::date;
+  ```
+
+### 12. **Regular Expression Functions**
+
+- **`regexp_matches(string, pattern)`**: Returns all occurrences of a pattern in a string.
+  ```sql
+  SELECT regexp_matches('abc def ghi', '\w+');
+  ```
+- **`regexp_replace(string, pattern, replacement)`**: Replaces occurrences of a pattern with a replacement string.
+  ```sql
+  SELECT regexp_replace('abc def ghi', '\s+', '-', 'g');
+  ```
+
+### 13. **Network Address Functions**
+
+- **`inet_pton(string)`**: Converts an IP address from text to binary format.
+  ```sql
+  SELECT inet_pton('192.168.1.1');
+  ```
+- **`inet_ntop(binary)`**: Converts an IP address from binary to text format.
+  ```sql
+  SELECT inet_ntop(inet_pton('192.168.1.1'));
+  ```
+
+### 14. **Geometric Functions**
+
+- **`point(x, y)`**: Creates a point from x and y coordinates.
+  ```sql
+  SELECT point(1, 2);
+  ```
+- **`line(point1, point2)`**: Creates a line from two points.
+  ```sql
+  SELECT line(point(1, 2), point(3, 4));
+  ```
+- **`circle(point, radius)`**: Creates a circle from a center point and a radius.
+  ```sql
+  SELECT circle(point(0, 0), 5);
+  ```
+
+### 15. **Boolean Functions**
+
+- **`bool_and(boolean)`**: Returns true if all input values are true.
+  ```sql
+  SELECT bool_and(condition) FROM table_name;
+  ```
+- **`bool_or(boolean)`**: Returns true if at least one input value is true.
+  ```sql
+  SELECT bool_or(condition) FROM table_name;
+  ```
+
+### 16. **Window Aggregate Functions**
+
+- **`sum(value) OVER (PARTITION BY column ORDER BY column)`**: Computes a running total.
+  ```sql
+  SELECT column_name, sum(value) OVER (ORDER BY column_name) as running_total FROM table_name;
+  ```
+
+### 17. **Full-Text Search Functions**
+
+- **`to_tsvector(text)`**: Converts a string to a text search vector.
+  ```sql
+  SELECT to_tsvector('PostgreSQL is awesome!');
+  ```
+- **`to_tsquery(text)`**: Converts a query string to a text search query.
+  ```sql
+  SELECT to_tsquery('awesome');
+  ```
+- **`@@` Operator**: Matches a text search query against a text search vector.
+  ```sql
+  SELECT * FROM articles WHERE to_tsvector(title) @@ to_tsquery('PostgreSQL');
+  ```
+
+### 18. **Data Manipulation Functions**
+
+- **`insert(string, position, substring)`**: Inserts a substring at a specified position in a string.
+  ```sql
+  SELECT insert('Hello World', 6, 'Beautiful ');
+  ```
+- **`replace(string, search, replace)`**: Replaces all occurrences of a substring with another substring.
+  ```sql
+  SELECT replace('Hello World', 'World', 'PostgreSQL');
+  ```
+
+### 19. **File Functions**
+
+- **`pg_read_file(filename)`**: Reads the content of a file on the server.
+  ```sql
+  SELECT pg_read_file('filename.txt');
+  ```
+
+### 20. **JSON Functions Continued**
+
+- **`jsonb_set(jsonb, path, new_value)`**: Updates a value in a JSON object.
+  ```sql
+  SELECT jsonb_set('{"name": "John", "age": 30}', '{age}', '31');
+  ```
+- **`jsonb_object_keys(jsonb)`**: Returns the keys of a JSON object as a set.
+  ```sql
+  SELECT jsonb_object_keys('{"name": "John", "age": 30}');
+  ```
+
+### 21. **Timestamp Functions**
+
+- **`date_part(field, source)`**: Similar to `extract`, it retrieves sub-parts of a date/time value.
+  ```sql
+  SELECT date_part('minute', now());
+  ```
+- **`interval`**: Represents a period of time. Useful for date arithmetic.
+  ```sql
+  SELECT now() + interval '1 day';
+  ```
+
+### 22. **Session Information Functions**
+
+- **`session_user`**: Returns the current session user.
+  ```sql
+  SELECT session_user;
+  ```
+- **`current_user`**: Returns the name of the current user.
+  ```sql
+  SELECT current_user;
+  ```
+
+### 23. **Data Integrity Functions**
+
+- **`pg_column_size(expression)`**: Returns the size of a value in bytes.
+  ```sql
+  SELECT pg_column_size('Hello');
+  ```
+- **`pg_total_relation_size(relation)`**: Returns the total size of a table, including all its indexes.
+  ```sql
+  SELECT pg_total_relation_size('my_table');
+  ```
+
+### 24. **Dynamic SQL Functions**
+
+- **`execute()`**: Executes a dynamic SQL command.
+  ```sql
+  DO $$
+  DECLARE
+      sql TEXT;
+  BEGIN
+      sql := 'SELECT * FROM my_table';
+      EXECUTE sql;
+  END $$;
+  ```
+
+### 25. **System Functions**
+
+- **`pg_tables`**: Returns a list of tables in the current database.
+  ```sql
+  SELECT * FROM pg_tables WHERE schemaname = 'public';
+  ```
+- **`pg_indexes`**: Returns a list of indexes on a specified table.
+  ```sql
+  SELECT * FROM pg_indexes WHERE tablename = 'my_table';
+  ```
+
+### 26. **Transactional Functions**
+
+- **`pg_xact_commit_timestamp(xid)`**: Returns the commit timestamp of a given transaction ID.
+  ```sql
+  SELECT pg_xact_commit_timestamp(12345);
+  ```
+
+---
+
+### 27. **Advanced String Functions**
+
+- **`strpos(string, substring)`**: Returns the position of the first occurrence of a substring in a string (1-based index).
+  ```sql
+  SELECT strpos('PostgreSQL', 'gre');  -- Returns 3
+  ```
+- **`split_part(string, delimiter, part)`**: Splits a string by a delimiter and returns the specified part.
+  ```sql
+  SELECT split_part('a,b,c', ',', 2);  -- Returns 'b'
+  ```
+- **`reverse(string)`**: Returns the reverse of a string.
+  ```sql
+  SELECT reverse('Hello');  -- Returns 'olleH'
+  ```
+- **`lpad(string, length, fill)`**: Pads the left side of a string with another string to a specified length.
+  ```sql
+  SELECT lpad('123', 5, '0');  -- Returns '00123'
+  ```
+- **`rpad(string, length, fill)`**: Pads the right side of a string with another string to a specified length.
+  ```sql
+  SELECT rpad('123', 5, '0');  -- Returns '12300'
+  ```
+
+### 28. **Array Functions Continued**
+
+- **`array_cat(array1, array2)`**: Concatenates two arrays.
+  ```sql
+  SELECT array_cat(ARRAY[1, 2], ARRAY[3, 4]);  -- Returns {1,2,3,4}
+  ```
+- **`array_remove(array, element)`**: Removes all occurrences of a specified element from an array.
+  ```sql
+  SELECT array_remove(ARRAY[1, 2, 3, 2], 2);  -- Returns {1,3}
+  ```
+- **`array_append(array, element)`**: Appends an element to an array.
+  ```sql
+  SELECT array_append(ARRAY[1, 2, 3], 4);  -- Returns {1,2,3,4}
+  ```
+- **`array_prepend(element, array)`**: Prepends an element to an array.
+  ```sql
+  SELECT array_prepend(0, ARRAY[1, 2, 3]);  -- Returns {0,1,2,3}
+  ```
+
+### 29. **Mathematical Functions Continued**
+
+- **`power(base, exponent)`**: Raises a number to a specified power.
+  ```sql
+  SELECT power(2, 3);  -- Returns 8
+  ```
+- **`mod(x, y)`**: Returns the remainder of dividing x by y.
+  ```sql
+  SELECT mod(10, 3);  -- Returns 1
+  ```
+- **`greatest(value1, value2, ...)`**: Returns the largest value from a list of values.
+  ```sql
+  SELECT greatest(1, 2, 3);  -- Returns 3
+  ```
+- **`least(value1, value2, ...)`**: Returns the smallest value from a list of values.
+  ```sql
+  SELECT least(1, 2, 3);  -- Returns 1
+  ```
+
+### 30. **Conditional Logic Functions**
+
+- **`CASE` Statement**: A way to implement conditional logic in SQL queries.
+  ```sql
+  SELECT name,
+         CASE
+           WHEN age < 18 THEN 'Minor'
+           WHEN age BETWEEN 18 AND 65 THEN 'Adult'
+           ELSE 'Senior'
+         END AS age_group
+  FROM people;
+  ```
+- **`DECODE(expression, search, result, ...)`**: A more compact syntax for handling simple if-then-else logic.
+  ```sql
+  SELECT DECODE(status, 'A', 'Active', 'I', 'Inactive', 'Unknown') FROM users;
+  ```
+
+### 31. **JSON Functions Continued**
+
+- **`jsonb_array_length(jsonb)`**: Returns the number of elements in a JSON array.
+  ```sql
+  SELECT jsonb_array_length('[1, 2, 3]'::jsonb);  -- Returns 3
+  ```
+- **`jsonb_each(jsonb)`**: Expands a JSON object into a set of key-value pairs.
+  ```sql
+  SELECT * FROM jsonb_each('{"a": 1, "b": 2}'::jsonb);
+  ```
+- **`jsonb_keys(jsonb)`**: Returns the keys of a JSON object as a set.
+  ```sql
+  SELECT jsonb_keys('{"a": 1, "b": 2}'::jsonb);
+  ```
+
+### 32. **Text Search Functions**
+
+- **`ts_rank(vector, query)`**: Computes the rank of a document for a given query.
+  ```sql
+  SELECT ts_rank(to_tsvector('PostgreSQL is great'), to_tsquery('great'));
+  ```
+- **`to_tsquery('query')`**: Converts a query string into a text search query.
+  ```sql
+  SELECT to_tsquery('PostgreSQL & great');
+  ```
+
+### 33. **Monitoring Functions**
+
+- **`pg_stat_activity`**: Provides information about the current database sessions.
+  ```sql
+  SELECT * FROM pg_stat_activity WHERE state = 'active';
+  ```
+- **`pg_stat_user_tables`**: Provides statistics about user-defined tables.
+  ```sql
+  SELECT * FROM pg_stat_user_tables;
+  ```
+
+### 34. **Date Arithmetic Functions**
+
+- **`age(timestamp1, timestamp2)`**: Returns the interval between two timestamps.
+  ```sql
+  SELECT age(now(), '2024-01-01'::timestamp);
+  ```
+- **`make_date(year, month, day)`**: Creates a date from individual year, month, and day components.
+  ```sql
+  SELECT make_date(2024, 10, 5);
+  ```
+- **`make_interval(...)`**: Creates an interval from specified time parts.
+  ```sql
+  SELECT make_interval(years => 1, months => 2, days => 10);
+  ```
+
+### 35. **Control Structures in PL/pgSQL**
+
+- **`LOOP`**: A basic loop structure.
+  ```sql
+  DO $$
+  DECLARE
+      i integer;
+  BEGIN
+      FOR i IN 1..10 LOOP
+          RAISE NOTICE 'Value: %', i;
+      END LOOP;
+  END $$;
+  ```
+- **`WHILE` Loop**: Executes as long as a condition is true.
+  ```sql
+  DO $$
+  DECLARE
+      i integer := 1;
+  BEGIN
+      WHILE i <= 10 LOOP
+          RAISE NOTICE 'Value: %', i;
+          i := i + 1;
+      END LOOP;
+  END $$;
+  ```
+
+### 36. **Full-Text Search Configuration Functions**
+
+- **`to_tsvector(text)`**: Converts text into a tsvector for full-text search.
+  ```sql
+  SELECT to_tsvector('This is a simple text search example.');
+  ```
+- **`to_tsquery(text)`**: Converts a search query into a tsquery.
+  ```sql
+  SELECT to_tsquery('simple & text');
+  ```
+
+### 37. **Numeric Functions**
+
+- **`trunc(numeric, decimal_places)`**: Truncates a number to a specified number of decimal places.
+  ```sql
+  SELECT trunc(123.4567, 2);  -- Returns 123.45
+  ```
+- **`sign(numeric)`**: Returns the sign of a number (-1, 0, or 1).
+  ```sql
+  SELECT sign(-10);  -- Returns -1
+  ```
+
+### 38. **Session and Transaction Functions**
+
+- **`txid_current()`**: Returns the current transaction ID.
+  ```sql
+  SELECT txid_current();
+  ```
+- **`txid_current_if_assigned()`**: Returns the current transaction ID if it is assigned.
+  ```sql
+  SELECT txid_current_if_assigned();
+  ```
+
+### 39. **Cursors and Query Execution**
+
+- **`DECLARE`**: Declares a cursor for iterating through query results.
+  ```sql
+  DO $$
+  DECLARE
+      my_cursor CURSOR FOR SELECT * FROM employees;
+      rec RECORD;
+  BEGIN
+      OPEN my_cursor;
+      LOOP
+          FETCH my_cursor INTO rec;
+          EXIT WHEN NOT FOUND;
+          RAISE NOTICE 'Employee: %', rec.name;
+      END LOOP;
+      CLOSE my_cursor;
+  END $$;
+  ```
+
+### 40. **Partitioning Functions**
+
+- **`partition_by`**: For partitioning tables based on specific keys or conditions.
+  ```sql
+  CREATE TABLE sales (
+      id SERIAL PRIMARY KEY,
+      amount NUMERIC,
+      sales_date DATE
+  ) PARTITION BY RANGE (sales_date);
+  ```
+
+### 41. **Custom Aggregation Functions**
+
+- **`CREATE AGGREGATE`**: Allows you to create custom aggregation functions.
+  ```sql
+  CREATE AGGREGATE my_aggregate (SFUNC = array_append, STYPE = integer[]);
+  SELECT my_aggregate(column) FROM table_name;
+  ```
+
+### 42. **System Information Functions**
+
+- **`pg_get_userbyid(oid)`**: Returns the user name associated with a given user ID.
+  ```sql
+  SELECT pg_get_userbyid(10);  -- Returns the username associated with OID 10
+  ```
+
+---
+
+### 43. **UUID Functions**
+
+- **`uuid_generate_v4()`**: Generates a random UUID (Universally Unique Identifier).
+  ```sql
+  SELECT uuid_generate_v4();
+  ```
+- **`uuid_nil()`**: Returns the nil UUID.
+  ```sql
+  SELECT uuid_nil();  -- Returns '00000000-0000-0000-0000-000000000000'
+  ```
+
+### 44. **Data Type Functions**
+
+- **`pg_typeof(value)`**: Returns the data type of a given value.
+  ```sql
+  SELECT pg_typeof('Hello World');  -- Returns 'text'
+  ```
+- **`current_setting(setting_name)`**: Returns the current value of the specified setting.
+  ```sql
+  SELECT current_setting('search_path');  -- Returns the current search path
+  ```
+
+### 45. **Advanced Date Functions**
+
+- **`date_trunc(field, source)`**: Truncates a timestamp or interval to the specified precision.
+  ```sql
+  SELECT date_trunc('month', '2024-10-05 12:34:56'::timestamp);  -- Returns '2024-10-01 00:00:00'
+  ```
+- **`extract(field FROM source)`**: Extracts sub-parts from a date/time value.
+  ```sql
+  SELECT extract(year FROM now());  -- Returns the current year
+  ```
+
+### 46. **Security Functions**
+
+- **`pg_crypt(password, salt)`**: Returns the hashed password using the specified salt.
+  ```sql
+  SELECT pg_crypt('mypassword', gen_salt('bf'));
+  ```
+- **`pg_roles`**: Provides a view of all roles and their attributes in the database.
+  ```sql
+  SELECT * FROM pg_roles;
+  ```
+
+### 47. **Event Trigger Functions**
+
+- **`pg_event_trigger_ddl_commands()`**: Returns the DDL commands that were executed.
+  ```sql
+  CREATE EVENT TRIGGER my_trigger
+  ON ddl_command_start
+  EXECUTE PROCEDURE log_ddl_command();
+  ```
+
+### 48. **Conversion Functions**
+
+- **`convert_to(string, encoding)`**: Converts a string to the specified encoding.
+  ```sql
+  SELECT convert_to('Hello', 'UTF8');
+  ```
+- **`convert_from(bytea, encoding)`**: Converts a bytea to a string with the specified encoding.
+  ```sql
+  SELECT convert_from(E'\\x48656c6c6f'::bytea, 'UTF8');  -- Returns 'Hello'
+  ```
+
+### 49. **Mathematical Functions Continued**
+
+- **`round(numeric, decimal_places)`**: Rounds a number to a specified number of decimal places.
+  ```sql
+  SELECT round(123.4567, 2);  -- Returns 123.46
+  ```
+- **`ceil(numeric)`**: Returns the smallest integer greater than or equal to a number.
+  ```sql
+  SELECT ceil(2.3);  -- Returns 3
+  ```
+- **`floor(numeric)`**: Returns the largest integer less than or equal to a number.
+  ```sql
+  SELECT floor(2.7);  -- Returns 2
+  ```
+
+### 50. **Regular Expression Functions Continued**
+
+- **`regexp_split_to_table(string, pattern)`**: Splits a string into a set of rows based on a regular expression pattern.
+  ```sql
+  SELECT regexp_split_to_table('a,b,c', ',');  -- Returns each element in a separate row
+  ```
+- **`regexp_split_to_array(string, pattern)`**: Splits a string into an array based on a pattern.
+  ```sql
+  SELECT regexp_split_to_array('a,b,c', ',');  -- Returns {'a', 'b', 'c'}
+  ```
+
+### 51. **Full-Text Search Functions Continued**
+
+- **`plainto_tsquery(text)`**: Converts plain text into a tsquery.
+  ```sql
+  SELECT plainto_tsquery('PostgreSQL full text search');
+  ```
+- **`phraseto_tsquery(text)`**: Converts plain text into a tsquery with phrase searching.
+  ```sql
+  SELECT phraseto_tsquery('PostgreSQL full text search');
+  ```
+
+### 52. **Composite Type Functions**
+
+- **`ROW` Constructor**: Creates a composite type row.
+  ```sql
+  SELECT ROW(1, 'John Doe', 'Developer') AS employee;
+  ```
+- **`(column1, column2, ...)`**: Another way to create composite rows for queries.
+  ```sql
+  SELECT (name, salary) FROM employees WHERE id = 1;
+  ```
+
+### 53. **Binary Data Functions**
+
+- **`bytea` Data Type**: Functions for handling binary data.
+  ```sql
+  SELECT 'Hello'::bytea;  -- Converts string to binary
+  ```
+- **`pg_read_binary_file(filename)`**: Reads a binary file on the server.
+  ```sql
+  SELECT pg_read_binary_file('path/to/file');
+  ```
+
+### 54. **Transactional Functions**
+
+- **`pg_is_in_recovery()`**: Checks if the database is in recovery mode.
+  ```sql
+  SELECT pg_is_in_recovery();
+  ```
+- **`pg_current_wal_lsn()`**: Returns the current write-ahead log location.
+  ```sql
+  SELECT pg_current_wal_lsn();
+  ```
+
+### 55. **Session Functions**
+
+- **`pg_current_setting(setting_name)`**: Returns the value of a runtime configuration parameter.
+  ```sql
+  SELECT pg_current_setting('max_connections');
+  ```
+- **`pg_reload_conf()`**: Reloads the server's configuration files without restarting.
+  ```sql
+  SELECT pg_reload_conf();
+  ```
+
+### 56. **Database Management Functions**
+
+- **`pg_database_size(db_name)`**: Returns the size of the specified database.
+  ```sql
+  SELECT pg_database_size('my_database');
+  ```
+- **`pg_table_size(relation)`**: Returns the size of a table, excluding its indexes.
+  ```sql
+  SELECT pg_table_size('my_table');
+  ```
+
+### 57. **Array-to-String Functions**
+
+- **`array_to_string(array, delimiter)`**: Converts an array to a string, using a specified delimiter.
+  ```sql
+  SELECT array_to_string(ARRAY[1, 2, 3], ',');  -- Returns '1,2,3'
+  ```
+- **`string_to_array(string, delimiter)`**: Converts a string into an array based on a delimiter.
+  ```sql
+  SELECT string_to_array('a,b,c', ',');  -- Returns {'a','b','c'}
+  ```
+
+### 58. **Security and User Functions**
+
+- **`pg_has_role(role)`**: Checks if the current user has a specific role.
+  ```sql
+  SELECT pg_has_role('admin', 'member');
+  ```
+- **`pg_catalog.pg_user`**: View containing user information.
+  ```sql
+  SELECT * FROM pg_catalog.pg_user;
+  ```
+
+### 59. **Partitioning Functions Continued**
+
+- **`set_config(setting_name, new_value, is_local)`**: Sets a configuration parameter for the current session.
+  ```sql
+  SELECT set_config('search_path', 'myschema', false);
+  ```
+
+### 60. **Internationalization Functions**
+
+- **`to_timestamp(epoch)`**: Converts an epoch time (in seconds) to a timestamp.
+  ```sql
+  SELECT to_timestamp(1609459200);  -- Converts to '2021-01-01 00:00:00'
+  ```
+- **`to_char(date, format)`**: Formats a date/time according to the specified format.
+  ```sql
+  SELECT to_char(now(), 'YYYY-MM-DD HH24:MI:SS');
+  ```
+
+### 61. **Set Functions**
+
+- **`setseed(real)`**: Sets the seed for the random number generator.
+  ```sql
+  SELECT setseed(0.5);
+  ```
+- **`random()`**: Returns a random number between 0 and 1.
+  ```sql
+  SELECT random();  -- Returns a random float
+  ```
+
+### 62. **Language Functions**
+
+- **`plpgsql`**: A procedural language that allows for more complex functions and triggers.
+  ```sql
+  CREATE FUNCTION my_function() RETURNS void AS $$
+  BEGIN
+      -- function logic
+  END;
+  $$ LANGUAGE plpgsql;
+  ```
+
+### 63. **Type-Specific Functions**
+
+- **`int4range(lower, upper)`**: Creates an integer range.
+  ```sql
+  SELECT int4range(1, 10);
+  ```
+- **`numrange(lower, upper)`**: Creates a numeric range.
+  ```sql
+  SELECT numrange(1.0, 10.0);
+  ```
+
+### 64. **Trigram Functions for Fuzzy Searching**
+
+- **`similarity(string1, string2)`**: Returns a similarity score between two strings.
+  ```sql
+  SELECT similarity('hello', 'hallo');  -- Returns a score indicating similarity
+  ```
+- **`show_trgm()`**: Displays the trigram index for a string.
+  ```sql
+  SELECT show_trgm('PostgreSQL');
+  ```
+
+### 65. **Plan and Execution Functions**
+
+- **`pg_query_stats()`**: Provides information about the queries executed and their statistics.
+  ```sql
+  SELECT * FROM pg_stat_statements;
+  ```
+
+### 66. **Dynamic SQL Execution**
+
+- **`EXECUTE`**: Executes a dynamically generated SQL command in PL/pgSQL.
+  ```sql
+  DO $$
+  DECLARE
+      sql_command text := 'SELECT * FROM my_table';
+  BEGIN
+      EXECUTE sql_command;
+  END $$;
+  ```
+
+---
+
+### 67. **Advanced Window Functions**
+
+- **`row_number() OVER (PARTITION BY column ORDER BY column)`**: Assigns a unique sequential integer to rows within a partition.
+  ```sql
+  SELECT name, salary, row_number() OVER (PARTITION BY department ORDER BY salary DESC) AS rank
+  FROM employees;
+  ```
+- **`rank() OVER (PARTITION BY column ORDER BY column)`**: Similar to `row_number()`, but ranks with gaps for ties.
+  ```sql
+  SELECT name, salary, rank() OVER (PARTITION BY department ORDER BY salary DESC) AS rank
+  FROM employees;
+  ```
+- **`dense_rank() OVER (PARTITION BY column ORDER BY column)`**: Like `rank()`, but without gaps for ties.
+  ```sql
+  SELECT name, salary, dense_rank() OVER (PARTITION BY department ORDER BY salary DESC) AS rank
+  FROM employees;
+  ```
+
+### 68. **Network Address Functions**
+
+- **`inet` and `cidr` Data Types**: Handle IPv4/IPv6 addresses and CIDR blocks.
+  ```sql
+  SELECT '192.168.1.1'::inet;  -- Converts string to inet
+  SELECT '192.168.1.0/24'::cidr;  -- Converts string to cidr
+  ```
+- **`host()`**: Extracts the host portion of an inet or cidr value.
+  ```sql
+  SELECT host('192.168.1.1/24'::cidr);  -- Returns '192.168.1.1'
+  ```
+- **`set_masklen()`**: Sets the mask length of a CIDR value.
+  ```sql
+  SELECT set_masklen('192.168.1.1/24', 16);  -- Returns '192.168.1.1/16'
+  ```
+
+### 69. **Geometric Functions**
+
+- **`point(x, y)`**: Creates a point from x and y coordinates.
+  ```sql
+  SELECT point(1, 2);  -- Returns the point (1,2)
+  ```
+- **`box(point1, point2)`**: Creates a box defined by two points.
+  ```sql
+  SELECT box(point(1, 1), point(3, 3));  -- Returns the box defined by points
+  ```
+- **`circle(point, radius)`**: Creates a circle with a center point and radius.
+  ```sql
+  SELECT circle(point(0, 0), 5);  -- Returns a circle centered at (0,0) with radius 5
+  ```
+
+### 70. **Logical Functions**
+
+- **`coalesce(value1, value2, ...)`**: Returns the first non-null value from the list.
+  ```sql
+  SELECT coalesce(NULL, NULL, 'default');  -- Returns 'default'
+  ```
+- **`nullif(value1, value2)`**: Returns NULL if both values are equal; otherwise, returns the first value.
+  ```sql
+  SELECT nullif(1, 1);  -- Returns NULL
+  ```
+
+### 71. **Custom Data Types and Functions**
+
+- **`CREATE TYPE`**: Define custom data types.
+  ```sql
+  CREATE TYPE my_custom_type AS (
+      id INT,
+      name TEXT
+  );
+  ```
+- **`CREATE FUNCTION` with custom types**: Create functions that accept or return custom types.
+  ```sql
+  CREATE FUNCTION my_function(input my_custom_type) RETURNS TEXT AS $$
+  BEGIN
+      RETURN input.name;
+  END;
+  $$ LANGUAGE plpgsql;
+  ```
+
+### 72. **Text Search and Parsing Functions**
+
+- **`tsvector` and `tsquery`**: Create and manipulate text search vectors and queries.
+  ```sql
+  SELECT to_tsvector('PostgreSQL is great for full text search');
+  ```
+- **`plainto_tsquery(text)`**: Convert a plain text string into a `tsquery`.
+  ```sql
+  SELECT plainto_tsquery('PostgreSQL full text search');
+  ```
+
+### 73. **Data Compression Functions**
+
+- **`pg_read_file(file_path)`**: Reads a file from the server.
+  ```sql
+  SELECT pg_read_file('/path/to/file.txt');
+  ```
+- **`pg_compress(data)`**: Custom function (if implemented) for compressing data.
+  ```sql
+  SELECT pg_compress('some data');
+  ```
+
+### 74. **Date and Time Functions Continued**
+
+- **`make_timestamptz(year, month, day, hour, minute, second)`**: Constructs a timestamp with time zone.
+  ```sql
+  SELECT make_timestamptz(2024, 10, 5, 14, 30, 0);  -- Returns timestamp with time zone
+  ```
+- **`justify_days(interval)`**: Adjusts days in an interval to be in the range of 0 to 29.
+  ```sql
+  SELECT justify_days('1 month 32 days'::interval);  -- Returns '2 months 2 days'
+  ```
+
+### 75. **Session Management Functions**
+
+- **`pg_terminate_backend(pid)`**: Terminates a session with the specified process ID.
+  ```sql
+  SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = 'test_db';
+  ```
+- **`pg_current_pid()`**: Returns the process ID of the current session.
+  ```sql
+  SELECT pg_current_pid();
+  ```
+
+### 76. **Replication Functions**
+
+- **`pg_current_wal_lsn()`**: Returns the current Write Ahead Log (WAL) location.
+  ```sql
+  SELECT pg_current_wal_lsn();
+  ```
+- **`pg_last_wal_receive_lsn()`**: Returns the last WAL location received by a standby server.
+  ```sql
+  SELECT pg_last_wal_receive_lsn();
+  ```
+
+### 77. **Monitoring Functions**
+
+- **`pg_stat_user_indexes`**: Shows statistics about user-defined indexes.
+  ```sql
+  SELECT * FROM pg_stat_user_indexes;
+  ```
+- **`pg_stat_replication`**: Shows information about replication status.
+  ```sql
+  SELECT * FROM pg_stat_replication;
+  ```
+
+### 78. **Performance Functions**
+
+- **`pg_stat_statements`**: Provides a means for tracking execution statistics of all SQL statements.
+  ```sql
+  SELECT * FROM pg_stat_statements;
+  ```
+- **`pg_stat_activity`**: Shows the current activity of all sessions.
+  ```sql
+  SELECT * FROM pg_stat_activity;
+  ```
+
+### 79. **Built-in Aggregate Functions**
+
+- **`array_agg(value)`**: Aggregates values into an array.
+  ```sql
+  SELECT department, array_agg(employee_name)
+  FROM employees
+  GROUP BY department;
+  ```
+- **`json_agg(value)`**: Aggregates values into a JSON array.
+  ```sql
+  SELECT department, json_agg(employee_name)
+  FROM employees
+  GROUP BY department;
+  ```
+
+### 80. **Pattern Matching Functions**
+
+- **`strpos(string, substring)`**: Returns the position of the first occurrence of a substring in a string.
+  ```sql
+  SELECT strpos('PostgreSQL', 'gre');  -- Returns 3
+  ```
+- **`substring(string FROM pattern)`**: Extracts a substring that matches a specified pattern.
+  ```sql
+  SELECT substring('PostgreSQL is great' FROM '(\w+)');  -- Returns 'PostgreSQL'
+  ```
+
+### 81. **Hash Functions**
+
+- **`md5(text)`**: Returns the MD5 hash of a string.
+  ```sql
+  SELECT md5('my_password');  -- Returns hashed password
+  ```
+- **`hashtext(text)`**: Returns a hash value for a text input.
+  ```sql
+  SELECT hashtext('example');
+  ```
+
+### 82. **File and I/O Functions**
+
+- **`pg_ls_dir(directory)`**: Lists the contents of a specified directory.
+  ```sql
+  SELECT pg_ls_dir('/path/to/directory');
+  ```
+- **`pg_read_file(file_path, offset, length)`**: Reads a specified number of bytes from a file.
+  ```sql
+  SELECT pg_read_file('/path/to/file.txt', 0, 10);  -- Reads first 10 bytes
+  ```
+
+### 83. **Custom Functions**
+
+- **`CREATE FUNCTION` with complex logic**: Create more advanced functions with loops and conditions.
+  ```sql
+  CREATE FUNCTION calculate_bonus(salary NUMERIC) RETURNS NUMERIC AS $$
+  BEGIN
+      IF salary > 50000 THEN
+          RETURN salary * 0.1;
+      ELSE
+          RETURN salary * 0.05;
+      END IF;
+  END;
+  $$ LANGUAGE plpgsql;
+  ```
+
+### 84. **Error Handling Functions**
+
+- **`raise`**: Used to raise exceptions in PL/pgSQL.
+  ```sql
+  DO $$
+  BEGIN
+      RAISE EXCEPTION 'This is an error message.';
+  END $$;
+  ```
+- **`get_stacktrace()`**: Retrieves the current stack trace in PL/pgSQL (if implemented).
+  ```sql
+  SELECT get_stacktrace();
+  ```
+
+### 85. **Custom Aggregates**
+
+- **`CREATE AGGREGATE`**: Define custom aggregation functions.
+  ```sql
+  CREATE AGGREGATE my_aggregate (
+      SFUNC = array_append,
+      STYPE = text[],
+      INITCOND = '{}'
+  );
+  ```
+
+### 86. **Materialized Views Functions**
+
+- **`REFRESH MATERIALIZED VIEW`**: Refreshes a materialized view.
+  ```sql
+  REFRESH MATERIALIZED VIEW my_materialized_view;
+  ```
+
+---
+
+### 87. **Full-Text Search Functions Continued**
+
+- **`to_tsquery(text)`**: Converts plain text into a `tsquery` for searching.
+  ```sql
+  SELECT to_tsquery('PostgreSQL & fulltext');  -- Returns a tsquery for searching
+  ```
+- **`ts_rank(tsvector, tsquery)`**: Calculates the rank of a document based on its match with a query.
+  ```sql
+  SELECT ts_rank(to_tsvector('PostgreSQL is great'), to_tsquery('great'));  -- Returns a rank score
+  ```
+
+### 88. **JSON and JSONB Functions**
+
+- **`jsonb_build_object(key1, value1, key2, value2, ...)`**: Constructs a JSON object from a list of keys and values.
+  ```sql
+  SELECT jsonb_build_object('name', 'John', 'age', 30);  -- Returns '{"name": "John", "age": 30}'
+  ```
+- **`jsonb_set(target jsonb, path text[], new_value jsonb, [create_missing boolean])`**: Updates a value in a JSONB object.
+  ```sql
+  SELECT jsonb_set('{"name": "John", "age": 30}'::jsonb, '{age}', '31'::jsonb);  -- Updates age to 31
+  ```
+
+### 89. **Array Functions**
+
+- **`array_length(array, dimension)`**: Returns the length of the specified dimension of an array.
+  ```sql
+  SELECT array_length(ARRAY[1, 2, 3], 1);  -- Returns 3
+  ```
+- **`unnest(array)`**: Expands an array to a set of rows.
+  ```sql
+  SELECT unnest(ARRAY[1, 2, 3]);  -- Returns each element in a separate row
+  ```
+
+### 90. **Session and Configuration Functions**
+
+- **`pg_stat_get_backend_idset()`**: Returns the IDs of the current backend processes.
+  ```sql
+  SELECT pg_stat_get_backend_idset();
+  ```
+- **`set_config(setting_name, value, is_local)`**: Changes a session variable.
+  ```sql
+  SELECT set_config('work_mem', '16MB', false);  -- Set work memory for the session
+  ```
+
+### 91. **Type Conversion Functions**
+
+- **`::type`**: Casts a value to a different type.
+  ```sql
+  SELECT '123'::integer;  -- Converts string to integer
+  ```
+- **`CAST(value AS type)`**: An alternative to the `::type` casting.
+  ```sql
+  SELECT CAST('123' AS integer);  -- Converts string to integer
+  ```
+
+### 92. **Custom Function Execution**
+
+- **`PERFORM`**: Used to execute a function without returning a result in PL/pgSQL.
+  ```sql
+  DO $$
+  BEGIN
+      PERFORM my_function();
+  END $$;
+  ```
+
+### 93. **Transaction Control Functions**
+
+- **`BEGIN`**: Starts a transaction block.
+  ```sql
+  BEGIN;  -- Starts a new transaction
+  ```
+- **`COMMIT`**: Saves the changes made during the transaction.
+  ```sql
+  COMMIT;  -- Commits the transaction
+  ```
+- **`ROLLBACK`**: Reverts the changes made during the transaction.
+  ```sql
+  ROLLBACK;  -- Reverts changes
+  ```
+
+### 94. **Built-in Data Types**
+
+- **`hstore`**: A key-value store within a single PostgreSQL column.
+  ```sql
+  SELECT 'key1 => value1, key2 => value2'::hstore;  -- Converts string to hstore
+  ```
+- **`xml`**: Supports XML data types.
+  ```sql
+  SELECT '<foo>bar</foo>'::xml;  -- Converts string to XML
+  ```
+
+### 95. **File and I/O Operations**
+
+- **`pg_copy_from()`**: Copies data from a file into a table (if implemented).
+  ```sql
+  COPY my_table FROM '/path/to/file.csv' DELIMITER ',' CSV;  -- Loads data from CSV file
+  ```
+- **`pg_copy_to()`**: Exports data from a table to a file (if implemented).
+  ```sql
+  COPY my_table TO '/path/to/file.csv' DELIMITER ',' CSV;  -- Exports data to CSV file
+  ```
+
+### 96. **Performance Tuning Functions**
+
+- **`pg_get_indexdef(index_oid)`**: Returns the SQL definition of an index.
+  ```sql
+  SELECT pg_get_indexdef('my_index'::regclass);
+  ```
+- **`pg_stat_get_blocks_fetched(relid)`**: Returns the number of blocks fetched from a table.
+  ```sql
+  SELECT pg_stat_get_blocks_fetched('my_table'::regclass);
+  ```
+
+### 97. **Advanced Error Handling**
+
+- **`EXCEPTION` Block**: Handles exceptions in PL/pgSQL.
+  ```sql
+  DO $$
+  BEGIN
+      -- Some operations
+  EXCEPTION
+      WHEN division_by_zero THEN
+          RAISE NOTICE 'Division by zero error occurred.';
+  END $$;
+  ```
+
+### 98. **Recursion in PL/pgSQL**
+
+- **Recursive CTEs**: Allows for recursive queries.
+  ```sql
+  WITH RECURSIVE org_chart AS (
+      SELECT id, name, manager_id FROM employees WHERE id = 1
+      UNION ALL
+      SELECT e.id, e.name, e.manager_id FROM employees e
+      JOIN org_chart o ON o.id = e.manager_id
+  )
+  SELECT * FROM org_chart;
+  ```
+
+### 99. **Control Structures**
+
+- **`IF` Statements**: Conditional logic in PL/pgSQL.
+  ```sql
+  DO $$
+  DECLARE
+      v_count INT := 10;
+  BEGIN
+      IF v_count > 0 THEN
+          RAISE NOTICE 'Count is positive';
+      ELSE
+          RAISE NOTICE 'Count is zero or negative';
+      END IF;
+  END $$;
+  ```
+
+### 100. **Partitioning and Sharding Functions**
+
+- **`create_table_as`**: Creates a table based on a query.
+  ```sql
+  CREATE TABLE new_table AS SELECT * FROM old_table WHERE condition;  -- Creates a new table from a query
+  ```
+
+### 101. **Network Functions**
+
+- **`pg_sleep(seconds)`**: Delays execution for a specified number of seconds.
+  ```sql
+  SELECT pg_sleep(5);  -- Waits for 5 seconds
+  ```
+
+### 102. **Statistical Functions**
+
+- **`stddev_samp(double precision)`**: Returns the sample standard deviation of a set of numbers.
+  ```sql
+  SELECT stddev_samp(salary) FROM employees;  -- Sample standard deviation of salaries
+  ```
+- **`var_samp(double precision)`**: Returns the sample variance.
+  ```sql
+  SELECT var_samp(salary) FROM employees;  -- Sample variance of salaries
+  ```
+
+### 103. **Data Validation Functions**
+
+- **`jsonb_valid(jsonb)`**: Checks if a JSONB value is valid.
+  ```sql
+  SELECT jsonb_valid('{"key": "value"}'::jsonb);  -- Returns true
+  ```
+
+### 104. **Administrative Functions**
+
+- **`pg_get_userbyid(oid)`**: Gets the username for a given user OID.
+  ```sql
+  SELECT pg_get_userbyid(10);  -- Gets username for OID 10
+  ```
+
+### 105. **Backup and Restore Functions**
+
+- **`pg_dump`**: Backups a PostgreSQL database (run from shell, not SQL).
+  ```bash
+  pg_dump mydatabase > mydatabase.sql  # Dumps database to SQL file
+  ```
+- **`pg_restore`**: Restores a PostgreSQL database from a dump file (run from shell).
+  ```bash
+  pg_restore -d mydatabase mydatabase.sql  # Restores from dump file
+  ```

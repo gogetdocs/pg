@@ -1,0 +1,769 @@
+Common Table Expressions (CTEs) in PostgreSQL are a powerful feature that allows for more organized and readable SQL queries, especially when dealing with complex logic. They can also improve performance by breaking down a query into smaller, manageable parts. Below are several complete, implementations of CTEs in PostgreSQL.
+
+### 1. Recursive CTE for Hierarchical Data
+
+A recursive CTE is often used for hierarchical data, such as organizational charts or category trees. Here’s an example where we have an employee table with a self-referential foreign key for managers.
+
+#### Table Structure
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    manager_id INT,
+    FOREIGN KEY (manager_id) REFERENCES employees (id)
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO employees (name, manager_id) VALUES
+('Alice', NULL),
+('Bob', 1),
+('Charlie', 1),
+('David', 2),
+('Eve', 2),
+('Frank', 3);
+```
+
+#### Recursive CTE Query
+
+```sql
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 0 AS level
+    FROM employees
+    WHERE manager_id IS NULL  -- Start with top-level manager (CEO)
+
+    UNION ALL
+
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    INNER JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT * FROM employee_hierarchy ORDER BY level, name;
+```
+
+### Explanation:
+
+- The CTE starts with the top-level employee (who has no manager) and then recursively joins to find all employees under that manager, incrementing the level each time.
+
+### 2. CTE for Aggregating Data
+
+CTEs can also be useful for aggregating data before using it in another query. Here’s an example with a sales database.
+
+#### Table Structure
+
+```sql
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    product_id INT,
+    quantity INT,
+    sale_date DATE
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO sales (product_id, quantity, sale_date) VALUES
+(1, 10, '2024-01-01'),
+(1, 20, '2024-01-02'),
+(2, 15, '2024-01-01'),
+(2, 25, '2024-01-03');
+```
+
+#### CTE for Daily Sales Aggregation
+
+```sql
+WITH daily_sales AS (
+    SELECT sale_date, SUM(quantity) AS total_quantity
+    FROM sales
+    GROUP BY sale_date
+)
+SELECT sale_date, total_quantity,
+       LAG(total_quantity) OVER (ORDER BY sale_date) AS previous_day_quantity
+FROM daily_sales
+ORDER BY sale_date;
+```
+
+### Explanation:
+
+- This CTE aggregates total sales per day and then uses the `LAG` window function to compare daily sales with the previous day’s sales.
+
+### 3. CTE for Data Transformation and Final Selection
+
+CTEs can also serve as a step for transforming data before the final selection. For example, consider transforming customer orders to calculate total revenue per customer.
+
+#### Table Structure
+
+```sql
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT,
+    amount DECIMAL,
+    FOREIGN KEY (customer_id) REFERENCES customers (id)
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO customers (name) VALUES
+('John Doe'),
+('Jane Smith');
+
+INSERT INTO orders (customer_id, amount) VALUES
+(1, 100.50),
+(1, 200.75),
+(2, 150.00);
+```
+
+#### CTE for Revenue Calculation
+
+```sql
+WITH customer_revenue AS (
+    SELECT c.id AS customer_id, c.name, SUM(o.amount) AS total_revenue
+    FROM customers c
+    LEFT JOIN orders o ON c.id = o.customer_id
+    GROUP BY c.id
+)
+SELECT cr.customer_id, cr.name, cr.total_revenue
+FROM customer_revenue cr
+WHERE cr.total_revenue > 100;
+```
+
+### Explanation:
+
+- The CTE `customer_revenue` calculates total revenue for each customer, and the final query filters out customers with a total revenue of less than 100.
+
+### 4. CTE for Complex Filtering and Joining
+
+CTEs can help simplify complex queries involving multiple joins. Here’s an example with multiple tables.
+
+#### Table Structure
+
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    price DECIMAL
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    order_date DATE
+);
+
+CREATE TABLE order_items (
+    id SERIAL PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    FOREIGN KEY (order_id) REFERENCES orders (id),
+    FOREIGN KEY (product_id) REFERENCES products (id)
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO products (name, price) VALUES
+('Widget', 10.00),
+('Gadget', 20.00);
+
+INSERT INTO orders (order_date) VALUES
+('2024-01-01'),
+('2024-01-02');
+
+INSERT INTO order_items (order_id, product_id, quantity) VALUES
+(1, 1, 5),
+(1, 2, 2),
+(2, 1, 3);
+```
+
+#### CTE for Order Summary
+
+```sql
+WITH order_summary AS (
+    SELECT o.id AS order_id,
+           SUM(p.price * oi.quantity) AS total_price
+    FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    JOIN products p ON oi.product_id = p.id
+    GROUP BY o.id
+)
+SELECT os.order_id, os.total_price
+FROM order_summary os
+WHERE os.total_price > 50;
+```
+
+### Explanation:
+
+- The `order_summary` CTE calculates the total price for each order by joining the `orders`, `order_items`, and `products` tables, then filters for orders exceeding a total price of 50.
+
+### 5. CTE for Window Function Use
+
+CTEs are also useful when dealing with window functions. For example, calculating running totals for sales.
+
+#### CTE for Running Total
+
+```sql
+WITH sales_data AS (
+    SELECT sale_date,
+           SUM(quantity) AS daily_quantity
+    FROM sales
+    GROUP BY sale_date
+)
+SELECT sale_date,
+       daily_quantity,
+       SUM(daily_quantity) OVER (ORDER BY sale_date) AS running_total
+FROM sales_data
+ORDER BY sale_date;
+```
+
+### Explanation:
+
+- This query first aggregates daily sales and then calculates a running total of those daily sales using a window function.
+
+---
+
+### 6. CTE for Pagination
+
+CTEs can be useful for implementing pagination in SQL queries, especially when combined with `ROW_NUMBER()`.
+
+#### CTE for Pagination Example
+
+```sql
+WITH paginated_orders AS (
+    SELECT id, customer_id, order_date,
+           ROW_NUMBER() OVER (ORDER BY order_date DESC) AS row_num
+    FROM orders
+)
+SELECT *
+FROM paginated_orders
+WHERE row_num BETWEEN 1 AND 10;  -- Retrieve the first 10 orders
+```
+
+### Explanation:
+
+- The `ROW_NUMBER()` function assigns a unique number to each row based on the order date, allowing easy pagination of results.
+
+---
+
+### 7. CTE for Filtering Hierarchical Data
+
+You can use CTEs to filter hierarchical data more easily. This is especially useful when working with category or product hierarchies.
+
+#### Table Structure
+
+```sql
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    parent_id INT,
+    FOREIGN KEY (parent_id) REFERENCES categories (id)
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO categories (name, parent_id) VALUES
+('Electronics', NULL),
+('Laptops', 1),
+('Smartphones', 1),
+('Dell', 2),
+('HP', 2),
+('Apple', 3);
+```
+
+#### CTE for Filtering Hierarchical Data
+
+```sql
+WITH RECURSIVE category_hierarchy AS (
+    SELECT id, name, parent_id
+    FROM categories
+    WHERE name = 'Electronics'  -- Start from a specific category
+
+    UNION ALL
+
+    SELECT c.id, c.name, c.parent_id
+    FROM categories c
+    INNER JOIN category_hierarchy ch ON c.parent_id = ch.id
+)
+SELECT * FROM category_hierarchy;
+```
+
+### Explanation:
+
+- This CTE retrieves all categories under "Electronics," including subcategories.
+
+---
+
+### 8. CTE for Complex Calculations
+
+CTEs can break down complex calculations into simpler steps, making your queries more readable.
+
+#### CTE for Profit Calculation
+
+```sql
+WITH product_sales AS (
+    SELECT product_id, SUM(quantity) AS total_quantity, SUM(amount) AS total_sales
+    FROM orders o
+    JOIN order_items oi ON o.id = oi.order_id
+    GROUP BY product_id
+),
+product_costs AS (
+    SELECT product_id, SUM(cost) AS total_cost
+    FROM product_costs_table  -- Assume this table exists
+    GROUP BY product_id
+)
+SELECT ps.product_id,
+       ps.total_sales - pc.total_cost AS profit
+FROM product_sales ps
+JOIN product_costs pc ON ps.product_id = pc.product_id;
+```
+
+### Explanation:
+
+- The CTEs `product_sales` and `product_costs` calculate total sales and costs per product, and the final query computes the profit.
+
+---
+
+### 9. CTE for Data Comparison
+
+CTEs can help compare current data against historical data for trends or changes.
+
+#### Table Structure
+
+```sql
+CREATE TABLE historical_sales (
+    id SERIAL PRIMARY KEY,
+    product_id INT,
+    sale_date DATE,
+    amount DECIMAL
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO historical_sales (product_id, sale_date, amount) VALUES
+(1, '2023-10-01', 500.00),
+(2, '2023-10-01', 300.00),
+(1, '2023-10-02', 450.00),
+(2, '2023-10-02', 350.00);
+```
+
+#### CTE for Data Comparison
+
+```sql
+WITH current_sales AS (
+    SELECT product_id, SUM(amount) AS total_amount
+    FROM sales
+    WHERE sale_date >= '2024-01-01'
+    GROUP BY product_id
+),
+historical_sales_summary AS (
+    SELECT product_id, SUM(amount) AS total_amount
+    FROM historical_sales
+    WHERE sale_date >= '2023-10-01' AND sale_date < '2024-01-01'
+    GROUP BY product_id
+)
+SELECT cs.product_id,
+       cs.total_amount AS current_total,
+       hs.total_amount AS historical_total,
+       (cs.total_amount - hs.total_amount) AS difference
+FROM current_sales cs
+LEFT JOIN historical_sales_summary hs ON cs.product_id = hs.product_id;
+```
+
+### Explanation:
+
+- The CTEs compare current sales with historical sales, allowing analysis of trends over time.
+
+---
+
+### 10. CTE for Recursive Calculations
+
+Recursive CTEs can perform calculations that require iteration, such as generating a sequence of dates.
+
+#### CTE for Generating Date Ranges
+
+```sql
+WITH RECURSIVE date_series AS (
+    SELECT '2024-01-01'::DATE AS sale_date
+    UNION ALL
+    SELECT sale_date + INTERVAL '1 day'
+    FROM date_series
+    WHERE sale_date < '2024-01-10'  -- Limit to 10 days
+)
+SELECT * FROM date_series;
+```
+
+### Explanation:
+
+- This recursive CTE generates a list of dates from January 1 to January 10, 2024.
+
+---
+
+### 11. CTE for Advanced Statistical Calculations
+
+CTEs can be combined with window functions to perform advanced statistical calculations.
+
+#### CTE for Running Average
+
+```sql
+WITH daily_sales AS (
+    SELECT sale_date, SUM(amount) AS total_amount
+    FROM sales
+    GROUP BY sale_date
+),
+running_average AS (
+    SELECT sale_date,
+           AVG(total_amount) OVER (ORDER BY sale_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS seven_day_avg
+    FROM daily_sales
+)
+SELECT * FROM running_average;
+```
+
+### Explanation:
+
+- The CTE `daily_sales` calculates daily totals, while the `running_average` computes a 7-day moving average.
+
+---
+
+### 12. CTE for Aggregated Metrics
+
+CTEs can be used to create aggregated metrics for reporting purposes, such as monthly performance.
+
+#### CTE for Monthly Sales Summary
+
+```sql
+WITH monthly_sales AS (
+    SELECT DATE_TRUNC('month', sale_date) AS month,
+           SUM(amount) AS total_sales
+    FROM sales
+    GROUP BY month
+)
+SELECT month,
+       total_sales,
+       LAG(total_sales) OVER (ORDER BY month) AS previous_month_sales
+FROM monthly_sales;
+```
+
+### Explanation:
+
+- This CTE summarizes sales by month and compares each month's total to the previous month.
+
+---
+
+### 13. CTE for Data Deduplication
+
+CTEs can help identify and remove duplicate records in a table.
+
+#### Table Structure
+
+```sql
+CREATE TABLE user_profiles (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255),
+    name VARCHAR(100),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO user_profiles (email, name) VALUES
+('john@example.com', 'John Doe'),
+('john@example.com', 'Johnathan Doe'),
+('jane@example.com', 'Jane Doe'),
+('jane@example.com', 'Jane Smith');
+```
+
+#### CTE for Deduplication
+
+```sql
+WITH ranked_profiles AS (
+    SELECT id, email, name,
+           ROW_NUMBER() OVER (PARTITION BY email ORDER BY created_at DESC) AS rank
+    FROM user_profiles
+)
+DELETE FROM user_profiles
+WHERE id IN (SELECT id FROM ranked_profiles WHERE rank > 1);
+```
+
+### Explanation:
+
+- This CTE identifies duplicate profiles based on email and retains only the most recent entry based on the `created_at` timestamp.
+
+---
+
+### 14. CTE for Calculating Percentiles
+
+CTEs can be useful for calculating percentiles or quantiles for data analysis.
+
+#### Table Structure
+
+```sql
+CREATE TABLE test_scores (
+    id SERIAL PRIMARY KEY,
+    student_name VARCHAR(100),
+    score INT
+);
+```
+
+#### Sample Data
+
+```sql
+INSERT INTO test_scores (student_name, score) VALUES
+('Alice', 85),
+('Bob', 92),
+('Charlie', 78),
+('David', 88),
+('Eve', 91);
+```
+
+#### CTE for Percentile Calculation
+
+```sql
+WITH score_ranked AS (
+    SELECT score,
+           NTILE(100) OVER (ORDER BY score) AS percentile
+    FROM test_scores
+)
+SELECT percentile, AVG(score) AS average_score
+FROM score_ranked
+GROUP BY percentile
+ORDER BY percentile;
+```
+
+### Explanation:
+
+- The `NTILE(100)` function divides the scores into percentiles, allowing you to calculate average scores for each percentile group.
+
+---
+
+### 15. CTE for Conditional Aggregation
+
+CTEs can facilitate conditional aggregation by simplifying complex queries.
+
+#### CTE for Conditional Aggregation
+
+```sql
+WITH order_summary AS (
+    SELECT customer_id,
+           SUM(CASE WHEN amount > 100 THEN 1 ELSE 0 END) AS high_value_orders,
+           SUM(CASE WHEN amount <= 100 THEN 1 ELSE 0 END) AS low_value_orders
+    FROM orders
+    GROUP BY customer_id
+)
+SELECT customer_id, high_value_orders, low_value_orders
+FROM order_summary;
+```
+
+### Explanation:
+
+- This CTE counts the number of high-value and low-value orders per customer using conditional aggregation.
+
+---
+
+### 16. CTE for Batch Processing
+
+CTEs can be used to simplify batch processing of records, such as updating or deleting records based on complex criteria.
+
+#### Batch Update Example
+
+```sql
+WITH updated_orders AS (
+    SELECT id, amount,
+           CASE
+               WHEN amount < 50 THEN amount * 1.1
+               WHEN amount >= 50 AND amount < 100 THEN amount * 1.05
+               ELSE amount
+           END AS new_amount
+    FROM orders
+)
+UPDATE orders
+SET amount = u.new_amount
+FROM updated_orders u
+WHERE orders.id = u.id;
+```
+
+### Explanation:
+
+- The CTE calculates new amounts based on different criteria, and the final update applies those new amounts to the original table.
+
+---
+
+### 17. CTE for Historical Data Comparison
+
+CTEs can be used to compare current data with historical data for trend analysis.
+
+#### Historical Data Comparison
+
+```sql
+WITH current_sales AS (
+    SELECT product_id, SUM(amount) AS total_amount
+    FROM sales
+    WHERE sale_date >= '2024-01-01'
+    GROUP BY product_id
+),
+historical_sales AS (
+    SELECT product_id, SUM(amount) AS total_amount
+    FROM sales
+    WHERE sale_date < '2024-01-01'
+    GROUP BY product_id
+)
+SELECT cs.product_id,
+       cs.total_amount AS current_total,
+       hs.total_amount AS historical_total,
+       ((cs.total_amount - hs.total_amount) / NULLIF(hs.total_amount, 0)) * 100 AS percentage_change
+FROM current_sales cs
+LEFT JOIN historical_sales hs ON cs.product_id = hs.product_id;
+```
+
+### Explanation:
+
+- The CTEs compare current sales to historical sales and calculate the percentage change, helping to identify trends.
+
+---
+
+### 18. CTE for Seasonal Analysis
+
+CTEs can be useful for analyzing sales data by season or quarter.
+
+#### Seasonal Sales Analysis
+
+```sql
+WITH seasonal_sales AS (
+    SELECT EXTRACT(QUARTER FROM sale_date) AS quarter,
+           SUM(amount) AS total_sales
+    FROM sales
+    GROUP BY quarter
+)
+SELECT quarter, total_sales,
+       LAG(total_sales) OVER (ORDER BY quarter) AS previous_quarter_sales
+FROM seasonal_sales;
+```
+
+### Explanation:
+
+- This CTE aggregates sales by quarter, allowing for analysis of seasonal trends by comparing current sales to the previous quarter.
+
+---
+
+### 19. CTE for Preprocessing Data
+
+CTEs can preprocess data before further analysis or transformations.
+
+#### Data Preprocessing Example
+
+```sql
+WITH clean_data AS (
+    SELECT TRIM(LOWER(email)) AS email,
+           name
+    FROM user_profiles
+)
+SELECT email, COUNT(*) AS count
+FROM clean_data
+GROUP BY email
+HAVING COUNT(*) > 1;  -- Find duplicate emails after cleaning
+```
+
+### Explanation:
+
+- This CTE cleans the email data by trimming whitespace and converting it to lowercase, making it easier to find duplicates.
+
+---
+
+### 20. CTE for Segmenting Data
+
+CTEs can segment data based on various conditions, helping in targeted analysis.
+
+#### Segmented Customer Analysis
+
+```sql
+WITH customer_segments AS (
+    SELECT customer_id,
+           CASE
+               WHEN total_spent > 1000 THEN 'VIP'
+               WHEN total_spent BETWEEN 500 AND 1000 THEN 'Regular'
+               ELSE 'New'
+           END AS segment
+    FROM (
+        SELECT customer_id, SUM(amount) AS total_spent
+        FROM orders
+        GROUP BY customer_id
+    ) AS totals
+)
+SELECT segment, COUNT(*) AS num_customers
+FROM customer_segments
+GROUP BY segment;
+```
+
+### Explanation:
+
+- This CTE segments customers based on their total spending, helping to categorize them for marketing or promotional strategies.
+
+---
+
+### 21. CTE for Temporary Table Simulation
+
+CTEs can act as temporary tables for complex queries without creating physical tables.
+
+#### Temporary Table Simulation
+
+```sql
+WITH temp_orders AS (
+    SELECT o.id, o.amount,
+           c.name AS customer_name
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.id
+)
+SELECT *
+FROM temp_orders
+WHERE amount > 100;
+```
+
+### Explanation:
+
+- This CTE acts as a temporary table that combines order and customer data, allowing for simplified querying without creating a physical table.
+
+---
+
+### 22. CTE for Cross-Tabulation
+
+CTEs can be used to create cross-tabulations or pivot tables to analyze data from different perspectives.
+
+#### Cross-Tabulation Example
+
+```sql
+WITH sales_data AS (
+    SELECT product_id,
+           EXTRACT(MONTH FROM sale_date) AS sale_month,
+           SUM(amount) AS total_sales
+    FROM sales
+    GROUP BY product_id, sale_month
+)
+SELECT product_id,
+       SUM(CASE WHEN sale_month = 1 THEN total_sales ELSE 0 END) AS January,
+       SUM(CASE WHEN sale_month = 2 THEN total_sales ELSE 0 END) AS February,
+       SUM(CASE WHEN sale_month = 3 THEN total_sales ELSE 0 END) AS March
+FROM sales_data
+GROUP BY product_id;
+```
+
+### Explanation:
+
+- This CTE aggregates sales data by product and month, allowing for analysis of monthly sales figures in a cross-tabulated format.
+
+---

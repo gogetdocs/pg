@@ -1,0 +1,201 @@
+Role-Based Access Control (RBAC) in PostgreSQL is a powerful mechanism for managing user permissions and access rights in a database environment. It allows for defining roles and privileges, which can be assigned to users or other roles, facilitating granular control over what each user can do within the database.
+
+Here's a comprehensive overview of both basic and advanced usages of RBAC in PostgreSQL, including complete implementations.
+
+### Basic Implementation of RBAC
+
+1. **Creating Roles**
+
+   - Create roles to represent groups of users or specific access levels.
+
+   ```sql
+   -- Create roles
+   CREATE ROLE read_only;
+   CREATE ROLE read_write;
+   ```
+
+2. **Creating Users**
+
+   - Create users and assign them to roles.
+
+   ```sql
+   -- Create users
+   CREATE USER alice WITH PASSWORD 'password';
+   CREATE USER bob WITH PASSWORD 'password';
+
+   -- Grant roles to users
+   GRANT read_only TO alice;
+   GRANT read_write TO bob;
+   ```
+
+3. **Granting Privileges**
+
+   - Define what privileges each role has on specific database objects.
+
+   ```sql
+   -- Create a sample table
+   CREATE TABLE products (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(100),
+       price NUMERIC
+   );
+
+   -- Grant privileges
+   GRANT SELECT ON products TO read_only;
+   GRANT SELECT, INSERT, UPDATE ON products TO read_write;
+   ```
+
+4. **Using Roles for Security**
+
+   - When users connect, they will have the privileges assigned to their roles.
+
+   ```sql
+   -- As alice
+   \c my_database alice
+   SELECT * FROM products;  -- Works
+   INSERT INTO products (name, price) VALUES ('New Product', 10.99);  -- Fails
+
+   -- As bob
+   \c my_database bob
+   SELECT * FROM products;  -- Works
+   INSERT INTO products (name, price) VALUES ('Another Product', 15.99);  -- Works
+   ```
+
+### Advanced Implementation of RBAC
+
+1. **Role Hierarchies**
+
+   - Create role hierarchies where roles can inherit privileges from other roles.
+
+   ```sql
+   -- Create a role that inherits from others
+   CREATE ROLE manager IN ROLE read_write;
+   ```
+
+   - Now, `manager` will have both `read_write` and `read_only` permissions.
+
+2. **Defining Role Attributes**
+
+   - Set attributes like LOGIN, CREATEDB, or SUPERUSER for roles.
+
+   ```sql
+   -- Create roles with attributes
+   CREATE ROLE app_user WITH LOGIN PASSWORD 'securepassword' CREATEDB;
+   ```
+
+3. **Revoking Privileges**
+
+   - Revoke privileges when necessary to maintain security.
+
+   ```sql
+   -- Revoke SELECT from read_only
+   REVOKE SELECT ON products FROM read_only;
+   ```
+
+4. **Creating Policies for Row-Level Security (RLS)**
+
+   - Implement row-level security policies to restrict access to rows based on user roles.
+
+   ```sql
+   -- Enable RLS on the products table
+   ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+   -- Create a policy
+   CREATE POLICY user_policy ON products
+   FOR SELECT
+   USING (user_id = current_user);  -- Assume user_id is a column that relates to the user
+   ```
+
+5. **Using `SET ROLE` for Temporary Role Changes**
+
+   - Switch roles dynamically to access different privileges within a session.
+
+   ```sql
+   -- Switch to another role temporarily
+   SET ROLE read_write;
+   SELECT * FROM products;  -- Works with read_write privileges
+   RESET ROLE;  -- Revert to original role
+   ```
+
+6. **Combining with Function Security**
+
+   - Define functions with specific security definer and invoker behaviors.
+
+   ```sql
+   CREATE OR REPLACE FUNCTION secure_insert_product(name VARCHAR, price NUMERIC)
+   RETURNS VOID AS $$
+   BEGIN
+       INSERT INTO products (name, price) VALUES (name, price);
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;  -- Run with the privileges of the function owner
+   ```
+
+### Full-fledged Example
+
+Here’s a more comprehensive scenario that integrates all the aforementioned concepts:
+
+1. **Setup Database and Roles**
+
+   ```sql
+   CREATE DATABASE company_db;
+   \c company_db
+
+   CREATE ROLE hr_read_only;
+   CREATE ROLE hr_read_write;
+
+   CREATE USER alice WITH PASSWORD 'alice_password';
+   CREATE USER bob WITH PASSWORD 'bob_password';
+
+   GRANT hr_read_only TO alice;
+   GRANT hr_read_write TO bob;
+   ```
+
+2. **Create Tables and Grant Privileges**
+
+   ```sql
+   CREATE TABLE employees (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(100),
+       salary NUMERIC,
+       department VARCHAR(50)
+   );
+
+   -- Grant permissions
+   GRANT SELECT ON employees TO hr_read_only;
+   GRANT SELECT, INSERT, UPDATE ON employees TO hr_read_write;
+   ```
+
+3. **Implement Row-Level Security**
+
+   ```sql
+   ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+
+   CREATE POLICY employee_policy ON employees
+   FOR SELECT
+   USING (department = current_user);
+   ```
+
+4. **Function for Secure Insert**
+
+   ```sql
+   CREATE OR REPLACE FUNCTION secure_insert_employee(name VARCHAR, salary NUMERIC, department VARCHAR)
+   RETURNS VOID AS $$
+   BEGIN
+       INSERT INTO employees (name, salary, department) VALUES (name, salary, department);
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   ```
+
+5. **Testing the Implementation**
+
+   ```sql
+   -- Connect as alice
+   \c company_db alice
+   SET ROLE hr_read_only;
+   SELECT * FROM employees;  -- Works, but restricted by RLS
+
+   -- Connect as bob
+   \c company_db bob
+   SET ROLE hr_read_write;
+   INSERT INTO employees (name, salary, department) VALUES ('John Doe', 60000, 'IT');  -- Works
+   ```

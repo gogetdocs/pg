@@ -1,0 +1,786 @@
+PostgreSQL provides a rich set of built-in functions and methods that can greatly enhance your database operations. Below, I’ll cover both basic and advanced usages of some key built-in functions and methods in PostgreSQL, along with complete implementations. This will include examples of numeric functions, string functions, date/time functions, and aggregate functions.
+
+### Basic Usages
+
+1. **Numeric Functions**
+
+   - **Example: Basic Arithmetic**
+
+   ```sql
+   SELECT
+       5 + 10 AS sum,
+       10 - 3 AS difference,
+       4 * 7 AS product,
+       20 / 4 AS quotient;
+   ```
+
+2. **String Functions**
+
+   - **Example: String Manipulation**
+
+   ```sql
+   SELECT
+       LENGTH('Hello, World!') AS string_length,
+       UPPER('hello') AS upper_string,
+       LOWER('WORLD') AS lower_string,
+       CONCAT('Hello', ' ', 'World') AS concatenated_string;
+   ```
+
+3. **Date/Time Functions**
+
+   - **Example: Date Calculations**
+
+   ```sql
+   SELECT
+       CURRENT_DATE AS today,
+       CURRENT_TIME AS now,
+       CURRENT_TIMESTAMP AS current_timestamp,
+       CURRENT_DATE + INTERVAL '1 week' AS next_week;
+   ```
+
+4. **Aggregate Functions**
+
+   - **Example: Basic Aggregation**
+
+   ```sql
+   CREATE TABLE sales (
+       id SERIAL PRIMARY KEY,
+       amount NUMERIC
+   );
+
+   INSERT INTO sales (amount) VALUES (100), (150), (200), (300);
+
+   SELECT
+       SUM(amount) AS total_sales,
+       AVG(amount) AS average_sales,
+       MAX(amount) AS max_sale,
+       MIN(amount) AS min_sale
+   FROM sales;
+   ```
+
+### Advanced Usages
+
+1. **Advanced Numeric Functions**
+
+   - **Example: Statistical Functions**
+
+   ```sql
+   SELECT
+       VARIANCE(amount) AS sales_variance,
+       STDDEV(amount) AS sales_stddev,
+       COVAR_POP(amount, amount) AS sales_covariance
+   FROM sales;
+   ```
+
+2. **Advanced String Functions**
+
+   - **Example: Regular Expressions**
+
+   ```sql
+   SELECT
+       'abc123' ~ '[0-9]' AS contains_number,  -- Check if contains a number
+       REGEXP_REPLACE('abc123', '[0-9]', '#', 'g') AS replace_numbers;  -- Replace numbers with '#'
+   ```
+
+3. **Advanced Date/Time Functions**
+
+   - **Example: Date/Time Manipulations**
+
+   ```sql
+   SELECT
+       NOW() AS current_time,
+       DATE_TRUNC('month', NOW()) AS start_of_month,
+       AGE(NOW(), '2024-01-01') AS age_from_date,
+       TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI:SS') AS formatted_timestamp;
+   ```
+
+4. **Window Functions**
+
+   - **Example: Running Totals**
+
+   ```sql
+   CREATE TABLE transactions (
+       id SERIAL PRIMARY KEY,
+       amount NUMERIC,
+       transaction_date DATE
+   );
+
+   INSERT INTO transactions (amount, transaction_date) VALUES
+   (100, '2024-01-01'),
+   (150, '2024-01-02'),
+   (200, '2024-01-03');
+
+   SELECT
+       transaction_date,
+       amount,
+       SUM(amount) OVER (ORDER BY transaction_date) AS running_total
+   FROM transactions;
+   ```
+
+### Full-fledged Implementation
+
+Let's create a comprehensive implementation combining these concepts into a single project. This example will include creating tables, inserting data, and using a variety of built-in functions.
+
+#### Step 1: Create Tables
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    salary NUMERIC,
+    hire_date DATE
+);
+
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+CREATE TABLE employee_departments (
+    employee_id INT REFERENCES employees(id),
+    department_id INT REFERENCES departments(id),
+    PRIMARY KEY (employee_id, department_id)
+);
+```
+
+#### Step 2: Insert Sample Data
+
+```sql
+INSERT INTO employees (name, salary, hire_date) VALUES
+('Alice', 60000, '2022-01-15'),
+('Bob', 70000, '2023-03-12'),
+('Charlie', 80000, '2021-11-29');
+
+INSERT INTO departments (name) VALUES
+('HR'),
+('Engineering'),
+('Sales');
+
+INSERT INTO employee_departments (employee_id, department_id) VALUES
+(1, 1),
+(1, 2),
+(2, 2),
+(3, 3);
+```
+
+#### Step 3: Query with Built-in Functions
+
+1. **Calculating Average Salary per Department**
+
+```sql
+SELECT
+    d.name AS department_name,
+    AVG(e.salary) AS average_salary,
+    COUNT(e.id) AS employee_count
+FROM
+    departments d
+LEFT JOIN employee_departments ed ON d.id = ed.department_id
+LEFT JOIN employees e ON ed.employee_id = e.id
+GROUP BY
+    d.name;
+```
+
+2. **Get Employees Hired in the Last Year**
+
+```sql
+SELECT
+    name,
+    hire_date,
+    AGE(NOW(), hire_date) AS tenure
+FROM
+    employees
+WHERE
+    hire_date >= NOW() - INTERVAL '1 year';
+```
+
+3. **Get Running Total of Salaries by Hire Date**
+
+```sql
+SELECT
+    hire_date,
+    name,
+    salary,
+    SUM(salary) OVER (ORDER BY hire_date) AS running_total_salary
+FROM
+    employees
+ORDER BY
+    hire_date;
+```
+
+---
+
+### 1. **E-Commerce Analytics**
+
+#### a. **Top Selling Products**
+
+Create a `products` table and analyze sales to find the top-selling products.
+
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    price NUMERIC
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    product_id INT REFERENCES products(id),
+    quantity INT,
+    order_date DATE
+);
+
+INSERT INTO products (name, price) VALUES
+('Laptop', 1200),
+('Smartphone', 800),
+('Tablet', 400);
+
+INSERT INTO orders (product_id, quantity, order_date) VALUES
+(1, 2, '2024-01-10'),
+(2, 5, '2024-01-11'),
+(1, 3, '2024-01-12'),
+(3, 7, '2024-01-13');
+
+-- Query to find the top-selling products
+SELECT
+    p.name,
+    SUM(o.quantity) AS total_sold,
+    SUM(o.quantity) * p.price AS total_revenue
+FROM
+    products p
+JOIN orders o ON p.id = o.product_id
+GROUP BY
+    p.name
+ORDER BY
+    total_sold DESC;
+```
+
+#### b. **Sales Trends Over Time**
+
+Analyze how sales change over time using date functions and grouping.
+
+```sql
+SELECT
+    DATE_TRUNC('month', o.order_date) AS sales_month,
+    SUM(o.quantity * p.price) AS total_sales
+FROM
+    orders o
+JOIN products p ON o.product_id = p.id
+GROUP BY
+    sales_month
+ORDER BY
+    sales_month;
+```
+
+### 2. **Customer Relationship Management (CRM)**
+
+#### a. **Customer Engagement Analysis**
+
+Create a `customers` table and analyze customer engagement based on order history.
+
+```sql
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100),
+    created_at DATE
+);
+
+INSERT INTO customers (name, email, created_at) VALUES
+('John Doe', 'john@example.com', '2022-05-10'),
+('Jane Smith', 'jane@example.com', '2023-02-14');
+
+-- Query to analyze customer engagement
+SELECT
+    c.name,
+    COUNT(o.id) AS total_orders,
+    MAX(o.order_date) AS last_order_date,
+    CURRENT_DATE - MAX(o.order_date) AS days_since_last_order
+FROM
+    customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+GROUP BY
+    c.name;
+```
+
+### 3. **Data Transformation**
+
+#### a. **JSON Data Handling**
+
+Use PostgreSQL’s JSON functions to work with JSON data.
+
+```sql
+CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    event_data JSONB
+);
+
+INSERT INTO events (event_data) VALUES
+('{"name": "Concert", "date": "2024-05-20", "attendees": 300}'),
+('{"name": "Festival", "date": "2024-06-15", "attendees": 500}');
+
+-- Query to extract data from JSON
+SELECT
+    event_data->>'name' AS event_name,
+    (event_data->>'attendees')::INT AS number_of_attendees
+FROM
+    events;
+```
+
+#### b. **Data Aggregation with JSON**
+
+Aggregate data into JSON format for reporting.
+
+```sql
+SELECT
+    event_data->>'name' AS event_name,
+    json_agg(event_data) AS events
+FROM
+    events
+GROUP BY
+    event_data->>'name';
+```
+
+### 4. **Geospatial Queries**
+
+If you have a geographic dataset, you can use PostGIS (a PostgreSQL extension for geographic objects).
+
+#### a. **Creating Spatial Data**
+
+Create a `locations` table with geographic coordinates.
+
+```sql
+CREATE TABLE locations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    coordinates GEOGRAPHY(POINT, 4326)
+);
+
+INSERT INTO locations (name, coordinates) VALUES
+('Location A', ST_MakePoint(-73.935242, 40.730610)),  -- New York
+('Location B', ST_MakePoint(-118.243683, 34.052235)); -- Los Angeles
+
+-- Query to find the distance between locations
+SELECT
+    l1.name AS location_a,
+    l2.name AS location_b,
+    ST_Distance(l1.coordinates, l2.coordinates) AS distance_meters
+FROM
+    locations l1,
+    locations l2
+WHERE
+    l1.id != l2.id;
+```
+
+### 5. **User Activity Tracking**
+
+#### a. **Logging User Activities**
+
+Track user activities and analyze user engagement.
+
+```sql
+CREATE TABLE user_activities (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    activity_type VARCHAR(50),
+    activity_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO user_activities (user_id, activity_type) VALUES
+(1, 'login'),
+(1, 'view_product'),
+(2, 'login'),
+(1, 'purchase'),
+(2, 'view_product');
+
+-- Query to analyze user activity
+SELECT
+    user_id,
+    activity_type,
+    COUNT(*) AS activity_count,
+    MIN(activity_time) AS first_activity,
+    MAX(activity_time) AS last_activity
+FROM
+    user_activities
+GROUP BY
+    user_id, activity_type
+ORDER BY
+    user_id, activity_type;
+```
+
+### 6. **Complex Analytics with CTEs**
+
+#### a. **Common Table Expressions (CTEs)**
+
+Use CTEs for complex queries to simplify calculations.
+
+```sql
+WITH sales_summary AS (
+    SELECT
+        product_id,
+        SUM(quantity) AS total_quantity,
+        SUM(quantity * price) AS total_revenue
+    FROM
+        orders o
+    JOIN products p ON o.product_id = p.id
+    GROUP BY
+        product_id
+)
+SELECT
+    p.name,
+    ss.total_quantity,
+    ss.total_revenue
+FROM
+    products p
+JOIN sales_summary ss ON p.id = ss.product_id
+WHERE
+    ss.total_revenue > 1000;
+```
+
+### 7. **Machine Learning Data Preparation**
+
+If you're preparing data for machine learning, PostgreSQL can help with data aggregation and transformation.
+
+#### a. **Feature Engineering**
+
+Calculate features based on user transactions.
+
+```sql
+CREATE TABLE user_transactions (
+    user_id INT,
+    transaction_amount NUMERIC,
+    transaction_date DATE
+);
+
+-- Sample data
+INSERT INTO user_transactions (user_id, transaction_amount, transaction_date) VALUES
+(1, 100, '2024-01-01'),
+(1, 200, '2024-01-02'),
+(2, 150, '2024-01-03');
+
+-- Create features
+SELECT
+    user_id,
+    COUNT(*) AS transaction_count,
+    SUM(transaction_amount) AS total_spent,
+    AVG(transaction_amount) AS average_transaction
+FROM
+    user_transactions
+GROUP BY
+    user_id;
+```
+
+---
+
+### 1. **Healthcare Analytics**
+
+#### a. **Patient Visits Analysis**
+
+Analyze patient visits to a healthcare facility.
+
+```sql
+CREATE TABLE patients (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    birth_date DATE,
+    gender VARCHAR(10)
+);
+
+CREATE TABLE visits (
+    id SERIAL PRIMARY KEY,
+    patient_id INT REFERENCES patients(id),
+    visit_date DATE,
+    reason VARCHAR(255)
+);
+
+INSERT INTO patients (name, birth_date, gender) VALUES
+('Alice', '1985-05-20', 'F'),
+('Bob', '1990-10-30', 'M'),
+('Charlie', '1975-03-15', 'M');
+
+INSERT INTO visits (patient_id, visit_date, reason) VALUES
+(1, '2024-01-15', 'Check-up'),
+(1, '2024-02-10', 'Flu Symptoms'),
+(2, '2024-01-20', 'Allergy'),
+(3, '2024-01-25', 'Follow-up');
+
+-- Analyze visits by patient
+SELECT
+    p.name,
+    COUNT(v.id) AS visit_count,
+    MAX(v.visit_date) AS last_visit,
+    AVG(EXTRACT(YEAR FROM age(v.visit_date))) AS average_age_at_visit
+FROM
+    patients p
+JOIN visits v ON p.id = v.patient_id
+GROUP BY
+    p.name;
+```
+
+### 2. **Education Management System**
+
+#### a. **Student Grades Analysis**
+
+Calculate average grades for students and identify top performers.
+
+```sql
+CREATE TABLE students (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    enrollment_date DATE
+);
+
+CREATE TABLE grades (
+    id SERIAL PRIMARY KEY,
+    student_id INT REFERENCES students(id),
+    subject VARCHAR(100),
+    score NUMERIC
+);
+
+INSERT INTO students (name, enrollment_date) VALUES
+('John', '2022-01-15'),
+('Jane', '2022-01-20'),
+('Tom', '2022-02-01');
+
+INSERT INTO grades (student_id, subject, score) VALUES
+(1, 'Math', 85),
+(1, 'Science', 90),
+(2, 'Math', 95),
+(2, 'Science', 80),
+(3, 'Math', 70),
+(3, 'Science', 75);
+
+-- Query to analyze student performance
+SELECT
+    s.name,
+    AVG(g.score) AS average_score,
+    MAX(g.score) AS max_score,
+    MIN(g.score) AS min_score
+FROM
+    students s
+JOIN grades g ON s.id = g.student_id
+GROUP BY
+    s.name
+ORDER BY
+    average_score DESC;
+```
+
+### 3. **Financial Reporting**
+
+#### a. **Monthly Expense Tracking**
+
+Track and analyze monthly expenses.
+
+```sql
+CREATE TABLE expenses (
+    id SERIAL PRIMARY KEY,
+    category VARCHAR(100),
+    amount NUMERIC,
+    expense_date DATE
+);
+
+INSERT INTO expenses (category, amount, expense_date) VALUES
+('Rent', 1200, '2024-01-01'),
+('Utilities', 300, '2024-01-15'),
+('Groceries', 450, '2024-01-20'),
+('Transportation', 200, '2024-02-01');
+
+-- Analyze monthly expenses
+SELECT
+    DATE_TRUNC('month', expense_date) AS expense_month,
+    SUM(amount) AS total_expense,
+    COUNT(*) AS total_entries
+FROM
+    expenses
+GROUP BY
+    expense_month
+ORDER BY
+    expense_month;
+```
+
+### 4. **Social Media Analytics**
+
+#### a. **User Engagement Metrics**
+
+Calculate metrics related to user posts and interactions.
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100),
+    created_at DATE
+);
+
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    post_content TEXT,
+    post_date DATE
+);
+
+CREATE TABLE interactions (
+    id SERIAL PRIMARY KEY,
+    post_id INT REFERENCES posts(id),
+    interaction_type VARCHAR(50),
+    interaction_date DATE
+);
+
+INSERT INTO users (username, created_at) VALUES
+('user1', '2024-01-01'),
+('user2', '2024-01-02');
+
+INSERT INTO posts (user_id, post_content, post_date) VALUES
+(1, 'Hello World!', '2024-01-03'),
+(2, 'Post #2', '2024-01-04');
+
+INSERT INTO interactions (post_id, interaction_type, interaction_date) VALUES
+(1, 'like', '2024-01-05'),
+(1, 'comment', '2024-01-06'),
+(2, 'like', '2024-01-07');
+
+-- Analyze user engagement
+SELECT
+    u.username,
+    COUNT(p.id) AS total_posts,
+    COUNT(i.id) AS total_interactions,
+    COUNT(i.id) FILTER (WHERE i.interaction_type = 'like') AS total_likes,
+    COUNT(i.id) FILTER (WHERE i.interaction_type = 'comment') AS total_comments
+FROM
+    users u
+LEFT JOIN posts p ON u.id = p.user_id
+LEFT JOIN interactions i ON p.id = i.post_id
+GROUP BY
+    u.username;
+```
+
+### 5. **Real Estate Management**
+
+#### a. **Property Listings Analysis**
+
+Analyze properties based on their price and other features.
+
+```sql
+CREATE TABLE properties (
+    id SERIAL PRIMARY KEY,
+    location VARCHAR(100),
+    price NUMERIC,
+    listed_date DATE,
+    bedrooms INT
+);
+
+INSERT INTO properties (location, price, listed_date, bedrooms) VALUES
+('New York', 1200000, '2024-01-01', 2),
+('Los Angeles', 900000, '2024-01-05', 3),
+('Chicago', 600000, '2024-01-10', 1);
+
+-- Analyze property listings
+SELECT
+    location,
+    COUNT(*) AS total_listings,
+    AVG(price) AS average_price,
+    MIN(price) AS min_price,
+    MAX(price) AS max_price
+FROM
+    properties
+GROUP BY
+    location;
+```
+
+### 6. **Retail Inventory Management**
+
+#### a. **Inventory Turnover Analysis**
+
+Analyze inventory turnover to assess product sales.
+
+```sql
+CREATE TABLE inventory (
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    quantity INT,
+    purchase_date DATE,
+    sale_price NUMERIC
+);
+
+INSERT INTO inventory (product_name, quantity, purchase_date, sale_price) VALUES
+('Laptop', 50, '2024-01-01', 1200),
+('Smartphone', 200, '2024-01-02', 800),
+('Tablet', 150, '2024-01-03', 400);
+
+-- Analyze inventory turnover
+SELECT
+    product_name,
+    quantity,
+    (quantity * sale_price) AS total_value,
+    (quantity / COUNT(*) OVER ()) AS inventory_turnover_ratio
+FROM
+    inventory;
+```
+
+### 7. **Log Analysis**
+
+#### a. **Web Server Log Analysis**
+
+Analyze web server logs to track user activity.
+
+```sql
+CREATE TABLE web_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    url VARCHAR(255),
+    visit_time TIMESTAMP
+);
+
+INSERT INTO web_logs (user_id, url, visit_time) VALUES
+(1, '/home', '2024-01-01 12:00:00'),
+(1, '/about', '2024-01-01 12:05:00'),
+(2, '/home', '2024-01-02 14:00:00'),
+(2, '/contact', '2024-01-02 14:10:00');
+
+-- Analyze user visits
+SELECT
+    user_id,
+    COUNT(*) AS total_visits,
+    MIN(visit_time) AS first_visit,
+    MAX(visit_time) AS last_visit,
+    COUNT(*) FILTER (WHERE url = '/home') AS home_visits
+FROM
+    web_logs
+GROUP BY
+    user_id;
+```
+
+### 8. **Sales Forecasting**
+
+#### a. **Simple Time Series Forecasting**
+
+Use sales data to forecast future sales.
+
+```sql
+CREATE TABLE sales_data (
+    id SERIAL PRIMARY KEY,
+    sale_date DATE,
+    amount NUMERIC
+);
+
+INSERT INTO sales_data (sale_date, amount) VALUES
+('2024-01-01', 1000),
+('2024-01-02', 1500),
+('2024-01-03', 2000);
+
+-- Analyze sales trends
+WITH monthly_sales AS (
+    SELECT
+        DATE_TRUNC('month', sale_date) AS month,
+        SUM(amount) AS total_sales
+    FROM
+        sales_data
+    GROUP BY
+        month
+)
+SELECT
+    month,
+    total_sales,
+    LAG(total_sales) OVER (ORDER BY month) AS previous_month_sales,
+    (total_sales - COALESCE(LAG(total_sales) OVER (ORDER BY month), 0)) AS sales_growth
+FROM
+    monthly_sales;
+```

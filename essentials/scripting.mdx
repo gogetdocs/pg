@@ -1,0 +1,486 @@
+PostgreSQL supports a rich set of procedural language features through PL/pgSQL (Procedural Language/PostgreSQL). This allows you to write scripts that include variables, loops, conditionals, and other programming constructs. Below, I’ll provide an overview of the capabilities of PL/pgSQL, complete with examples ranging from basic to advanced.
+
+### 1. Basics of PL/pgSQL
+
+#### a. Creating a Function
+
+To start scripting in PostgreSQL, you can define a function. Here’s how to create a simple function:
+
+```sql
+CREATE OR REPLACE FUNCTION say_hello(name TEXT)
+RETURNS VOID AS $$
+BEGIN
+    RAISE NOTICE 'Hello, %!', name;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+You can call this function using:
+
+```sql
+SELECT say_hello('World');
+```
+
+### 2. Variables
+
+You can declare variables in PL/pgSQL functions.
+
+```sql
+CREATE OR REPLACE FUNCTION example_variables()
+RETURNS VOID AS $$
+DECLARE
+    greeting TEXT;
+BEGIN
+    greeting := 'Hello, World!';
+    RAISE NOTICE '%', greeting;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT example_variables();
+```
+
+### 3. Control Structures
+
+#### a. Conditionals
+
+Using `IF` statements to control logic:
+
+```sql
+CREATE OR REPLACE FUNCTION check_number(num INT)
+RETURNS VOID AS $$
+BEGIN
+    IF num < 0 THEN
+        RAISE NOTICE 'The number is negative.';
+    ELSIF num = 0 THEN
+        RAISE NOTICE 'The number is zero.';
+    ELSE
+        RAISE NOTICE 'The number is positive.';
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT check_number(-5);
+SELECT check_number(0);
+SELECT check_number(10);
+```
+
+#### b. Loops
+
+PL/pgSQL supports various types of loops.
+
+**Simple Loop:**
+
+```sql
+CREATE OR REPLACE FUNCTION simple_loop()
+RETURNS VOID AS $$
+DECLARE
+    counter INT := 1;
+BEGIN
+    LOOP
+        EXIT WHEN counter > 5;
+        RAISE NOTICE 'Counter: %', counter;
+        counter := counter + 1;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT simple_loop();
+```
+
+**For Loop:**
+
+```sql
+CREATE OR REPLACE FUNCTION for_loop()
+RETURNS VOID AS $$
+DECLARE
+    i INT;
+BEGIN
+    FOR i IN 1..5 LOOP
+        RAISE NOTICE 'Iteration: %', i;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT for_loop();
+```
+
+**While Loop:**
+
+```sql
+CREATE OR REPLACE FUNCTION while_loop()
+RETURNS VOID AS $$
+DECLARE
+    i INT := 1;
+BEGIN
+    WHILE i <= 5 LOOP
+        RAISE NOTICE 'Iteration: %', i;
+        i := i + 1;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT while_loop();
+```
+
+### 4. Cursors
+
+Cursors allow you to retrieve rows one at a time.
+
+```sql
+CREATE OR REPLACE FUNCTION cursor_example()
+RETURNS VOID AS $$
+DECLARE
+    rec RECORD;
+    cur CURSOR FOR SELECT id, name FROM users;  -- Assume you have a users table
+BEGIN
+    OPEN cur;
+    LOOP
+        FETCH cur INTO rec;
+        EXIT WHEN NOT FOUND;
+        RAISE NOTICE 'User ID: %, Name: %', rec.id, rec.name;
+    END LOOP;
+    CLOSE cur;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT cursor_example();
+```
+
+### 5. Error Handling
+
+PL/pgSQL allows you to handle exceptions.
+
+```sql
+CREATE OR REPLACE FUNCTION divide(a FLOAT, b FLOAT)
+RETURNS FLOAT AS $$
+DECLARE
+    result FLOAT;
+BEGIN
+    result := a / b;
+    RETURN result;
+EXCEPTION
+    WHEN division_by_zero THEN
+        RAISE NOTICE 'Cannot divide by zero';
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT divide(10, 2);
+SELECT divide(10, 0);
+```
+
+### 6. Dynamic SQL
+
+You can execute dynamic SQL statements.
+
+```sql
+CREATE OR REPLACE FUNCTION dynamic_sql_example(tablename TEXT)
+RETURNS VOID AS $$
+DECLARE
+    query TEXT;
+BEGIN
+    query := 'SELECT COUNT(*) FROM ' || quote_ident(tablename);
+    EXECUTE query;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT dynamic_sql_example('users');
+```
+
+### 7. Working with Tables
+
+You can fetch records directly into variables or iterate over results.
+
+#### a. Using Arrays
+
+```sql
+CREATE OR REPLACE FUNCTION array_example()
+RETURNS VOID AS $$
+DECLARE
+    users_ids INT[];
+BEGIN
+    SELECT ARRAY(SELECT id FROM users) INTO users_ids;  -- Assume you have a users table
+    FOREACH user_id IN ARRAY users_ids LOOP
+        RAISE NOTICE 'User ID: %', user_id;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT array_example();
+```
+
+### 8. Advanced: Triggers
+
+Triggers automatically execute in response to certain events on a particular table.
+
+```sql
+CREATE OR REPLACE FUNCTION audit_user_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE NOTICE 'User with ID % has been modified.', OLD.id;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER user_update_trigger
+AFTER UPDATE ON users
+FOR EACH ROW EXECUTE FUNCTION audit_user_changes();
+```
+
+### 9. Using WITH Queries (Common Table Expressions)
+
+You can also define temporary result sets using Common Table Expressions (CTEs).
+
+```sql
+CREATE OR REPLACE FUNCTION with_query_example()
+RETURNS VOID AS $$
+BEGIN
+    WITH user_count AS (
+        SELECT COUNT(*) AS count FROM users  -- Assume you have a users table
+    )
+    SELECT RAISE NOTICE 'Total Users: %', (SELECT count FROM user_count);
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT with_query_example();
+```
+
+### Summary
+
+In summary, PostgreSQL’s PL/pgSQL provides powerful capabilities similar to a full-fledged programming language for data manipulation, including:
+
+- **Functions** for reusable code.
+- **Variables** for data storage.
+- **Control structures** such as loops and conditionals.
+- **Cursors** for row-by-row processing.
+- **Dynamic SQL** for executing arbitrary queries.
+- **Triggers** for automatic event handling.
+- **Common Table Expressions** for complex queries.
+
+### Sandbox Environment
+
+For testing your PL/pgSQL scripts, consider the following methods:
+
+- **PostgreSQL Interactive Terminal (psql):** This is a command-line tool to execute SQL queries directly.
+- **PgAdmin:** A graphical interface for managing PostgreSQL databases that supports writing and testing functions.
+- **DBeaver or DataGrip:** Other database management tools that support PostgreSQL and have integrated SQL editors for testing scripts.
+
+These tools will help you experiment with your scripts before implementing them in production environments.
+
+---
+
+Certainly! Let's focus on a more direct approach to PostgreSQL scripting using PL/pgSQL without wrapping everything in functions. Here are various scenarios demonstrating the capabilities of PL/pgSQL, including fetching rows, using loops, handling arrays, working with JSON, and more.
+
+### 1. Fetching Rows from a Table
+
+To fetch rows from a table and display them, you can use a cursor or a simple SELECT statement.
+
+#### Fetching Rows with a Cursor
+
+```sql
+DO $$
+DECLARE
+    rec RECORD;  -- Declare a record variable to hold each row
+    cur CURSOR FOR SELECT id, name FROM users;  -- Replace 'users' with your table name
+BEGIN
+    OPEN cur;  -- Open the cursor
+    LOOP
+        FETCH cur INTO rec;  -- Fetch the next row
+        EXIT WHEN NOT FOUND;  -- Exit the loop if no more rows
+        RAISE NOTICE 'User ID: %, Name: %', rec.id, rec.name;  -- Display the row
+    END LOOP;
+    CLOSE cur;  -- Close the cursor
+END $$;
+```
+
+### 2. Looping through Arrays
+
+You can loop through arrays in PL/pgSQL.
+
+#### Example: Looping through an Integer Array
+
+```sql
+DO $$
+DECLARE
+    ids INT[] := ARRAY[1, 2, 3, 4, 5];  -- An array of integers
+    id INT;
+BEGIN
+    FOREACH id IN ARRAY ids LOOP
+        RAISE NOTICE 'ID: %', id;  -- Display each ID
+    END LOOP;
+END $$;
+```
+
+### 3. Looping through JSON Arrays
+
+You can also manipulate JSON data in PL/pgSQL.
+
+#### Example: Looping through a JSON Array
+
+```sql
+DO $$
+DECLARE
+    json_data JSON := '[
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"},
+        {"id": 3, "name": "Charlie"}
+    ]';
+    item JSON;
+    id INT;
+    name TEXT;
+BEGIN
+    FOR item IN SELECT * FROM json_array_elements(json_data) LOOP
+        id := (item ->> 'id')::INT;  -- Extract ID from JSON
+        name := item ->> 'name';  -- Extract Name from JSON
+        RAISE NOTICE 'ID: %, Name: %', id, name;  -- Display the ID and Name
+    END LOOP;
+END $$;
+```
+
+### 4. Conditional Logic
+
+You can use conditional statements within your scripts.
+
+#### Example: Using IF Statements
+
+```sql
+DO $$
+DECLARE
+    user_count INT;
+BEGIN
+    SELECT COUNT(*) INTO user_count FROM users;  -- Assume 'users' table exists
+    IF user_count > 100 THEN
+        RAISE NOTICE 'There are many users.';
+    ELSIF user_count > 50 THEN
+        RAISE NOTICE 'User count is moderate.';
+    ELSE
+        RAISE NOTICE 'User count is low.';
+    END IF;
+END $$;
+```
+
+### 5. Using JSON Objects
+
+You can also work with JSON objects directly.
+
+#### Example: Manipulating JSON Objects
+
+```sql
+DO $$
+DECLARE
+    json_obj JSON := '{"id": 1, "name": "Alice", "age": 30}';
+    id INT;
+    name TEXT;
+    age INT;
+BEGIN
+    id := (json_obj ->> 'id')::INT;  -- Extract ID
+    name := json_obj ->> 'name';  -- Extract Name
+    age := (json_obj ->> 'age')::INT;  -- Extract Age
+    RAISE NOTICE 'ID: %, Name: %, Age: %', id, name, age;  -- Display the extracted data
+END $$;
+```
+
+### 6. Creating Temporary Tables
+
+You can create temporary tables for intermediate data storage.
+
+```sql
+DO $$
+BEGIN
+    CREATE TEMP TABLE temp_users (id INT, name TEXT);  -- Create a temporary table
+    INSERT INTO temp_users VALUES (1, 'Alice'), (2, 'Bob');  -- Insert data
+    RAISE NOTICE 'Inserted data into temp_users';
+
+    FOR rec IN SELECT * FROM temp_users LOOP  -- Loop through temp table
+        RAISE NOTICE 'Temp User ID: %, Name: %', rec.id, rec.name;
+    END LOOP;
+END $$;
+```
+
+### 7. Working with Composite Types
+
+You can define and use composite types for more structured data.
+
+#### Example: Using Composite Types
+
+```sql
+-- Create a composite type
+CREATE TYPE user_info AS (
+    id INT,
+    name TEXT
+);
+
+DO $$
+DECLARE
+    user user_info;  -- Declare a variable of the composite type
+BEGIN
+    user.id := 1;  -- Assign values
+    user.name := 'Alice';
+    RAISE NOTICE 'User ID: %, Name: %', user.id, user.name;  -- Display the values
+END $$;
+```
+
+### 8. Dynamic SQL Execution
+
+You can construct and execute dynamic SQL statements.
+
+#### Example: Executing Dynamic SQL
+
+```sql
+DO $$
+DECLARE
+    table_name TEXT := 'users';  -- Specify the table name
+    sql TEXT;
+    count INT;
+BEGIN
+    sql := 'SELECT COUNT(*) FROM ' || quote_ident(table_name);  -- Construct SQL query
+    EXECUTE sql INTO count;  -- Execute and fetch result
+    RAISE NOTICE 'Total Users: %', count;  -- Display the count
+END $$;
+```
+
+### 9. Using WITH Queries (Common Table Expressions)
+
+Common Table Expressions (CTEs) allow you to create temporary result sets.
+
+```sql
+DO $$
+BEGIN
+    WITH user_data AS (
+        SELECT id, name FROM users  -- Assume 'users' table exists
+    )
+    SELECT RAISE NOTICE 'User: %', name FROM user_data;  -- Display user names
+END $$;
+```
+
+### 10. Exception Handling
+
+You can handle exceptions to manage errors gracefully.
+
+```sql
+DO $$
+BEGIN
+    -- Try to divide by zero to raise an exception
+    RAISE NOTICE 'Result: %', (10 / 0);
+EXCEPTION
+    WHEN division_by_zero THEN
+        RAISE NOTICE 'Cannot divide by zero!';
+END $$;
+```
+
+### Summary
+
+In this script-like style, we covered:
+
+- **Fetching rows** using cursors and `SELECT` statements.
+- **Looping through arrays and JSON objects**.
+- **Conditional logic** with `IF` statements.
+- **Creating temporary tables** for intermediate processing.
+- **Working with composite types** for structured data.
+- **Dynamic SQL** for executing constructed queries.
+- **Using Common Table Expressions** (CTEs) for temporary result sets.
+- **Error handling** with exception management.
+
+### Execution
+
+To execute these scripts, simply copy them into your PostgreSQL client (like `psql`, PgAdmin, or any database tool that supports SQL execution) and run them directly. Each block of code is designed to showcase specific capabilities of PL/pgSQL in a standalone manner, perfect for testing various scenarios and getting a feel for the language.

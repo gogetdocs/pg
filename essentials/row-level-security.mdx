@@ -1,0 +1,170 @@
+Implementing Row-Level Security (RLS) and Data Masking in PostgreSQL involves understanding the basic concepts of each feature and then applying them to scenarios. Below, I will provide a detailed explanation of both concepts along with example implementations.
+
+## Row-Level Security (RLS)
+
+Row-Level Security (RLS) in PostgreSQL allows you to control access to rows in a database table based on the characteristics of the user making the query. This is particularly useful for multi-tenant applications where different users should only see data relevant to them.
+
+### Basic Usage of Row-Level Security
+
+1. **Creating a Table**: First, let’s create a simple table to demonstrate RLS.
+
+   ```sql
+   CREATE TABLE employee (
+       id SERIAL PRIMARY KEY,
+       name TEXT NOT NULL,
+       department TEXT NOT NULL,
+       user_id INT NOT NULL
+   );
+   ```
+
+2. **Enable Row-Level Security**: You need to enable RLS on the table.
+
+   ```sql
+   ALTER TABLE employee ENABLE ROW LEVEL SECURITY;
+   ```
+
+3. **Create a Policy**: Define a policy to restrict which rows can be viewed by users.
+
+   ```sql
+   CREATE POLICY user_policy ON employee
+   FOR SELECT
+   USING (user_id = current_user_id()); -- Assuming current_user_id() returns the user ID of the logged-in user
+   ```
+
+4. **Testing the Policy**: Insert some sample data and test the policy.
+
+   ```sql
+   INSERT INTO employee (name, department, user_id) VALUES
+   ('Alice', 'HR', 1),
+   ('Bob', 'Finance', 2),
+   ('Charlie', 'Engineering', 1);
+
+   SET SESSION ROLE 'user_1'; -- Set to a role corresponding to user_id = 1
+   SELECT * FROM employee; -- Should return Alice and Charlie's records only
+   ```
+
+### Advanced Usage of Row-Level Security
+
+In more advanced scenarios, you can create multiple policies for different operations (SELECT, INSERT, UPDATE, DELETE).
+
+1. **Create More Complex Policies**:
+
+   ```sql
+   CREATE POLICY insert_policy ON employee
+   FOR INSERT
+   WITH CHECK (user_id = current_user_id());
+
+   CREATE POLICY update_policy ON employee
+   FOR UPDATE
+   USING (user_id = current_user_id());
+
+   CREATE POLICY delete_policy ON employee
+   FOR DELETE
+   USING (user_id = current_user_id());
+   ```
+
+2. **Combine Multiple Policies**: You can use multiple policies together.
+
+   ```sql
+   ALTER TABLE employee FORCE ROW LEVEL SECURITY; -- Enforce RLS policies for all operations
+   ```
+
+3. **Testing Combined Policies**: Test the INSERT and UPDATE operations.
+
+   ```sql
+   SET SESSION ROLE 'user_1';
+   INSERT INTO employee (name, department, user_id) VALUES ('Eve', 'Sales', 1); -- Allowed
+   INSERT INTO employee (name, department, user_id) VALUES ('Frank', 'Sales', 2); -- Not allowed
+
+   UPDATE employee SET department = 'HR' WHERE id = 1; -- Allowed
+   ```
+
+## Data Masking
+
+Data masking involves obscuring sensitive data within a database to protect it from unauthorized access. In PostgreSQL, you can achieve data masking using views and functions.
+
+### Basic Usage of Data Masking
+
+1. **Create a Table with Sensitive Data**:
+
+   ```sql
+   CREATE TABLE customers (
+       id SERIAL PRIMARY KEY,
+       name TEXT NOT NULL,
+       email TEXT NOT NULL,
+       phone TEXT NOT NULL,
+       user_id INT NOT NULL
+   );
+   ```
+
+2. **Insert Sample Data**:
+
+   ```sql
+   INSERT INTO customers (name, email, phone, user_id) VALUES
+   ('Alice', 'alice@example.com', '123-456-7890', 1),
+   ('Bob', 'bob@example.com', '234-567-8901', 2);
+   ```
+
+3. **Create a Masked View**: Create a view that masks the sensitive data.
+
+   ```sql
+   CREATE VIEW masked_customers AS
+   SELECT
+       id,
+       name,
+       CONCAT(SUBSTRING(email FROM 1 FOR 3), '****@****.com') AS email, -- Masking email
+       CONCAT('***-***-', SUBSTRING(phone FROM 8 FOR 4)) AS phone, -- Masking phone
+       user_id
+   FROM customers;
+   ```
+
+4. **Accessing the Masked View**:
+
+   ```sql
+   SELECT * FROM masked_customers;
+   -- Results: name, masked email, masked phone
+   ```
+
+### Advanced Usage of Data Masking
+
+For advanced data masking, you can implement dynamic masking based on user roles or use functions to handle more complex masking scenarios.
+
+1. **Dynamic Masking Based on User Roles**:
+
+   ```sql
+   CREATE OR REPLACE FUNCTION mask_email(email TEXT) RETURNS TEXT AS $$
+   BEGIN
+       IF current_user = 'admin' THEN
+           RETURN email; -- Admin can see full email
+       ELSE
+           RETURN CONCAT(SUBSTRING(email FROM 1 FOR 3), '****@****.com'); -- Masked for regular users
+       END IF;
+   END;
+   $$ LANGUAGE plpgsql;
+
+   CREATE VIEW dynamic_masked_customers AS
+   SELECT
+       id,
+       name,
+       mask_email(email) AS email,
+       phone,
+       user_id
+   FROM customers;
+   ```
+
+2. **Testing the Dynamic Masking**:
+
+   ```sql
+   SET SESSION ROLE 'user_1'; -- Non-admin
+   SELECT * FROM dynamic_masked_customers; -- Should return masked email
+
+   SET SESSION ROLE 'admin'; -- Admin user
+   SELECT * FROM dynamic_masked_customers; -- Should return full email
+   ```
+
+### Summary
+
+- **Row-Level Security** allows you to restrict data access at the row level, providing a robust mechanism to enforce security policies based on user characteristics.
+- **Data Masking** protects sensitive information by obscuring it based on user roles or other criteria, ensuring that sensitive data is not exposed to unauthorized users.
+
+By using these techniques in PostgreSQL, you can effectively manage data security and privacy within your applications.

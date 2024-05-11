@@ -1,0 +1,771 @@
+Aggregate functions in PostgreSQL are powerful tools for performing calculations on multiple rows of data to return a single value. They are widely used in SQL queries for reporting and data analysis. Below, I'll provide a comprehensive overview of the basics and advanced usages of aggregate functions in PostgreSQL, complete with full-fledged implementations and examples.
+
+## Basics of Aggregate Functions
+
+### Common Aggregate Functions
+
+1. **COUNT()**: Counts the number of rows.
+2. **SUM()**: Returns the sum of a numeric column.
+3. **AVG()**: Returns the average value of a numeric column.
+4. **MIN()**: Returns the minimum value in a set.
+5. **MAX()**: Returns the maximum value in a set.
+
+### Basic Example
+
+Let’s assume we have a simple table named `sales`:
+
+```sql
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    quantity INTEGER,
+    price NUMERIC(10, 2),
+    sale_date DATE
+);
+```
+
+#### Insert Sample Data
+
+```sql
+INSERT INTO sales (product_name, quantity, price, sale_date) VALUES
+('Apple', 10, 1.00, '2024-10-01'),
+('Banana', 20, 0.50, '2024-10-01'),
+('Orange', 15, 0.80, '2024-10-01'),
+('Apple', 5, 1.00, '2024-10-02'),
+('Banana', 30, 0.50, '2024-10-02');
+```
+
+### Basic Aggregate Queries
+
+1. **Count the total number of sales records:**
+
+   ```sql
+   SELECT COUNT(*) AS total_sales FROM sales;
+   ```
+
+2. **Calculate the total revenue from all sales:**
+
+   ```sql
+   SELECT SUM(quantity * price) AS total_revenue FROM sales;
+   ```
+
+3. **Calculate the average quantity sold:**
+
+   ```sql
+   SELECT AVG(quantity) AS average_quantity FROM sales;
+   ```
+
+4. **Find the minimum and maximum price:**
+
+   ```sql
+   SELECT MIN(price) AS min_price, MAX(price) AS max_price FROM sales;
+   ```
+
+## Grouping Data with Aggregate Functions
+
+Using the `GROUP BY` clause, you can group rows that have the same values in specified columns into summary rows.
+
+### Grouped Example
+
+1. **Total quantity sold per product:**
+
+   ```sql
+   SELECT product_name, SUM(quantity) AS total_quantity
+   FROM sales
+   GROUP BY product_name;
+   ```
+
+2. **Average price per product:**
+
+   ```sql
+   SELECT product_name, AVG(price) AS average_price
+   FROM sales
+   GROUP BY product_name;
+   ```
+
+3. **Count of sales by date:**
+
+   ```sql
+   SELECT sale_date, COUNT(*) AS sales_count
+   FROM sales
+   GROUP BY sale_date;
+   ```
+
+## Advanced Aggregate Functions
+
+### 1. **HAVING Clause**
+
+The `HAVING` clause is used to filter groups based on aggregate values.
+
+#### Example: Total quantity sold greater than 20
+
+```sql
+SELECT product_name, SUM(quantity) AS total_quantity
+FROM sales
+GROUP BY product_name
+HAVING SUM(quantity) > 20;
+```
+
+### 2. **Window Functions**
+
+Window functions perform calculations across a set of table rows that are somehow related to the current row.
+
+#### Example: Running total of sales
+
+```sql
+SELECT
+    sale_date,
+    product_name,
+    quantity,
+    SUM(quantity) OVER (ORDER BY sale_date) AS running_total
+FROM sales
+ORDER BY sale_date;
+```
+
+### 3. **Using DISTINCT with Aggregate Functions**
+
+You can use `DISTINCT` within aggregate functions to count unique values or sum unique entries.
+
+#### Example: Count distinct products sold
+
+```sql
+SELECT COUNT(DISTINCT product_name) AS distinct_products_sold
+FROM sales;
+```
+
+### 4. **Combine Multiple Aggregate Functions**
+
+You can also combine multiple aggregate functions in a single query.
+
+#### Example: Total quantity, average price, and max price per product
+
+```sql
+SELECT product_name,
+       SUM(quantity) AS total_quantity,
+       AVG(price) AS average_price,
+       MAX(price) AS max_price
+FROM sales
+GROUP BY product_name;
+```
+
+### 5. **Using Aggregate Functions in Subqueries**
+
+You can use aggregate functions in subqueries to perform more complex analyses.
+
+#### Example: Find products that generated more than the average revenue
+
+```sql
+WITH total_revenue AS (
+    SELECT product_name, SUM(quantity * price) AS revenue
+    FROM sales
+    GROUP BY product_name
+)
+SELECT product_name
+FROM total_revenue
+WHERE revenue > (SELECT AVG(revenue) FROM total_revenue);
+```
+
+## Complete Implementation Example
+
+### Step 1: Create Database and Table
+
+```sql
+CREATE DATABASE sales_db;
+
+\c sales_db;
+
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    quantity INTEGER,
+    price NUMERIC(10, 2),
+    sale_date DATE
+);
+```
+
+### Step 2: Insert Sample Data
+
+```sql
+INSERT INTO sales (product_name, quantity, price, sale_date) VALUES
+('Apple', 10, 1.00, '2024-10-01'),
+('Banana', 20, 0.50, '2024-10-01'),
+('Orange', 15, 0.80, '2024-10-01'),
+('Apple', 5, 1.00, '2024-10-02'),
+('Banana', 30, 0.50, '2024-10-02');
+```
+
+### Step 3: Run Aggregate Queries
+
+```sql
+-- Total sales
+SELECT COUNT(*) AS total_sales FROM sales;
+
+-- Total revenue
+SELECT SUM(quantity * price) AS total_revenue FROM sales;
+
+-- Average quantity
+SELECT AVG(quantity) AS average_quantity FROM sales;
+
+-- Total quantity sold per product
+SELECT product_name, SUM(quantity) AS total_quantity
+FROM sales
+GROUP BY product_name;
+
+-- Products with total quantity sold greater than 20
+SELECT product_name, SUM(quantity) AS total_quantity
+FROM sales
+GROUP BY product_name
+HAVING SUM(quantity) > 20;
+
+-- Running total of sales
+SELECT
+    sale_date,
+    product_name,
+    quantity,
+    SUM(quantity) OVER (ORDER BY sale_date) AS running_total
+FROM sales
+ORDER BY sale_date;
+
+-- Count distinct products sold
+SELECT COUNT(DISTINCT product_name) AS distinct_products_sold
+FROM sales;
+
+-- Products generating more than average revenue
+WITH total_revenue AS (
+    SELECT product_name, SUM(quantity * price) AS revenue
+    FROM sales
+    GROUP BY product_name
+)
+SELECT product_name
+FROM total_revenue
+WHERE revenue > (SELECT AVG(revenue) FROM total_revenue);
+```
+
+---
+
+### 1. Sales Analytics
+
+**Scenario**: A retail company wants to analyze sales performance over time to identify trends and performance by region and product category.
+
+#### Table Structure
+
+Assuming we have a `sales` table and an additional `products` table for better categorization.
+
+```sql
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    category VARCHAR(100),
+    price NUMERIC(10, 2)
+);
+
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id),
+    quantity INTEGER,
+    sale_date DATE,
+    region VARCHAR(100)
+);
+```
+
+#### Insert Sample Data
+
+```sql
+INSERT INTO products (product_name, category, price) VALUES
+('Apple', 'Fruits', 1.00),
+('Banana', 'Fruits', 0.50),
+('Orange', 'Fruits', 0.80),
+('Laptop', 'Electronics', 800.00),
+('Smartphone', 'Electronics', 600.00);
+
+INSERT INTO sales (product_id, quantity, sale_date, region) VALUES
+(1, 10, '2024-10-01', 'North'),
+(2, 20, '2024-10-01', 'South'),
+(3, 15, '2024-10-01', 'East'),
+(1, 5, '2024-10-02', 'North'),
+(2, 30, '2024-10-02', 'West'),
+(4, 3, '2024-10-01', 'East'),
+(5, 2, '2024-10-02', 'North');
+```
+
+#### Query Examples
+
+1. **Total Revenue by Category**
+
+```sql
+SELECT p.category,
+       SUM(s.quantity * p.price) AS total_revenue
+FROM sales s
+JOIN products p ON s.product_id = p.id
+GROUP BY p.category;
+```
+
+2. **Monthly Sales Trends**
+
+```sql
+SELECT DATE_TRUNC('month', s.sale_date) AS month,
+       SUM(s.quantity) AS total_quantity,
+       SUM(s.quantity * p.price) AS total_revenue
+FROM sales s
+JOIN products p ON s.product_id = p.id
+GROUP BY month
+ORDER BY month;
+```
+
+3. **Top Selling Products by Region**
+
+```sql
+SELECT s.region,
+       p.product_name,
+       SUM(s.quantity) AS total_quantity
+FROM sales s
+JOIN products p ON s.product_id = p.id
+GROUP BY s.region, p.product_name
+ORDER BY s.region, total_quantity DESC;
+```
+
+### 2. Financial Reporting
+
+**Scenario**: A company needs to analyze its expenses and profits by department to identify areas where costs can be reduced.
+
+#### Table Structure
+
+```sql
+CREATE TABLE departments (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100)
+);
+
+CREATE TABLE expenses (
+    id SERIAL PRIMARY KEY,
+    department_id INTEGER REFERENCES departments(id),
+    amount NUMERIC(10, 2),
+    expense_date DATE
+);
+
+CREATE TABLE revenues (
+    id SERIAL PRIMARY KEY,
+    department_id INTEGER REFERENCES departments(id),
+    amount NUMERIC(10, 2),
+    revenue_date DATE
+);
+```
+
+#### Insert Sample Data
+
+```sql
+INSERT INTO departments (name) VALUES
+('Sales'),
+('Marketing'),
+('IT'),
+('HR');
+
+INSERT INTO expenses (department_id, amount, expense_date) VALUES
+(1, 2000.00, '2024-10-01'),
+(1, 1500.00, '2024-10-05'),
+(2, 1000.00, '2024-10-02'),
+(3, 5000.00, '2024-10-01'),
+(4, 3000.00, '2024-10-03');
+
+INSERT INTO revenues (department_id, amount, revenue_date) VALUES
+(1, 5000.00, '2024-10-01'),
+(2, 3000.00, '2024-10-02'),
+(3, 6000.00, '2024-10-01'),
+(4, 4000.00, '2024-10-03');
+```
+
+#### Query Examples
+
+1. **Total Expenses by Department**
+
+```sql
+SELECT d.name AS department,
+       SUM(e.amount) AS total_expenses
+FROM expenses e
+JOIN departments d ON e.department_id = d.id
+GROUP BY d.name;
+```
+
+2. **Total Revenue and Profit by Department**
+
+```sql
+SELECT d.name AS department,
+       SUM(r.amount) AS total_revenue,
+       COALESCE(SUM(e.amount), 0) AS total_expenses,
+       SUM(r.amount) - COALESCE(SUM(e.amount), 0) AS profit
+FROM departments d
+LEFT JOIN revenues r ON d.id = r.department_id
+LEFT JOIN expenses e ON d.id = e.department_id
+GROUP BY d.name;
+```
+
+3. **Monthly Profit Trends**
+
+```sql
+SELECT DATE_TRUNC('month', r.revenue_date) AS month,
+       d.name AS department,
+       SUM(r.amount) - COALESCE(SUM(e.amount), 0) AS monthly_profit
+FROM revenues r
+JOIN departments d ON r.department_id = d.id
+LEFT JOIN expenses e ON d.id = e.department_id AND DATE_TRUNC('month', e.expense_date) = DATE_TRUNC('month', r.revenue_date)
+GROUP BY month, d.name
+ORDER BY month, d.name;
+```
+
+### 3. Customer Insights
+
+**Scenario**: An e-commerce platform wants to analyze customer purchases to improve marketing strategies.
+
+#### Table Structure
+
+```sql
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100)
+);
+
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(id),
+    order_date DATE,
+    total_amount NUMERIC(10, 2)
+);
+```
+
+#### Insert Sample Data
+
+```sql
+INSERT INTO customers (name, email) VALUES
+('Alice', 'alice@example.com'),
+('Bob', 'bob@example.com'),
+('Charlie', 'charlie@example.com');
+
+INSERT INTO orders (customer_id, order_date, total_amount) VALUES
+(1, '2024-10-01', 250.00),
+(1, '2024-10-02', 150.00),
+(2, '2024-10-01', 300.00),
+(2, '2024-10-03', 450.00),
+(3, '2024-10-01', 200.00),
+(3, '2024-10-04', 300.00);
+```
+
+#### Query Examples
+
+1. **Total Spend by Each Customer**
+
+```sql
+SELECT c.name,
+       SUM(o.total_amount) AS total_spent
+FROM customers c
+JOIN orders o ON c.id = o.customer_id
+GROUP BY c.name
+ORDER BY total_spent DESC;
+```
+
+2. **Customer Order Count**
+
+```sql
+SELECT c.name,
+       COUNT(o.id) AS order_count
+FROM customers c
+LEFT JOIN orders o ON c.id = o.customer_id
+GROUP BY c.name
+ORDER BY order_count DESC;
+```
+
+3. **Monthly Sales by Customer**
+
+```sql
+SELECT DATE_TRUNC('month', o.order_date) AS month,
+       c.name,
+       SUM(o.total_amount) AS total_spent
+FROM orders o
+JOIN customers c ON o.customer_id = c.id
+GROUP BY month, c.name
+ORDER BY month, c.name;
+```
+
+### 4. Inventory Management
+
+**Scenario**: A warehouse wants to analyze inventory levels to ensure optimal stock levels are maintained.
+
+#### Table Structure
+
+```sql
+CREATE TABLE inventory (
+    id SERIAL PRIMARY KEY,
+    product_name VARCHAR(100),
+    quantity_on_hand INTEGER,
+    reorder_level INTEGER
+);
+```
+
+#### Insert Sample Data
+
+```sql
+INSERT INTO inventory (product_name, quantity_on_hand, reorder_level) VALUES
+('Apple', 150, 100),
+('Banana', 80, 50),
+('Orange', 120, 100),
+('Laptop', 30, 20),
+('Smartphone', 50, 40);
+```
+
+#### Query Examples
+
+1. **Identify Products Needing Reorder**
+
+```sql
+SELECT product_name,
+       quantity_on_hand,
+       reorder_level
+FROM inventory
+WHERE quantity_on_hand < reorder_level;
+```
+
+2. **Total Inventory Value**
+
+```sql
+SELECT SUM(quantity_on_hand) AS total_items
+FROM inventory;
+```
+
+3. **Average Stock Level by Product**
+
+```sql
+SELECT AVG(quantity_on_hand) AS average_stock
+FROM inventory;
+```
+
+---
+
+Custom aggregate functions in PostgreSQL allow you to define your own aggregation logic beyond the built-in functions. This is useful when you need to perform specific calculations that aren't covered by the standard aggregate functions. Custom aggregates can be defined using SQL or PL/pgSQL.
+
+In this section, I'll provide a comprehensive guide to implementing custom aggregates in PostgreSQL, including:
+
+1. **Creating a simple custom aggregate**
+2. **Using complex data types with custom aggregates**
+3. **Creating custom aggregates using PL/pgSQL**
+
+### 1. Creating a Simple Custom Aggregate
+
+Let's say we want to create a custom aggregate function to compute the **median** of a set of values.
+
+#### Step 1: Create a Supporting Function
+
+First, we need a function that will compute the state transition for our aggregate.
+
+```sql
+CREATE OR REPLACE FUNCTION median_state_transition(
+    state double precision[],
+    value double precision
+) RETURNS double precision[] AS $$
+BEGIN
+    state := array_append(state, value);
+    RETURN state;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 2: Create the Final Function
+
+Next, we create a function that will finalize the result.
+
+```sql
+CREATE OR REPLACE FUNCTION median_final(state double precision[]) RETURNS double precision AS $$
+BEGIN
+    IF array_length(state, 1) IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY unnest(state))
+    INTO result
+    FROM (SELECT unnest(state) AS val) sub;
+
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 3: Create the Custom Aggregate
+
+Finally, we create the custom aggregate itself.
+
+```sql
+CREATE AGGREGATE median(double precision) (
+    SFUNC = median_state_transition,
+    STYPE = double precision[],
+    FINALFUNC = median_final,
+    INITCOND = '{}'
+);
+```
+
+#### Step 4: Using the Custom Aggregate
+
+Now, you can use the `median` aggregate function in your queries.
+
+```sql
+SELECT median(price) AS median_price
+FROM sales;
+```
+
+### 2. Custom Aggregate for Complex Data Types
+
+You can also create custom aggregates for complex data types, such as user-defined types (UDTs).
+
+#### Step 1: Create a Composite Type
+
+Let's define a composite type to store customer statistics.
+
+```sql
+CREATE TYPE customer_stats AS (
+    total_spent NUMERIC(10, 2),
+    order_count INTEGER
+);
+```
+
+#### Step 2: Create a Supporting Function
+
+We need a function to combine two customer statistics.
+
+```sql
+CREATE OR REPLACE FUNCTION combine_stats(
+    stat1 customer_stats,
+    stat2 customer_stats
+) RETURNS customer_stats AS $$
+BEGIN
+    RETURN ROW(stat1.total_spent + stat2.total_spent, stat1.order_count + stat2.order_count);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 3: Create the State Transition Function
+
+We create a state transition function to initialize and aggregate customer statistics.
+
+```sql
+CREATE OR REPLACE FUNCTION customer_stats_transition(
+    state customer_stats,
+    order_total NUMERIC(10, 2)
+) RETURNS customer_stats AS $$
+BEGIN
+    IF state IS NULL THEN
+        state := ROW(0, 0);
+    END IF;
+
+    RETURN ROW(state.total_spent + order_total, state.order_count + 1);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 4: Create the Final Function
+
+Create a function to finalize the customer statistics.
+
+```sql
+CREATE OR REPLACE FUNCTION customer_stats_final(state customer_stats)
+RETURNS customer_stats AS $$
+BEGIN
+    RETURN state;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 5: Create the Custom Aggregate
+
+Now, let's create the custom aggregate function for customer statistics.
+
+```sql
+CREATE AGGREGATE customer_stats_agg(Numeric) (
+    SFUNC = customer_stats_transition,
+    STYPE = customer_stats,
+    FINALFUNC = customer_stats_final,
+    INITCOND = '(0, 0)'
+);
+```
+
+#### Step 6: Using the Custom Aggregate
+
+You can now use the custom aggregate to calculate total spent and order count for customers.
+
+```sql
+SELECT customer_id,
+       customer_stats_agg(total_amount) AS stats
+FROM orders
+GROUP BY customer_id;
+```
+
+### 3. Creating Custom Aggregates Using PL/pgSQL
+
+In more complex scenarios, you might want to implement custom logic that cannot be expressed easily using SQL alone. Here’s how to create a custom aggregate that calculates the **mode** (most frequently occurring value) of a set of numbers.
+
+#### Step 1: Create a Supporting Function
+
+```sql
+CREATE OR REPLACE FUNCTION mode_state_transition(
+    state jsonb,
+    value INTEGER
+) RETURNS jsonb AS $$
+DECLARE
+    modes jsonb;
+BEGIN
+    -- Initialize if state is null
+    IF state IS NULL THEN
+        modes := '{}'::jsonb;
+    ELSE
+        modes := state;
+    END IF;
+
+    -- Count occurrences
+    modes := jsonb_set(modes, to_jsonb(value::text), COALESCE(modes->value::text, '0')::INTEGER + 1::jsonb);
+
+    RETURN modes;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 2: Create the Final Function
+
+```sql
+CREATE OR REPLACE FUNCTION mode_final(state jsonb) RETURNS INTEGER AS $$
+DECLARE
+    result INTEGER;
+    max_count INTEGER := 0;
+    current_count INTEGER;
+BEGIN
+    IF state IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    -- Find the mode
+    SELECT key::INTEGER
+    INTO result
+    FROM jsonb_each(state)
+    ORDER BY value::INTEGER DESC
+    LIMIT 1;
+
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### Step 3: Create the Custom Aggregate
+
+```sql
+CREATE AGGREGATE mode(INTEGER) (
+    SFUNC = mode_state_transition,
+    STYPE = jsonb,
+    FINALFUNC = mode_final,
+    INITCOND = '{}'
+);
+```
+
+#### Step 4: Using the Custom Aggregate
+
+Now, you can use the `mode` aggregate function in your queries:
+
+```sql
+SELECT mode(quantity) AS mode_quantity
+FROM sales;
+```

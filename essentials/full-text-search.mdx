@@ -1,0 +1,174 @@
+Implementing full-text search (FTS) in PostgreSQL can significantly enhance your application's search capabilities. Below, I'll outline both basic and advanced usages of full-text search in PostgreSQL, providing complete implementations for each.
+
+### Prerequisites
+
+Before diving into the examples, make sure you have the following:
+
+1. PostgreSQL installed.
+2. A database created for testing.
+3. A table to perform the full-text search on.
+
+### Basic Usage
+
+#### 1. Setting Up the Database
+
+First, create a sample database and a table with some text data.
+
+```sql
+CREATE DATABASE fts_demo;
+\c fts_demo;
+
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    body TEXT
+);
+
+INSERT INTO articles (title, body) VALUES
+('PostgreSQL Full-Text Search', 'PostgreSQL provides a robust full-text search feature.'),
+('Understanding PostgreSQL', 'This article helps in understanding the core features of PostgreSQL.'),
+('Full-Text Search vs Like', 'This article compares full-text search and the LIKE operator in SQL.');
+```
+
+#### 2. Basic Full-Text Search
+
+To enable full-text search, you can use the `to_tsvector` and `to_tsquery` functions.
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE to_tsvector('english', body) @@ to_tsquery('PostgreSQL');
+```
+
+- **`to_tsvector`** converts the text into a searchable format.
+- **`to_tsquery`** creates a search query.
+
+#### 3. Ranking Results
+
+You can rank results based on their relevance using the `ts_rank` function.
+
+```sql
+SELECT id, title, body,
+       ts_rank(to_tsvector('english', body), to_tsquery('PostgreSQL')) AS rank
+FROM articles
+WHERE to_tsvector('english', body) @@ to_tsquery('PostgreSQL')
+ORDER BY rank DESC;
+```
+
+### Advanced Usage
+
+#### 1. Configuring Text Search
+
+You can create indexes to improve performance for full-text searches.
+
+```sql
+CREATE INDEX idx_fts ON articles USING GIN (to_tsvector('english', body));
+```
+
+#### 2. Using `tsvector` and `tsquery` Types
+
+Instead of converting text every time, you can store the `tsvector` in the database.
+
+```sql
+ALTER TABLE articles ADD COLUMN tsv_body tsvector;
+
+UPDATE articles SET tsv_body = to_tsvector('english', body);
+
+CREATE INDEX idx_tsv_body ON articles USING GIN(tsv_body);
+```
+
+#### 3. Full-Text Search with Phrasing
+
+You can search for phrases and handle more complex queries.
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE tsv_body @@ phraseto_tsquery('PostgreSQL search');
+```
+
+#### 4. Handling Multiple Languages
+
+PostgreSQL supports multiple languages, which can be specified during `to_tsvector` and `to_tsquery`.
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE to_tsvector('french', body) @@ to_tsquery('french', 'caractéristique');
+```
+
+#### 5. Advanced Querying Techniques
+
+You can combine multiple conditions using logical operators.
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE tsv_body @@ to_tsquery('PostgreSQL | understanding')
+ORDER BY ts_rank(tsv_body, to_tsquery('PostgreSQL | understanding')) DESC;
+```
+
+#### 6. Stemming and Stop Words
+
+PostgreSQL automatically handles stemming and ignores stop words. For instance, searching for "running" will match "run."
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE tsv_body @@ to_tsquery('run');
+```
+
+### Complete Implementation Example
+
+Here’s a complete example that combines everything mentioned:
+
+1. **Create Database and Table:**
+
+```sql
+CREATE DATABASE fts_demo;
+\c fts_demo;
+
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title TEXT,
+    body TEXT,
+    tsv_body tsvector
+);
+```
+
+2. **Insert Sample Data:**
+
+```sql
+INSERT INTO articles (title, body) VALUES
+('PostgreSQL Full-Text Search', 'PostgreSQL provides a robust full-text search feature.'),
+('Understanding PostgreSQL', 'This article helps in understanding the core features of PostgreSQL.'),
+('Full-Text Search vs Like', 'This article compares full-text search and the LIKE operator in SQL.');
+
+-- Update the tsvector column
+UPDATE articles SET tsv_body = to_tsvector('english', body);
+```
+
+3. **Create Index:**
+
+```sql
+CREATE INDEX idx_tsv_body ON articles USING GIN(tsv_body);
+```
+
+4. **Search Example:**
+
+```sql
+SELECT id, title, body,
+       ts_rank(tsv_body, to_tsquery('PostgreSQL')) AS rank
+FROM articles
+WHERE tsv_body @@ to_tsquery('PostgreSQL')
+ORDER BY rank DESC;
+```
+
+5. **Complex Search Example:**
+
+```sql
+SELECT id, title, body
+FROM articles
+WHERE tsv_body @@ to_tsquery('PostgreSQL | understanding')
+ORDER BY ts_rank(tsv_body, to_tsquery('PostgreSQL | understanding')) DESC;
+```

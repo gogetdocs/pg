@@ -1,0 +1,158 @@
+### **3. `pg_stat_statements` View**
+
+This view provides performance-related information about SQL queries executed in the database, such as execution times and I/O statistics.
+
+#### **a. Query Execution Statistics**
+
+```sql
+-- View statistics on query execution from pg_stat_statements
+SELECT query, calls, total_time, min_time, max_time, mean_time, rows
+FROM pg_stat_statements
+ORDER BY total_time DESC
+LIMIT 10;
+```
+
+- `query`: SQL query text.
+- `calls`: Number of times the query was executed.
+- `total_time`: Total time spent on the query (in milliseconds).
+- `min_time`: Minimum execution time.
+- `max_time`: Maximum execution time.
+- `mean_time`: Average execution time.
+- `rows`: Number of rows processed by the query.
+
+---
+
+### **4. `pg_locks` View**
+
+This view provides information about locks that are currently held or requested by transactions.
+
+#### **a. View Active Locks**
+
+```sql
+-- List currently held locks in the system
+SELECT locktype, database, relation::regclass AS relation_name, mode, granted
+FROM pg_locks
+WHERE NOT granted;
+```
+
+- `locktype`: Type of lock.
+- `database`: Database on which the lock is held.
+- `relation_name`: Name of the locked relation (table).
+- `mode`: Lock mode (e.g., `RowExclusiveLock`, `AccessShareLock`).
+- `granted`: Whether the lock is granted or waiting.
+
+#### **b. Check for Deadlocks**
+
+```sql
+-- Check for potential deadlocks by finding conflicting locks
+SELECT a.pid AS waiting_pid, a.locktype AS waiting_locktype, a.mode AS waiting_mode,
+       b.pid AS blocking_pid, b.mode AS blocking_mode
+FROM pg_locks a
+JOIN pg_locks b
+  ON a.locktype = b.locktype
+  AND a.database = b.database
+  AND a.relation = b.relation
+  AND a.granted = false
+  AND b.granted = true
+  AND a.pid != b.pid;
+```
+
+---
+
+### **5. `pg_stat_activity` View**
+
+This view provides details about active sessions and queries running in the database.
+
+#### **a. View Active Sessions**
+
+```sql
+-- Retrieve currently active sessions
+SELECT pid, usename, datname, state, query, backend_start, query_start
+FROM pg_stat_activity
+WHERE state != 'idle';
+```
+
+- `pid`: Process ID of the session.
+- `usename`: Username of the session.
+- `datname`: Database being accessed.
+- `state`: Session state (e.g., `active`, `idle`).
+- `query`: SQL query being executed.
+- `backend_start`: Time when the session started.
+- `query_start`: Time when the current query started.
+
+#### **b. Terminate Long-Running Queries**
+
+```sql
+-- Terminate sessions with queries running longer than 10 minutes
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE state = 'active'
+AND now() - query_start > interval '10 minutes';
+```
+
+---
+
+### **6. `pg_stat_user_tables` View**
+
+This view provides statistics about activity on tables, including sequential scans, index scans, inserts, updates, and deletes.
+
+#### **a. Table Access Statistics**
+
+```sql
+-- Retrieve statistics for table accesses
+SELECT relname, seq_scan, seq_tup_read, idx_scan, idx_tup_fetch, n_tup_ins, n_tup_upd, n_tup_del
+FROM pg_stat_user_tables
+ORDER BY seq_scan DESC;
+```
+
+- `relname`: Name of the table.
+- `seq_scan`: Number of sequential scans.
+- `seq_tup_read`: Number of tuples read by sequential scans.
+- `idx_scan`: Number of index scans.
+- `idx_tup_fetch`: Number of tuples fetched by index scans.
+- `n_tup_ins`: Number of tuples inserted.
+- `n_tup_upd`: Number of tuples updated.
+- `n_tup_del`: Number of tuples deleted.
+
+---
+
+### **7. `pg_statio_user_tables` View**
+
+This view provides I/O statistics for user tables, such as block reads and writes.
+
+#### **a. I/O Statistics**
+
+```sql
+-- Retrieve table I/O statistics
+SELECT relname, heap_blks_read, heap_blks_hit, idx_blks_read, idx_blks_hit
+FROM pg_statio_user_tables;
+```
+
+- `relname`: Name of the table.
+- `heap_blks_read`: Number of disk blocks read from the table.
+- `heap_blks_hit`: Number of blocks found in shared memory (cache).
+- `idx_blks_read`: Number of disk blocks read from indexes.
+- `idx_blks_hit`: Number of index blocks found in shared memory (cache).
+
+---
+
+### **8. `pg_settings` View**
+
+This view provides information about the current configuration settings of the PostgreSQL server.
+
+#### **a. View Current Configuration Settings**
+
+```sql
+-- Retrieve current configuration settings
+SELECT name, setting, unit, category, short_desc
+FROM pg_settings
+ORDER BY name;
+```
+
+- `name`: Configuration parameter name.
+- `setting`: Current value of the setting.
+- `unit`: Unit of the value (if applicable).
+- `category`: Category to which the setting belongs.
+- `short_desc`: Brief description of the setting.
+
+---

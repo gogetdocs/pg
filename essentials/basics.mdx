@@ -1,0 +1,202 @@
+Here is a list of essential PostgreSQL commands for managing databases, users, tables, and querying data:
+
+### 1. **Connecting to PostgreSQL:**
+
+- **Connect to PostgreSQL**:
+
+  ```bash
+  psql -U username -d database_name -h localhost -p 5432
+  ```
+
+  - `username`: The PostgreSQL username.
+  - `database_name`: The database to connect to.
+  - `localhost`: The host (can be replaced with the actual host or IP).
+  - `5432`: Default PostgreSQL port.
+
+- **Connect to PostgreSQL from inside psql**:
+  ```sql
+  \c database_name username
+  ```
+
+### 2. **Database Management:**
+
+- **List all databases**:
+  ```sql
+  \l
+  ```
+- **Create a database**:
+  ```sql
+  CREATE DATABASE database_name;
+  ```
+- **Drop (delete) a database**:
+  ```sql
+  DROP DATABASE database_name;
+  ```
+
+### 3. **User Management:**
+
+- **List all users/roles**:
+  ```sql
+  \du
+  ```
+- **Create a new user**:
+  ```sql
+  CREATE USER username WITH PASSWORD 'password';
+  ```
+- **Grant a user privileges on a database**:
+  ```sql
+  GRANT ALL PRIVILEGES ON DATABASE database_name TO username;
+  ```
+- **Alter user (to give superuser, etc.)**:
+  ```sql
+  ALTER USER username WITH SUPERUSER;
+  ```
+- **Drop a user**:
+  ```sql
+  DROP USER username;
+  ```
+
+### 4. **Table Management:**
+
+- **List all tables**:
+  ```sql
+  \dt
+  ```
+- **Create a table**:
+  ```sql
+  CREATE TABLE table_name (
+      column1 datatype,
+      column2 datatype,
+      ...
+  );
+  ```
+  Example:
+  ```sql
+  CREATE TABLE employees (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100),
+      salary NUMERIC
+  );
+  ```
+- **Describe table structure**:
+  ```sql
+  \d table_name
+  ```
+- **Drop a table**:
+  ```sql
+  DROP TABLE table_name;
+  ```
+- **Rename a table**:
+  ```sql
+  ALTER TABLE old_table_name RENAME TO new_table_name;
+  ```
+
+### 5. **Inserting, Updating, and Deleting Data:**
+
+- **Insert data into a table**:
+  ```sql
+  INSERT INTO table_name (column1, column2, ...) VALUES (value1, value2, ...);
+  ```
+  Example:
+  ```sql
+  INSERT INTO employees (name, salary) VALUES ('John Doe', 50000);
+  ```
+- **Update data in a table**:
+  ```sql
+  UPDATE table_name SET column1 = value1, column2 = value2 WHERE condition;
+  ```
+  Example:
+  ```sql
+  UPDATE employees SET salary = 60000 WHERE name = 'John Doe';
+  ```
+- **Delete data from a table**:
+  ```sql
+  DELETE FROM table_name WHERE condition;
+  ```
+  Example:
+  ```sql
+  DELETE FROM employees WHERE name = 'John Doe';
+  ```
+
+### 6. **Querying Data:**
+
+- **Select all rows from a table**:
+  ```sql
+  SELECT * FROM table_name;
+  ```
+- **Select specific columns**:
+  ```sql
+  SELECT column1, column2 FROM table_name;
+  ```
+- **Filter results with a condition**:
+  ```sql
+  SELECT * FROM table_name WHERE condition;
+  ```
+- **Order the results**:
+  ```sql
+  SELECT * FROM table_name ORDER BY column1 ASC|DESC;
+  ```
+- **Limit the number of results**:
+  ```sql
+  SELECT * FROM table_name LIMIT number;
+  ```
+- **Join two tables**:
+  ```sql
+  SELECT * FROM table1
+  JOIN table2 ON table1.column = table2.column;
+  ```
+
+### 7. **Indexes:**
+
+- **Create an index**:
+  ```sql
+  CREATE INDEX index_name ON table_name (column_name);
+  ```
+- **Drop an index**:
+  ```sql
+  DROP INDEX index_name;
+  ```
+
+### 8. **Transactions:**
+
+- **Begin a transaction**:
+  ```sql
+  BEGIN;
+  ```
+- **Commit a transaction**:
+  ```sql
+  COMMIT;
+  ```
+- **Rollback a transaction**:
+  ```sql
+  ROLLBACK;
+  ```
+
+### 9. **Schema Management:**
+
+- **Create a schema**:
+  ```sql
+  CREATE SCHEMA schema_name;
+  ```
+- **Set a schema for future commands**:
+  ```sql
+  SET search_path TO schema_name;
+  ```
+
+### 10. **Backup and Restore:**
+
+- **Backup a database**:
+  ```bash
+  pg_dump -U username -F c -b -v -f backup_file_name database_name
+  ```
+- **Restore a database**:
+  ```bash
+  pg_restore -U username -d database_name backup_file_name
+  ```
+
+### 11. **Exiting psql:**
+
+- **Exit psql terminal**:
+  ```bash
+  \q
+  ```

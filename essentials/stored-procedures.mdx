@@ -1,0 +1,1087 @@
+Stored procedures in PostgreSQL allow you to encapsulate business logic on the database side, making it possible to perform complex operations efficiently and securely. In PostgreSQL 11+, stored procedures (`CREATE PROCEDURE`) have been introduced, which differ from functions (`CREATE FUNCTION`) in that they can manage transactions. Unlike functions, procedures can commit and roll back transactions.
+
+Here is a full-fledged guide with all possibilities for using stored procedures in PostgreSQL, including examples:
+
+### 1. **Creating Simple Stored Procedure**
+
+A simple stored procedure that doesn't accept arguments or return values.
+
+```sql
+CREATE PROCEDURE simple_procedure()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE NOTICE 'This is a simple procedure without parameters.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL simple_procedure();
+```
+
+### 2. **Procedure with Input Parameters**
+
+A procedure that takes input parameters.
+
+```sql
+CREATE PROCEDURE greet_person(name TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE NOTICE 'Hello, %!', name;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL greet_person('Alice');
+```
+
+### 3. **Procedure with Output Parameters (Using OUT Parameter)**
+
+PostgreSQL stored procedures do not have a `RETURN` clause like functions, but you can simulate output using `OUT` parameters.
+
+```sql
+CREATE PROCEDURE get_product_details(IN product_id INT, OUT product_name TEXT, OUT product_price NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT name, price INTO product_name, product_price
+    FROM products
+    WHERE id = product_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_product_details(1, product_name, product_price);
+-- The output parameters 'product_name' and 'product_price' will be filled with the procedure's results.
+```
+
+### 4. **Procedure with Transactions**
+
+A key feature of stored procedures is the ability to control transactions (`COMMIT`, `ROLLBACK`). This is not possible with functions.
+
+```sql
+CREATE PROCEDURE transfer_funds(from_account INT, to_account INT, amount NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Begin transaction manually (implicit with CALL)
+    BEGIN
+        -- Deduct from sender
+        UPDATE accounts SET balance = balance - amount WHERE account_id = from_account;
+
+        -- Simulate error if balance goes negative
+        IF (SELECT balance FROM accounts WHERE account_id = from_account) < 0 THEN
+            RAISE EXCEPTION 'Insufficient funds in account %', from_account;
+        END IF;
+
+        -- Add to receiver
+        UPDATE accounts SET balance = balance + amount WHERE account_id = to_account;
+    EXCEPTION WHEN OTHERS THEN
+        -- Roll back transaction in case of error
+        ROLLBACK;
+        RAISE;
+    END;
+    -- Commit transaction explicitly
+    COMMIT;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL transfer_funds(1, 2, 100.00);
+```
+
+### 5. **Procedure with Cursors**
+
+You can use cursors in stored procedures to iterate over query results.
+
+```sql
+CREATE PROCEDURE iterate_customers()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    customer_rec RECORD;
+    cur CURSOR FOR SELECT id, name FROM customers;
+BEGIN
+    OPEN cur;
+
+    LOOP
+        FETCH cur INTO customer_rec;
+        EXIT WHEN NOT FOUND;
+
+        -- Do something with each customer
+        RAISE NOTICE 'Customer ID: %, Name: %', customer_rec.id, customer_rec.name;
+    END LOOP;
+
+    CLOSE cur;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL iterate_customers();
+```
+
+### 6. **Procedure with Dynamic SQL (Using `EXECUTE`)**
+
+Dynamic SQL is useful when the SQL query or table is determined at runtime.
+
+```sql
+CREATE PROCEDURE dynamic_query(query TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    EXECUTE query;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL dynamic_query('SELECT * FROM customers WHERE id = 1');
+```
+
+### 7. **Procedure with Control Structures**
+
+Stored procedures in PostgreSQL can include control structures like loops and conditionals.
+
+```sql
+CREATE PROCEDURE update_customers_discount()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    customer_rec RECORD;
+BEGIN
+    FOR customer_rec IN SELECT id, total_spent FROM customers LOOP
+        IF customer_rec.total_spent > 1000 THEN
+            UPDATE customers SET discount = 0.1 WHERE id = customer_rec.id;
+        ELSIF customer_rec.total_spent > 500 THEN
+            UPDATE customers SET discount = 0.05 WHERE id = customer_rec.id;
+        ELSE
+            UPDATE customers SET discount = 0 WHERE id = customer_rec.id;
+        END IF;
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL update_customers_discount();
+```
+
+### 8. **Procedure with Exception Handling**
+
+You can catch and handle exceptions in stored procedures using `EXCEPTION`.
+
+```sql
+CREATE PROCEDURE safe_divide(a INT, b INT, OUT result INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    BEGIN
+        result := a / b;
+    EXCEPTION WHEN division_by_zero THEN
+        RAISE NOTICE 'Division by zero is not allowed.';
+        result := NULL;
+    END;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL safe_divide(10, 0, result);
+```
+
+### 9. **Procedure with Multiple OUT Parameters**
+
+You can return multiple output parameters in a procedure, mimicking returning a row.
+
+```sql
+CREATE PROCEDURE get_user_info(IN user_id INT, OUT name TEXT, OUT email TEXT, OUT signup_date DATE)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT username, email, created_at
+    INTO name, email, signup_date
+    FROM users
+    WHERE id = user_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_user_info(5, name, email, signup_date);
+```
+
+### 10. **Procedure with Loops**
+
+Looping through rows in a table using a cursor.
+
+```sql
+CREATE PROCEDURE print_users()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    cur_user RECORD;
+BEGIN
+    FOR cur_user IN SELECT id, username FROM users LOOP
+        RAISE NOTICE 'User: %', cur_user.username;
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL print_users();
+```
+
+### 11. **Procedure that Modifies Table Data**
+
+Stored procedures are often used to perform data modifications.
+
+```sql
+CREATE PROCEDURE update_employee_salary(employee_id INT, new_salary NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE employees SET salary = new_salary WHERE id = employee_id;
+    IF NOT FOUND THEN
+        RAISE NOTICE 'Employee not found with ID %', employee_id;
+    END IF;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL update_employee_salary(101, 55000.00);
+```
+
+### 12. **Procedure with Temporary Tables**
+
+Stored procedures can create and manipulate temporary tables.
+
+```sql
+CREATE PROCEDURE create_temp_table()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    CREATE TEMP TABLE temp_employees (id INT, name TEXT);
+    INSERT INTO temp_employees VALUES (1, 'Alice'), (2, 'Bob');
+
+    RAISE NOTICE 'Temporary table created and populated.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL create_temp_table();
+```
+
+### 13. **Dropping a Stored Procedure**
+
+When you no longer need a procedure, you can drop it.
+
+```sql
+DROP PROCEDURE IF EXISTS simple_procedure;
+```
+
+### 14. **Procedure with Security Definer**
+
+You can create a procedure that runs with the privileges of the user who defined it, not the caller, by using `SECURITY DEFINER`.
+
+```sql
+CREATE PROCEDURE secure_update()
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE sensitive_data SET value = value + 1;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL secure_update();
+```
+
+---
+
+### Summary of Key Features:
+
+1. **Input and Output Parameters**: Procedures can accept input and output parameters.
+2. **Transaction Control**: Procedures can commit and roll back transactions.
+3. **Dynamic SQL**: Procedures can execute dynamic SQL.
+4. **Control Structures**: Use of loops, conditional statements, and exception handling.
+5. **Cursors**: Procedures can use cursors to iterate over query results.
+6. **Error Handling**: Exception handling with `EXCEPTION`.
+
+This guide covers most of the common use cases and possibilities for using stored procedures in PostgreSQL. Each example illustrates how to implement different types of logic or operations inside a procedure, ensuring efficient and organized database interactions.
+
+---
+
+show some full fledged usages of stored procedures in postgres complete all possibilities
+
+---
+
+Stored procedures in PostgreSQL allow you to encapsulate business logic on the database side, making it possible to perform complex operations efficiently and securely. In PostgreSQL 11+, stored procedures (`CREATE PROCEDURE`) have been introduced, which differ from functions (`CREATE FUNCTION`) in that they can manage transactions. Unlike functions, procedures can commit and roll back transactions.
+
+Here is a full-fledged guide with all possibilities for using stored procedures in PostgreSQL, including examples:
+
+### 1. **Creating Simple Stored Procedure**
+
+A simple stored procedure that doesn't accept arguments or return values.
+
+```sql
+CREATE PROCEDURE simple_procedure()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE NOTICE 'This is a simple procedure without parameters.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL simple_procedure();
+```
+
+### 2. **Procedure with Input Parameters**
+
+A procedure that takes input parameters.
+
+```sql
+CREATE PROCEDURE greet_person(name TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RAISE NOTICE 'Hello, %!', name;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL greet_person('Alice');
+```
+
+### 3. **Procedure with Output Parameters (Using OUT Parameter)**
+
+PostgreSQL stored procedures do not have a `RETURN` clause like functions, but you can simulate output using `OUT` parameters.
+
+```sql
+CREATE PROCEDURE get_product_details(IN product_id INT, OUT product_name TEXT, OUT product_price NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT name, price INTO product_name, product_price
+    FROM products
+    WHERE id = product_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_product_details(1, product_name, product_price);
+-- The output parameters 'product_name' and 'product_price' will be filled with the procedure's results.
+```
+
+### 4. **Procedure with Transactions**
+
+A key feature of stored procedures is the ability to control transactions (`COMMIT`, `ROLLBACK`). This is not possible with functions.
+
+```sql
+CREATE PROCEDURE transfer_funds(from_account INT, to_account INT, amount NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Begin transaction manually (implicit with CALL)
+    BEGIN
+        -- Deduct from sender
+        UPDATE accounts SET balance = balance - amount WHERE account_id = from_account;
+
+        -- Simulate error if balance goes negative
+        IF (SELECT balance FROM accounts WHERE account_id = from_account) < 0 THEN
+            RAISE EXCEPTION 'Insufficient funds in account %', from_account;
+        END IF;
+
+        -- Add to receiver
+        UPDATE accounts SET balance = balance + amount WHERE account_id = to_account;
+    EXCEPTION WHEN OTHERS THEN
+        -- Roll back transaction in case of error
+        ROLLBACK;
+        RAISE;
+    END;
+    -- Commit transaction explicitly
+    COMMIT;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL transfer_funds(1, 2, 100.00);
+```
+
+### 5. **Procedure with Cursors**
+
+You can use cursors in stored procedures to iterate over query results.
+
+```sql
+CREATE PROCEDURE iterate_customers()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    customer_rec RECORD;
+    cur CURSOR FOR SELECT id, name FROM customers;
+BEGIN
+    OPEN cur;
+
+    LOOP
+        FETCH cur INTO customer_rec;
+        EXIT WHEN NOT FOUND;
+
+        -- Do something with each customer
+        RAISE NOTICE 'Customer ID: %, Name: %', customer_rec.id, customer_rec.name;
+    END LOOP;
+
+    CLOSE cur;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL iterate_customers();
+```
+
+### 6. **Procedure with Dynamic SQL (Using `EXECUTE`)**
+
+Dynamic SQL is useful when the SQL query or table is determined at runtime.
+
+```sql
+CREATE PROCEDURE dynamic_query(query TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    EXECUTE query;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL dynamic_query('SELECT * FROM customers WHERE id = 1');
+```
+
+### 7. **Procedure with Control Structures**
+
+Stored procedures in PostgreSQL can include control structures like loops and conditionals.
+
+```sql
+CREATE PROCEDURE update_customers_discount()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    customer_rec RECORD;
+BEGIN
+    FOR customer_rec IN SELECT id, total_spent FROM customers LOOP
+        IF customer_rec.total_spent > 1000 THEN
+            UPDATE customers SET discount = 0.1 WHERE id = customer_rec.id;
+        ELSIF customer_rec.total_spent > 500 THEN
+            UPDATE customers SET discount = 0.05 WHERE id = customer_rec.id;
+        ELSE
+            UPDATE customers SET discount = 0 WHERE id = customer_rec.id;
+        END IF;
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL update_customers_discount();
+```
+
+### 8. **Procedure with Exception Handling**
+
+You can catch and handle exceptions in stored procedures using `EXCEPTION`.
+
+```sql
+CREATE PROCEDURE safe_divide(a INT, b INT, OUT result INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    BEGIN
+        result := a / b;
+    EXCEPTION WHEN division_by_zero THEN
+        RAISE NOTICE 'Division by zero is not allowed.';
+        result := NULL;
+    END;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL safe_divide(10, 0, result);
+```
+
+### 9. **Procedure with Multiple OUT Parameters**
+
+You can return multiple output parameters in a procedure, mimicking returning a row.
+
+```sql
+CREATE PROCEDURE get_user_info(IN user_id INT, OUT name TEXT, OUT email TEXT, OUT signup_date DATE)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT username, email, created_at
+    INTO name, email, signup_date
+    FROM users
+    WHERE id = user_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_user_info(5, name, email, signup_date);
+```
+
+### 10. **Procedure with Loops**
+
+Looping through rows in a table using a cursor.
+
+```sql
+CREATE PROCEDURE print_users()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    cur_user RECORD;
+BEGIN
+    FOR cur_user IN SELECT id, username FROM users LOOP
+        RAISE NOTICE 'User: %', cur_user.username;
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL print_users();
+```
+
+### 11. **Procedure that Modifies Table Data**
+
+Stored procedures are often used to perform data modifications.
+
+```sql
+CREATE PROCEDURE update_employee_salary(employee_id INT, new_salary NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE employees SET salary = new_salary WHERE id = employee_id;
+    IF NOT FOUND THEN
+        RAISE NOTICE 'Employee not found with ID %', employee_id;
+    END IF;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL update_employee_salary(101, 55000.00);
+```
+
+### 12. **Procedure with Temporary Tables**
+
+Stored procedures can create and manipulate temporary tables.
+
+```sql
+CREATE PROCEDURE create_temp_table()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    CREATE TEMP TABLE temp_employees (id INT, name TEXT);
+    INSERT INTO temp_employees VALUES (1, 'Alice'), (2, 'Bob');
+
+    RAISE NOTICE 'Temporary table created and populated.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL create_temp_table();
+```
+
+### 13. **Dropping a Stored Procedure**
+
+When you no longer need a procedure, you can drop it.
+
+```sql
+DROP PROCEDURE IF EXISTS simple_procedure;
+```
+
+### 14. **Procedure with Security Definer**
+
+You can create a procedure that runs with the privileges of the user who defined it, not the caller, by using `SECURITY DEFINER`.
+
+```sql
+CREATE PROCEDURE secure_update()
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE sensitive_data SET value = value + 1;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL secure_update();
+```
+
+---
+
+### Summary of Key Features:
+
+1. **Input and Output Parameters**: Procedures can accept input and output parameters.
+2. **Transaction Control**: Procedures can commit and roll back transactions.
+3. **Dynamic SQL**: Procedures can execute dynamic SQL.
+4. **Control Structures**: Use of loops, conditional statements, and exception handling.
+5. **Cursors**: Procedures can use cursors to iterate over query results.
+6. **Error Handling**: Exception handling with `EXCEPTION`.
+
+This guide covers most of the common use cases and possibilities for using stored procedures in PostgreSQL. Each example illustrates how to implement different types of logic or operations inside a procedure, ensuring efficient and organized database interactions.
+
+---
+
+### 15. **Batch Processing**
+
+Stored procedures can be used for batch updates or inserts to improve performance.
+
+```sql
+CREATE PROCEDURE batch_insert_customers()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO customers (name, email)
+    VALUES
+    ('John Doe', 'john@example.com'),
+    ('Jane Smith', 'jane@example.com'),
+    ('Alice Johnson', 'alice@example.com');
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL batch_insert_customers();
+```
+
+### 16. **Handling Complex Business Logic**
+
+Procedures can encapsulate complex business rules that might involve multiple operations.
+
+```sql
+CREATE PROCEDURE process_order(order_id INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    customer_id INT;
+BEGIN
+    -- Fetch customer ID associated with the order
+    SELECT customer_id INTO customer_id FROM orders WHERE id = order_id;
+
+    -- Update inventory
+    UPDATE inventory SET stock = stock - 1 WHERE product_id = (SELECT product_id FROM order_items WHERE order_id = order_id);
+
+    -- Notify customer
+    PERFORM notify_customer(customer_id, 'Your order has been processed.');
+
+    RAISE NOTICE 'Order % has been processed for customer %', order_id, customer_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL process_order(1001);
+```
+
+### 17. **Scheduling Tasks**
+
+Use procedures for scheduling regular maintenance tasks (like cleanup or archiving) by combining them with cron jobs or PostgreSQL's `pg_cron`.
+
+```sql
+CREATE PROCEDURE cleanup_old_records()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    DELETE FROM logs WHERE created_at < NOW() - INTERVAL '30 days';
+    RAISE NOTICE 'Old records cleaned up successfully.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL cleanup_old_records();
+```
+
+### 18. **Aggregating Data**
+
+Stored procedures can perform complex aggregations that return summary data.
+
+```sql
+CREATE PROCEDURE get_sales_summary(IN start_date DATE, IN end_date DATE, OUT total_sales NUMERIC, OUT total_orders INT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT SUM(amount), COUNT(*)
+    INTO total_sales, total_orders
+    FROM sales
+    WHERE sale_date BETWEEN start_date AND end_date;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_sales_summary('2024-01-01', '2024-12-31', total_sales, total_orders);
+```
+
+### 19. **Working with JSON Data**
+
+Procedures can also manipulate JSON or JSONB data types, providing powerful flexibility.
+
+```sql
+CREATE PROCEDURE update_customer_preferences(customer_id INT, preferences JSONB)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE customers SET preferences = preferences || preferences
+    WHERE id = customer_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL update_customer_preferences(1, '{"newsletter": true}');
+```
+
+### 20. **Validating Data Before Insert**
+
+You can create a procedure that validates data before inserting it into a table.
+
+```sql
+CREATE PROCEDURE insert_new_product(name TEXT, price NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF price < 0 THEN
+        RAISE EXCEPTION 'Price cannot be negative';
+    END IF;
+
+    INSERT INTO products (name, price) VALUES (name, price);
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL insert_new_product('New Product', 99.99);
+```
+
+### 21. **Chaining Procedures**
+
+You can call one procedure from another, allowing for modular code design.
+
+```sql
+CREATE PROCEDURE calculate_discount(customer_id INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    discount NUMERIC;
+BEGIN
+    -- Call another procedure to get customer data
+    CALL get_customer_discount(customer_id, discount);
+
+    RAISE NOTICE 'Discount for customer % is %', customer_id, discount;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL calculate_discount(1);
+```
+
+### 22. **Implementing a Log Table**
+
+Use stored procedures to implement logging functionality, tracking changes made to important tables.
+
+```sql
+CREATE PROCEDURE log_change(action TEXT, table_name TEXT, changed_data JSONB)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO change_log (action, table_name, changed_data, changed_at)
+    VALUES (action, table_name, changed_data, NOW());
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL log_change('UPDATE', 'customers', '{"id": 1, "name": "John Doe"}');
+```
+
+### 23. **Recursive Procedures**
+
+Stored procedures can also implement recursive logic for hierarchical data.
+
+```sql
+CREATE PROCEDURE get_subordinates(employee_id INT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    sub_id INT;
+BEGIN
+    RAISE NOTICE 'Subordinates of employee %:', employee_id;
+
+    FOR sub_id IN SELECT id FROM employees WHERE manager_id = employee_id LOOP
+        RAISE NOTICE 'Subordinate ID: %', sub_id;
+        -- Recursively call this procedure to get subordinates of the subordinates
+        CALL get_subordinates(sub_id);
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_subordinates(1);
+```
+
+### 24. **Creating a Custom Report**
+
+Stored procedures can generate custom reports by aggregating and formatting data.
+
+```sql
+CREATE PROCEDURE generate_sales_report(start_date DATE, end_date DATE)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+    RAISE NOTICE 'Sales report from % to %:', start_date, end_date;
+
+    FOR rec IN SELECT product_id, SUM(amount) as total_sales FROM sales
+                WHERE sale_date BETWEEN start_date AND end_date
+                GROUP BY product_id LOOP
+        RAISE NOTICE 'Product ID: %, Total Sales: %', rec.product_id, rec.total_sales;
+    END LOOP;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL generate_sales_report('2024-01-01', '2024-12-31');
+```
+
+### 25. **Data Migration**
+
+Stored procedures can facilitate data migration between tables or databases.
+
+```sql
+CREATE PROCEDURE migrate_data()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO new_table (col1, col2)
+    SELECT col1, col2 FROM old_table;
+
+    RAISE NOTICE 'Data migration completed successfully.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL migrate_data();
+```
+
+### 26. **Integration with External Systems**
+
+Stored procedures can call external services or systems, provided you have the necessary permissions and configurations.
+
+```sql
+CREATE PROCEDURE notify_admins(issue TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Assuming there's a function to send notifications
+    PERFORM send_notification('admin@example.com', issue);
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL notify_admins('Database backup failed.');
+```
+
+### 27. **Email Notification**
+
+If configured properly, you can use procedures to send email notifications.
+
+```sql
+CREATE PROCEDURE send_email(to_email TEXT, subject TEXT, body TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM pg_send_email(to_email, subject, body);
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL send_email('user@example.com', 'Welcome!', 'Thanks for signing up.');
+```
+
+### 28. **Creating User Roles**
+
+Stored procedures can manage user roles and permissions within the database.
+
+```sql
+CREATE PROCEDURE create_user_role(role_name TEXT)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    EXECUTE format('CREATE ROLE %I', role_name);
+    RAISE NOTICE 'Role % created.', role_name;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL create_user_role('new_user_role');
+```
+
+### 29. **Aggregating Data from Multiple Tables**
+
+Stored procedures can aggregate data from multiple tables for complex reporting needs.
+
+```sql
+CREATE PROCEDURE get_customer_orders_summary(IN customer_id INT, OUT total_orders INT, OUT total_amount NUMERIC)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    SELECT COUNT(*), SUM(amount)
+    INTO total_orders, total_amount
+    FROM orders
+    WHERE customer_id = customer_id;
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL get_customer_orders_summary(1, total_orders, total_amount);
+```
+
+### 30. **Automated Data Refresh**
+
+You can create a stored procedure that refreshes materialized views.
+
+```sql
+CREATE PROCEDURE refresh_materialized_views()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW sales_summary;
+    REFRESH MATERIALIZED VIEW customer_activity;
+    RAISE NOTICE 'Materialized views refreshed.';
+END;
+$$;
+```
+
+**Usage:**
+
+```sql
+CALL refresh_materialized_views();
+```
+
+---
+
+### Summary
+
+These additional ideas further illustrate the versatility of stored procedures in PostgreSQL. They can be leveraged for various tasks, including batch processing, data validation, hierarchical data handling, and integration with external systems. By encapsulating complex logic, stored procedures improve maintainability and performance while ensuring data integrity.
+
+Feel free to adapt these examples to fit your specific use cases or ask for more targeted scenarios if needed!

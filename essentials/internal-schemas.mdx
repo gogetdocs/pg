@@ -1,0 +1,89 @@
+### **1. `pg_catalog` Schema**
+
+`pg_catalog` contains tables and views that hold metadata about the database cluster. Some of the most used views include `pg_tables`, `pg_indexes`, `pg_roles`, `pg_locks`, and `pg_stat_activity`.
+
+#### **a. Get All Relations (Tables, Views, Indexes, etc.)**
+
+```sql
+-- Retrieve all relations in the current database (tables, views, sequences, indexes)
+SELECT relname, relkind, relnamespace::regnamespace, relowner::regrole, reltuples
+FROM pg_catalog.pg_class
+WHERE relkind IN ('r', 'v', 'S', 'i');  -- 'r' for table, 'v' for view, 'S' for sequence, 'i' for index
+```
+
+- `relname`: Object name.
+- `relkind`: Type of object (`r`: table, `v`: view, `S`: sequence, `i`: index).
+- `relnamespace`: Schema of the object.
+- `relowner`: Owner of the object.
+- `reltuples`: Estimated number of rows.
+
+#### **b. Query Index Statistics**
+
+```sql
+-- Get statistics on indexes from pg_stat_user_indexes
+SELECT indexrelname, relname, idx_scan, idx_tup_read, idx_tup_fetch
+FROM pg_stat_user_indexes
+JOIN pg_catalog.pg_class ON pg_stat_user_indexes.relid = pg_class.oid
+ORDER BY idx_scan DESC;
+```
+
+- `indexrelname`: Name of the index.
+- `relname`: Table associated with the index.
+- `idx_scan`: Number of index scans.
+- `idx_tup_read`: Number of tuples read using the index.
+- `idx_tup_fetch`: Number of tuples fetched using the index.
+
+---
+
+### **2. `information_schema` Schema**
+
+The `information_schema` schema contains standard SQL views that provide information about database objects such as tables, columns, constraints, and more. It is a portable, standard-compliant schema for querying metadata.
+
+#### **a. Get All Tables in a Schema**
+
+```sql
+-- Retrieve all user-defined tables from information_schema
+SELECT table_schema, table_name, table_type
+FROM information_schema.tables
+WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+AND table_type = 'BASE TABLE';
+```
+
+- `table_schema`: Schema containing the table.
+- `table_name`: Name of the table.
+- `table_type`: Type of table (`BASE TABLE`, `VIEW`).
+
+#### **b. Get All Columns in a Table**
+
+```sql
+-- Retrieve column information for a specific table
+SELECT column_name, data_type, character_maximum_length, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'your_table_name';
+```
+
+- `column_name`: Name of the column.
+- `data_type`: Data type of the column.
+- `character_maximum_length`: Maximum length for character columns.
+- `is_nullable`: Whether the column can have `NULL` values.
+
+#### **c. View Foreign Key Constraints**
+
+```sql
+-- View foreign key constraints on all tables
+SELECT tc.table_schema, tc.table_name, kcu.column_name,
+       ccu.table_schema AS foreign_table_schema,
+       ccu.table_name AS foreign_table_name,
+       ccu.column_name AS foreign_column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+  ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu
+  ON ccu.constraint_name = tc.constraint_name
+WHERE constraint_type = 'FOREIGN KEY';
+```
+
+- `table_name`: Table having the foreign key.
+- `column_name`: Column with the foreign key.
+- `foreign_table_name`: Referenced table.
+- `foreign_column_name`: Referenced column.

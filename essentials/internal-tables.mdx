@@ -1,0 +1,224 @@
+PostgreSQL has several internal system tables that store metadata about the database, its objects, and its activity. These system catalogs (or internal tables) are found in the `pg_catalog` schema. Here are some of the most commonly used internal tables, along with example SQL queries demonstrating their usage:
+
+### 1. **pg_database**
+
+Stores information about the available databases in the cluster.
+
+#### Query Example:
+
+```sql
+-- List all databases in the PostgreSQL instance
+SELECT datname, datdba, encoding, datistemplate, datallowconn, datconnlimit, datlastsysoid
+FROM pg_database;
+```
+
+**Fields:**
+
+- `datname`: Database name.
+- `datdba`: Owner (role) of the database.
+- `encoding`: Character encoding of the database.
+- `datistemplate`: Whether the database is a template.
+- `datallowconn`: Whether connections are allowed to the database.
+- `datconnlimit`: Connection limit for the database.
+- `datlastsysoid`: Last system OID.
+
+---
+
+### 2. **pg_user** (or `pg_shadow`)
+
+Holds information about database users (roles).
+
+#### Query Example:
+
+```sql
+-- List all users/roles in the PostgreSQL instance
+SELECT usename, usesysid, usecreatedb, usesuper, passwd, valuntil
+FROM pg_user;
+```
+
+**Fields:**
+
+- `usename`: User name.
+- `usesysid`: User's system ID.
+- `usecreatedb`: Whether the user can create databases.
+- `usesuper`: Whether the user is a superuser.
+- `passwd`: User password (hashed).
+- `valuntil`: Password expiry.
+
+---
+
+### 3. **pg_tables**
+
+Stores information about tables in the database.
+
+#### Query Example:
+
+```sql
+-- List all tables in the current database (with schema information)
+SELECT schemaname, tablename, tableowner, tablespace
+FROM pg_tables;
+```
+
+**Fields:**
+
+- `schemaname`: Schema name where the table resides.
+- `tablename`: Name of the table.
+- `tableowner`: Owner of the table.
+- `tablespace`: The tablespace where the table is stored.
+
+---
+
+### 4. **pg_indexes**
+
+Contains information about indexes on tables.
+
+#### Query Example:
+
+```sql
+-- List all indexes in the current database
+SELECT schemaname, tablename, indexname, indexdef
+FROM pg_indexes;
+```
+
+**Fields:**
+
+- `schemaname`: Schema of the table with the index.
+- `tablename`: Name of the table with the index.
+- `indexname`: Name of the index.
+- `indexdef`: The index definition (DDL statement).
+
+---
+
+### 5. **pg_locks**
+
+Shows information about currently held locks.
+
+#### Query Example:
+
+```sql
+-- View current locks in the system
+SELECT pid, locktype, mode, granted, relation::regclass AS locked_table
+FROM pg_locks;
+```
+
+**Fields:**
+
+- `pid`: Process ID of the session holding the lock.
+- `locktype`: Type of lock.
+- `mode`: Lock mode (e.g., `AccessShareLock`, `RowExclusiveLock`).
+- `granted`: Whether the lock is granted or waiting.
+- `relation`: Object (table) on which the lock is held.
+
+---
+
+### 6. **pg_stat_activity**
+
+Displays the current running queries or sessions in the PostgreSQL instance.
+
+#### Query Example:
+
+```sql
+-- Show currently running queries in the database
+SELECT pid, usename, application_name, state, query, query_start
+FROM pg_stat_activity;
+```
+
+**Fields:**
+
+- `pid`: Process ID of the backend.
+- `usename`: User executing the query.
+- `application_name`: Application that initiated the connection.
+- `state`: Current state of the session (e.g., `active`, `idle`).
+- `query`: Text of the running query.
+- `query_start`: Timestamp when the query started.
+
+---
+
+### 7. **pg_stat_user_tables**
+
+Provides statistics about tables, including access information.
+
+#### Query Example:
+
+```sql
+-- Show table statistics for user tables
+SELECT relname, seq_scan, seq_tup_read, idx_scan, idx_tup_fetch, n_tup_ins, n_tup_upd, n_tup_del
+FROM pg_stat_user_tables;
+```
+
+**Fields:**
+
+- `relname`: Name of the table.
+- `seq_scan`: Number of sequential scans initiated on the table.
+- `seq_tup_read`: Number of tuples read by sequential scans.
+- `idx_scan`: Number of index scans on the table.
+- `idx_tup_fetch`: Number of tuples fetched by index scans.
+- `n_tup_ins`: Number of tuples inserted.
+- `n_tup_upd`: Number of tuples updated.
+- `n_tup_del`: Number of tuples deleted.
+
+---
+
+### 8. **pg_roles**
+
+Stores information about roles and their attributes.
+
+#### Query Example:
+
+```sql
+-- List all roles and their attributes
+SELECT rolname, rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolconnlimit
+FROM pg_roles;
+```
+
+**Fields:**
+
+- `rolname`: Role name.
+- `rolsuper`: Whether the role is a superuser.
+- `rolcreatedb`: Whether the role can create databases.
+- `rolcreaterole`: Whether the role can create new roles.
+- `rolreplication`: Whether the role can use replication.
+- `rolconnlimit`: Connection limit for the role.
+
+---
+
+### 9. **pg_class**
+
+Contains information about tables, indexes, sequences, views, and other database objects.
+
+#### Query Example:
+
+```sql
+-- List all tables and indexes in the current database
+SELECT relname, relkind, relnamespace::regnamespace, relowner::regrole, reltuples
+FROM pg_class
+WHERE relkind IN ('r', 'i'); -- 'r' for tables, 'i' for indexes
+```
+
+**Fields:**
+
+- `relname`: Object name.
+- `relkind`: Type of object (`r` for tables, `i` for indexes, etc.).
+- `relnamespace`: Namespace (schema) of the object.
+- `relowner`: Owner of the object.
+- `reltuples`: Estimated number of rows in the table or index.
+
+---
+
+### 10. **pg_trigger**
+
+Contains information about triggers in the database.
+
+#### Query Example:
+
+```sql
+-- List all triggers and their corresponding tables
+SELECT tgname, tgrelid::regclass AS table_name, tgenabled
+FROM pg_trigger;
+```
+
+**Fields:**
+
+- `tgname`: Name of the trigger.
+- `tgrelid`: Table on which the trigger is defined.
+- `tgenabled`: Whether the trigger is enabled.

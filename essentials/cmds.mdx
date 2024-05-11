@@ -1,0 +1,400 @@
+PostgreSQL **CLI commands** used in the `psql` terminal interface. Here’s a list of essential PostgreSQL `psql` **CLI commands**:
+
+### 1. **Connecting and Exiting:**
+
+- **Connect to PostgreSQL**:
+  ```bash
+  psql -U username -d database_name
+  ```
+- **Exit from `psql`**:
+  ```bash
+  \q
+  ```
+
+### 2. **Help and Information:**
+
+- **Get help on SQL commands**:
+  ```bash
+  \h
+  ```
+- **Get help on a specific SQL command**:
+  ```bash
+  \h command_name
+  ```
+- **List all available psql commands**:
+  ```bash
+  \?
+  ```
+- **Display current database connection information**:
+  ```bash
+  \conninfo
+  ```
+
+### 3. **Database Management:**
+
+- **List all databases**:
+  ```bash
+  \l
+  ```
+- **Switch to another database**:
+  ```bash
+  \c database_name
+  ```
+
+### 4. **User and Role Management:**
+
+- **List all users and roles**:
+  ```bash
+  \du
+  ```
+
+### 5. **Schema and Table Management:**
+
+- **List all schemas**:
+  ```bash
+  \dn
+  ```
+- **List all tables in the current database**:
+  ```bash
+  \dt
+  ```
+- **List all tables in a specific schema**:
+  ```bash
+  \dt schema_name.*
+  ```
+- **Describe a table's structure**:
+  ```bash
+  \d table_name
+  ```
+
+### 6. **Query History and Command Editing:**
+
+- **View command history**:
+  ```bash
+  \s
+  ```
+- **Edit command in an external editor**:
+  ```bash
+  \e
+  ```
+
+### 7. **Database Objects:**
+
+- **List all indexes**:
+  ```bash
+  \di
+  ```
+- **List all sequences**:
+  ```bash
+  \ds
+  ```
+- **List all views**:
+  ```bash
+  \dv
+  ```
+
+### 8. **Managing Output:**
+
+- **Set output format (aligned, unaligned)**:
+  ```bash
+  \a
+  ```
+- **Set expanded output (useful for wide tables)**:
+  ```bash
+  \x
+  ```
+- **Save query output to a file**:
+  ```bash
+  \o filename
+  ```
+- **Clear output destination (reset back to console)**:
+  ```bash
+  \o
+  ```
+
+### 9. **Transaction Management:**
+
+- **Begin a transaction**:
+  ```bash
+  BEGIN;
+  ```
+- **Commit a transaction**:
+  ```bash
+  COMMIT;
+  ```
+- **Rollback a transaction**:
+  ```bash
+  ROLLBACK;
+  ```
+
+### 10. **File Handling:**
+
+- **Execute commands from a file**:
+  ```bash
+  \i filename.sql
+  ```
+
+### 11. **Variables and Settings:**
+
+- **Show current settings**:
+  ```bash
+  SHOW ALL;
+  ```
+- **Set a psql variable**:
+  ```bash
+  \set varname value
+  ```
+- **Unset a variable**:
+  ```bash
+  \unset varname
+  ```
+
+### 12. **Monitoring and Debugging:**
+
+- **List currently running queries (sessions)**:
+  ```bash
+  \watch 1
+  ```
+- **List active database connections**:
+  ```bash
+  \qecho
+  ```
+
+---
+
+Here are **additional advanced and useful CLI commands** for PostgreSQL’s `psql` interface to enhance your productivity:
+
+### 1. **Advanced Information Commands:**
+
+- **Show all tables with their sizes**:
+  ```bash
+  \dt+
+  ```
+- **Show detailed information about indexes**:
+  ```bash
+  \di+
+  ```
+- **Show sequences with detailed information**:
+  ```bash
+  \ds+
+  ```
+- **Show a function's definition**:
+  ```bash
+  \df+ function_name
+  ```
+- **List functions with their argument types**:
+  ```bash
+  \df
+  ```
+
+### 2. **Database Size and Disk Usage:**
+
+- **Show the size of a specific database**:
+  ```bash
+  \l+
+  ```
+- **Show the size of a specific table**:
+  ```bash
+  SELECT pg_size_pretty(pg_total_relation_size('table_name'));
+  ```
+- **Show size of each database**:
+  ```bash
+  SELECT pg_size_pretty(pg_database_size('database_name'));
+  ```
+
+### 3. **Search and Filtering Commands:**
+
+- **Search for a specific table (pattern matching)**:
+  ```bash
+  \dt *pattern*
+  ```
+- **Search for a specific function by name**:
+  ```bash
+  \df *pattern*
+  ```
+- **Search for specific columns in tables**:
+  ```bash
+  \d+ table_name
+  ```
+
+### 4. **Data Export and Import:**
+
+- **Export query results to a CSV file**:
+  ```bash
+  \COPY (SELECT * FROM table_name) TO 'output.csv' WITH CSV HEADER;
+  ```
+- **Import data from a CSV file into a table**:
+  ```bash
+  \COPY table_name FROM 'input.csv' WITH CSV HEADER;
+  ```
+
+### 5. **Profiling and Performance Monitoring:**
+
+- **Check currently running queries**:
+  ```bash
+  SELECT * FROM pg_stat_activity;
+  ```
+- **Show the execution plan of a query**:
+  ```bash
+  EXPLAIN SELECT * FROM table_name;
+  ```
+- **Show the execution plan with actual execution times (for analyzing performance)**:
+  ```bash
+  EXPLAIN ANALYZE SELECT * FROM table_name;
+  ```
+- **Show index usage statistics**:
+  ```bash
+  SELECT * FROM pg_stat_user_indexes;
+  ```
+
+### 6. **Customization and Output Control:**
+
+- **Customize prompt (e.g., include database name)**:
+  ```bash
+  \set PROMPT1 '%n@%/%R%# '
+  ```
+- **Show query output vertically (expanded output)**:
+  ```bash
+  \x on
+  ```
+
+### 7. **Transaction and Lock Management:**
+
+- **List all locks held by running transactions**:
+  ```bash
+  SELECT * FROM pg_locks;
+  ```
+- **Kill a running query by its PID**:
+  ```bash
+  SELECT pg_cancel_backend(PID);
+  ```
+- **Terminate a session by its PID**:
+  ```bash
+  SELECT pg_terminate_backend(PID);
+  ```
+
+### 8. **Session Management:**
+
+- **Set the search path for schemas**:
+  ```bash
+  SET search_path TO schema_name;
+  ```
+- **Show the current schema search path**:
+  ```bash
+  SHOW search_path;
+  ```
+- **Change the current database schema**:
+  ```bash
+  SET SCHEMA 'schema_name';
+  ```
+
+### 9. **View and Manage Constraints:**
+
+- **List all constraints in a table**:
+  ```bash
+  \d table_name
+  ```
+- **List foreign key constraints**:
+  ```bash
+  SELECT * FROM information_schema.table_constraints WHERE constraint_type = 'FOREIGN KEY';
+  ```
+
+### 10. **PostgreSQL Extensions:**
+
+- **List installed extensions**:
+  ```bash
+  \dx
+  ```
+- **Install an extension (e.g., for full-text search or GIS support)**:
+  ```bash
+  CREATE EXTENSION extension_name;
+  ```
+- **Uninstall an extension**:
+  ```bash
+  DROP EXTENSION extension_name;
+  ```
+
+### 11. **Change Output Options:**
+
+- **Switch between aligned and unaligned output formats** (useful for copying data):
+  ```bash
+  \a
+  ```
+- **Change the field separator for unaligned output**:
+  ```bash
+  \pset fieldsep ','
+  ```
+- **Switch to CSV output**:
+  ```bash
+  \pset format csv
+  ```
+
+### 12. **Server-Level Operations:**
+
+- **Show server version**:
+  ```bash
+  SHOW server_version;
+  ```
+- **Restart the PostgreSQL server** (requires admin privileges):
+  ```bash
+  sudo systemctl restart postgresql
+  ```
+- **Check PostgreSQL service status**:
+  ```bash
+  sudo systemctl status postgresql
+  ```
+
+### 13. **Environment Variables**:
+
+- **Set variables to use in queries** (e.g., for dynamic querying):
+  ```bash
+  \set varname value
+  ```
+- **Use the variable in a query**:
+  ```bash
+  SELECT * FROM table_name WHERE column_name = :'varname';
+  ```
+
+### 14. **Autocommit Mode**:
+
+- **Turn off autocommit mode** (to manually control transactions):
+  ```bash
+  \set AUTOCOMMIT off
+  ```
+- **Turn autocommit mode back on**:
+  ```bash
+  \set AUTOCOMMIT on
+  ```
+
+### 15. **Parallel Query Execution (for large databases):**
+
+- **Enable parallel query execution**:
+  ```bash
+  SET max_parallel_workers_per_gather = 4;
+  ```
+- **Check if parallel query execution is being used**:
+  ```bash
+  EXPLAIN ANALYZE SELECT * FROM table_name;
+  ```
+
+### 16. **History and Automation:**
+
+- **Replay previous commands**:
+  ```bash
+  \s filename
+  ```
+- **Automate commands by saving them in a script** and executing it:
+  ```bash
+  \i filename.sql
+  ```
+
+### 17. **Language Support:**
+
+- **List installed procedural languages**:
+  ```bash
+  \dL
+  ```
+- **Add a new procedural language**:
+  ```bash
+  CREATE LANGUAGE plpgsql;
+  ```

@@ -1,0 +1,1327 @@
+Recursive Common Table Expressions (CTEs) in PostgreSQL are a powerful feature for working with hierarchical data or performing tasks that require recursive processing. Below are some complete implementations of recursive CTEs in scenarios, including examples.
+
+### 1. **Hierarchical Data Representation**
+
+One of the most common uses of recursive CTEs is to represent hierarchical data, such as organizational charts or category trees.
+
+#### Example: Employee Hierarchy
+
+Consider a table `employees` that has a structure to represent employees and their managers:
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    manager_id INT REFERENCES employees(id)
+);
+
+INSERT INTO employees (name, manager_id) VALUES
+('Alice', NULL),
+('Bob', 1),
+('Charlie', 1),
+('David', 2),
+('Eve', 2),
+('Frank', 3);
+```
+
+#### Recursive CTE to Retrieve the Hierarchy
+
+This CTE retrieves the hierarchy of employees starting from a specific employee (e.g., Alice):
+
+```sql
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 0 AS level
+    FROM employees
+    WHERE name = 'Alice'  -- Starting point
+
+    UNION ALL
+
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    INNER JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT * FROM employee_hierarchy;
+```
+
+**Explanation:**
+
+- The first part of the CTE selects the starting employee (Alice) and initializes the `level` to 0.
+- The second part joins the `employees` table with the CTE itself to find all employees managed by the current level and increments the level.
+- The final SELECT retrieves all records from the CTE.
+
+### 2. **Path Finding in Graphs**
+
+Another practical application is finding paths in graph-like structures, such as in social networks or dependency trees.
+
+#### Example: Graph Path Finding
+
+Assume we have a table `connections` that describes relationships between nodes:
+
+```sql
+CREATE TABLE connections (
+    source INT,
+    target INT
+);
+
+INSERT INTO connections (source, target) VALUES
+(1, 2),
+(1, 3),
+(2, 4),
+(2, 5),
+(3, 6),
+(4, 7),
+(5, 8);
+```
+
+#### Recursive CTE to Find All Paths from a Node
+
+This CTE finds all paths starting from node 1:
+
+```sql
+WITH RECURSIVE paths AS (
+    SELECT source, target, ARRAY[target] AS path
+    FROM connections
+    WHERE source = 1  -- Starting point
+
+    UNION ALL
+
+    SELECT c.source, c.target, p.path || c.target
+    FROM connections c
+    JOIN paths p ON c.source = p.target
+)
+SELECT * FROM paths;
+```
+
+**Explanation:**
+
+- The first part selects direct connections from the starting node.
+- The second part recursively joins to find further connections and appends them to the current path using the `ARRAY` data type.
+- The final SELECT retrieves all paths found.
+
+### 3. **Fibonacci Sequence Generation**
+
+Recursive CTEs can also be used for generating sequences, such as the Fibonacci sequence.
+
+#### Example: Generating Fibonacci Numbers
+
+```sql
+WITH RECURSIVE fibonacci(n, fib) AS (
+    SELECT 1, 0  -- First Fibonacci number (0)
+    UNION ALL
+    SELECT n + 1, fib + (SELECT fib FROM fibonacci WHERE n = fibonacci.n - 1)
+    FROM fibonacci
+    WHERE n < 10  -- Generate first 10 Fibonacci numbers
+)
+SELECT * FROM fibonacci;
+```
+
+**Explanation:**
+
+- The base case initializes the first Fibonacci number (0).
+- The recursive case computes the next Fibonacci number by summing the last two computed values.
+- The final SELECT retrieves the Fibonacci numbers generated.
+
+### 4. **Bill of Materials**
+
+A recursive CTE can be utilized to model a bill of materials where components may consist of other sub-components.
+
+#### Example: Bill of Materials
+
+Suppose you have a `parts` table that describes parts and their sub-parts:
+
+```sql
+CREATE TABLE parts (
+    id SERIAL PRIMARY KEY,
+    part_name VARCHAR(100),
+    parent_id INT REFERENCES parts(id)
+);
+
+INSERT INTO parts (part_name, parent_id) VALUES
+('Assembly', NULL),
+('Part A', 1),
+('Part B', 1),
+('Sub-part A1', 2),
+('Sub-part A2', 2),
+('Sub-part B1', 3);
+```
+
+#### Recursive CTE to Retrieve Full Bill of Materials
+
+To get the full list of components for an assembly:
+
+```sql
+WITH RECURSIVE bill_of_materials AS (
+    SELECT id, part_name, parent_id
+    FROM parts
+    WHERE part_name = 'Assembly'  -- Starting point
+
+    UNION ALL
+
+    SELECT p.id, p.part_name, p.parent_id
+    FROM parts p
+    INNER JOIN bill_of_materials bom ON p.parent_id = bom.id
+)
+SELECT * FROM bill_of_materials;
+```
+
+**Explanation:**
+
+- The base query selects the main assembly.
+- The recursive query joins to find all parts that belong to the current assembly level.
+- The final SELECT retrieves the complete bill of materials.
+
+---
+
+### 5. **Finding Circular References**
+
+In scenarios where relationships can be circular (like in organizational structures or dependency graphs), a recursive CTE can help identify such cycles.
+
+#### Example: Detecting Circular Dependencies
+
+Imagine a project management table that tracks tasks and their dependencies:
+
+```sql
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    task_name VARCHAR(100),
+    depends_on INT REFERENCES tasks(id)
+);
+
+INSERT INTO tasks (task_name, depends_on) VALUES
+('Task 1', NULL),
+('Task 2', 1),
+('Task 3', 2),
+('Task 4', 3),
+('Task 5', 2),
+('Task 6', 4),
+('Task 7', 3),
+('Task 8', 1),
+('Task 9', 8),
+('Task 10', 9),
+('Task 11', 3); -- Creates a circular reference with Task 3
+```
+
+#### Recursive CTE to Detect Cycles
+
+```sql
+WITH RECURSIVE task_dependencies AS (
+    SELECT id, task_name, depends_on, ARRAY[id] AS path
+    FROM tasks
+    WHERE depends_on IS NULL  -- Start with root tasks
+
+    UNION ALL
+
+    SELECT t.id, t.task_name, t.depends_on, path || t.id
+    FROM tasks t
+    JOIN task_dependencies td ON t.depends_on = td.id
+    WHERE NOT t.id = ANY(path)  -- Prevent cycles
+)
+SELECT * FROM task_dependencies
+WHERE task_name = 'Task 3';  -- Check dependencies for Task 3
+```
+
+**Explanation:**
+
+- The CTE starts from tasks without dependencies.
+- It checks if a task is already in the path to prevent cycles.
+- The final SELECT queries dependencies for a specific task.
+
+### 6. **Calculating Hierarchical Totals**
+
+In financial applications, you might need to calculate totals for parent categories based on their subcategories.
+
+#### Example: Product Categories
+
+Assume you have a `categories` table representing a category hierarchy for products:
+
+```sql
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    category_name VARCHAR(100),
+    parent_id INT REFERENCES categories(id),
+    sales_amount NUMERIC
+);
+
+INSERT INTO categories (category_name, parent_id, sales_amount) VALUES
+('Electronics', NULL, 0),
+('Computers', 1, 0),
+('Laptops', 2, 2000),
+('Desktops', 2, 3000),
+('Mobile Phones', 1, 5000);
+```
+
+#### Recursive CTE to Calculate Total Sales for Each Category
+
+```sql
+WITH RECURSIVE category_sales AS (
+    SELECT id, category_name, sales_amount
+    FROM categories
+    WHERE parent_id IS NULL  -- Start from root categories
+
+    UNION ALL
+
+    SELECT c.id, c.category_name, cs.sales_amount + c.sales_amount
+    FROM categories c
+    JOIN category_sales cs ON c.parent_id = cs.id
+)
+SELECT category_name, SUM(sales_amount) AS total_sales
+FROM category_sales
+GROUP BY category_name;
+```
+
+**Explanation:**
+
+- The CTE initializes with root categories.
+- It accumulates sales from subcategories as it traverses the hierarchy.
+- The final SELECT sums up the total sales per category.
+
+### 7. **Generating Date Series**
+
+Recursive CTEs can be useful for generating sequences of dates for reporting purposes.
+
+#### Example: Generating a Date Range
+
+Suppose you want to generate a list of dates for the current month:
+
+```sql
+WITH RECURSIVE date_series AS (
+    SELECT CURRENT_DATE - (EXTRACT(DAY FROM CURRENT_DATE) - 1) AS date  -- First day of the month
+    UNION ALL
+    SELECT date + INTERVAL '1 day'
+    FROM date_series
+    WHERE date + INTERVAL '1 day' < CURRENT_DATE + INTERVAL '1 month'  -- Until the next month
+)
+SELECT * FROM date_series;
+```
+
+**Explanation:**
+
+- The CTE starts with the first day of the current month.
+- It recursively adds one day until the next month is reached.
+- The final SELECT retrieves all the generated dates.
+
+### 8. **Social Network Friendships**
+
+In social networks, recursive CTEs can be used to find friends of friends (2nd-degree connections).
+
+#### Example: Social Network Connections
+
+Suppose you have a `friends` table representing relationships:
+
+```sql
+CREATE TABLE friends (
+    user_id INT,
+    friend_id INT
+);
+
+INSERT INTO friends (user_id, friend_id) VALUES
+(1, 2),
+(1, 3),
+(2, 4),
+(2, 5),
+(3, 6),
+(4, 7),
+(5, 1),  -- Creates a circular reference
+(6, 1);
+```
+
+#### Recursive CTE to Find Friends of Friends
+
+```sql
+WITH RECURSIVE friend_circle AS (
+    SELECT user_id, friend_id
+    FROM friends
+    WHERE user_id = 1  -- Starting user
+
+    UNION ALL
+
+    SELECT f.user_id, f.friend_id
+    FROM friends f
+    JOIN friend_circle fc ON f.user_id = fc.friend_id
+)
+SELECT DISTINCT friend_id
+FROM friend_circle
+WHERE friend_id != 1;  -- Exclude the starting user
+```
+
+**Explanation:**
+
+- The CTE starts with the immediate friends of user 1.
+- It recursively joins to find friends of friends.
+- The final SELECT retrieves distinct 2nd-degree connections.
+
+### 9. **File System Navigation**
+
+Recursive CTEs can model a file system where folders contain subfolders.
+
+#### Example: File Structure
+
+Suppose you have a `files` table:
+
+```sql
+CREATE TABLE files (
+    id SERIAL PRIMARY KEY,
+    file_name VARCHAR(100),
+    parent_id INT REFERENCES files(id)
+);
+
+INSERT INTO files (file_name, parent_id) VALUES
+('root', NULL),
+('folder1', 1),
+('folder2', 1),
+('file1.txt', 2),
+('file2.txt', 2),
+('subfolder1', 3),
+('file3.txt', 6);
+```
+
+#### Recursive CTE to List All Files in a Folder
+
+To list all files within a specific folder:
+
+```sql
+WITH RECURSIVE file_structure AS (
+    SELECT id, file_name
+    FROM files
+    WHERE file_name = 'folder1'  -- Starting point
+
+    UNION ALL
+
+    SELECT f.id, f.file_name
+    FROM files f
+    JOIN file_structure fs ON f.parent_id = fs.id
+)
+SELECT * FROM file_structure;
+```
+
+**Explanation:**
+
+- The CTE starts from the specified folder.
+- It recursively joins to find all files and subfolders.
+- The final SELECT retrieves the entire file structure.
+
+### 10. **Tournament Bracket Generation**
+
+In sports tournaments, a recursive CTE can be used to create a bracket structure based on match results.
+
+#### Example: Tournament Matches
+
+```sql
+CREATE TABLE matches (
+    id SERIAL PRIMARY KEY,
+    round_number INT,
+    match_id INT,
+    winner_id INT
+);
+
+INSERT INTO matches (round_number, match_id, winner_id) VALUES
+(1, 1, 1),
+(1, 2, 2),
+(2, 3, 1),
+(2, 4, 2);
+```
+
+#### Recursive CTE to Generate Bracket
+
+```sql
+WITH RECURSIVE tournament_bracket AS (
+    SELECT round_number, match_id, winner_id
+    FROM matches
+    WHERE round_number = 1  -- Starting with the first round
+
+    UNION ALL
+
+    SELECT m.round_number, m.match_id, m.winner_id
+    FROM matches m
+    JOIN tournament_bracket tb ON m.round_number = tb.round_number + 1
+    WHERE tb.winner_id IN (m.match_id)
+)
+SELECT * FROM tournament_bracket;
+```
+
+**Explanation:**
+
+- The CTE starts from the first round of matches.
+- It recursively joins to determine winners for subsequent rounds.
+- The final SELECT retrieves the tournament bracket.
+
+---
+
+### 11. **Network Routing**
+
+In networking, recursive CTEs can be used to find the shortest path or all possible paths in a network.
+
+#### Example: Network Connections
+
+Suppose you have a `network` table representing connections between devices:
+
+```sql
+CREATE TABLE network (
+    device_id INT,
+    connected_to INT
+);
+
+INSERT INTO network (device_id, connected_to) VALUES
+(1, 2),
+(1, 3),
+(2, 4),
+(3, 4),
+(3, 5),
+(4, 6);
+```
+
+#### Recursive CTE to Find All Paths from a Device
+
+```sql
+WITH RECURSIVE network_paths AS (
+    SELECT device_id, connected_to, ARRAY[device_id, connected_to] AS path
+    FROM network
+    WHERE device_id = 1  -- Starting device
+
+    UNION ALL
+
+    SELECT n.device_id, n.connected_to, np.path || n.connected_to
+    FROM network n
+    JOIN network_paths np ON n.device_id = np.connected_to
+    WHERE NOT n.connected_to = ANY(np.path)  -- Prevent cycles
+)
+SELECT * FROM network_paths;
+```
+
+**Explanation:**
+
+- The CTE starts with the specified device.
+- It recursively joins to find all connected devices, avoiding cycles.
+- The final SELECT retrieves all paths found.
+
+### 12. **Organizational Chart with Levels**
+
+You can represent an organizational chart while also showing the levels of hierarchy.
+
+#### Example: Extended Employee Hierarchy
+
+Using the earlier `employees` table:
+
+```sql
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 0 AS level
+    FROM employees
+    WHERE name = 'Alice'  -- Starting employee
+
+    UNION ALL
+
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT id, name, level
+FROM employee_hierarchy;
+```
+
+**Explanation:**
+
+- This CTE not only retrieves employees but also calculates their level in the hierarchy.
+- The final SELECT shows the employee name along with their level.
+
+### 13. **Employee Salary Calculation**
+
+You might want to calculate total salary expenditures for departments based on employee salary hierarchies.
+
+#### Example: Employee Salaries
+
+Assume you have a `salaries` table:
+
+```sql
+CREATE TABLE salaries (
+    employee_id INT,
+    salary NUMERIC,
+    manager_id INT REFERENCES employees(employee_id)
+);
+
+INSERT INTO salaries (employee_id, salary, manager_id) VALUES
+(1, 100000, NULL),
+(2, 60000, 1),
+(3, 70000, 1),
+(4, 50000, 2),
+(5, 45000, 2),
+(6, 55000, 3);
+```
+
+#### Recursive CTE to Calculate Total Salary by Department
+
+```sql
+WITH RECURSIVE salary_totals AS (
+    SELECT employee_id, salary, manager_id
+    FROM salaries
+    WHERE manager_id IS NULL  -- Start with top management
+
+    UNION ALL
+
+    SELECT s.employee_id, s.salary, s.manager_id
+    FROM salaries s
+    JOIN salary_totals st ON s.manager_id = st.employee_id
+)
+SELECT SUM(salary) AS total_salary
+FROM salary_totals;
+```
+
+**Explanation:**
+
+- This CTE computes total salary expenses for all employees under each manager.
+- The final SELECT sums up the salaries.
+
+### 14. **Multi-Level Marketing Structure**
+
+In multi-level marketing (MLM) systems, recursive CTEs can track downline representatives.
+
+#### Example: MLM Representatives
+
+Suppose you have a table that tracks representatives and their sponsors:
+
+```sql
+CREATE TABLE mlm (
+    representative_id INT,
+    sponsor_id INT
+);
+
+INSERT INTO mlm (representative_id, sponsor_id) VALUES
+(1, NULL),  -- Top-level sponsor
+(2, 1),
+(3, 1),
+(4, 2),
+(5, 2),
+(6, 3);
+```
+
+#### Recursive CTE to Find All Downline Representatives
+
+```sql
+WITH RECURSIVE downline AS (
+    SELECT representative_id, sponsor_id
+    FROM mlm
+    WHERE sponsor_id IS NULL  -- Start with the top-level sponsor
+
+    UNION ALL
+
+    SELECT m.representative_id, m.sponsor_id
+    FROM mlm m
+    JOIN downline d ON m.sponsor_id = d.representative_id
+)
+SELECT * FROM downline;
+```
+
+**Explanation:**
+
+- This CTE starts with the top-level sponsor and retrieves all representatives under them.
+- The final SELECT retrieves the full downline.
+
+### 15. **Cumulative Sales Over Time**
+
+In sales reporting, recursive CTEs can help calculate cumulative sales over time.
+
+#### Example: Monthly Sales Data
+
+Assume you have a `monthly_sales` table:
+
+```sql
+CREATE TABLE monthly_sales (
+    month DATE,
+    sales_amount NUMERIC
+);
+
+INSERT INTO monthly_sales (month, sales_amount) VALUES
+('2024-01-01', 1000),
+('2024-02-01', 1500),
+('2024-03-01', 2000),
+('2024-04-01', 2500);
+```
+
+#### Recursive CTE to Calculate Cumulative Sales
+
+```sql
+WITH RECURSIVE cumulative_sales AS (
+    SELECT month, sales_amount, sales_amount AS cumulative_amount
+    FROM monthly_sales
+    WHERE month = (SELECT MIN(month) FROM monthly_sales)  -- Start from the earliest month
+
+    UNION ALL
+
+    SELECT ms.month, ms.sales_amount, cs.cumulative_amount + ms.sales_amount
+    FROM monthly_sales ms
+    JOIN cumulative_sales cs ON ms.month = (SELECT MIN(month) FROM monthly_sales WHERE month > cs.month)
+)
+SELECT month, cumulative_amount
+FROM cumulative_sales;
+```
+
+**Explanation:**
+
+- This CTE calculates cumulative sales by adding current month sales to the previous cumulative amount.
+- The final SELECT retrieves the month and cumulative sales amount.
+
+### 16. **Family Tree Representation**
+
+Recursive CTEs can be used to represent family relationships, showing descendants of a person.
+
+#### Example: Family Relationships
+
+Assuming you have a `family` table:
+
+```sql
+CREATE TABLE family (
+    person_id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    parent_id INT REFERENCES family(person_id)
+);
+
+INSERT INTO family (name, parent_id) VALUES
+('Grandparent', NULL),
+('Parent', 1),
+('Aunt', 1),
+('Child', 2),
+('Cousin', 3);
+```
+
+#### Recursive CTE to Retrieve Descendants
+
+```sql
+WITH RECURSIVE family_tree AS (
+    SELECT person_id, name
+    FROM family
+    WHERE name = 'Grandparent'  -- Starting point
+
+    UNION ALL
+
+    SELECT f.person_id, f.name
+    FROM family f
+    JOIN family_tree ft ON f.parent_id = ft.person_id
+)
+SELECT * FROM family_tree;
+```
+
+**Explanation:**
+
+- This CTE starts from a specified ancestor and retrieves all descendants.
+- The final SELECT lists all family members related to the ancestor.
+
+### 17. **Course Prerequisites**
+
+In educational systems, recursive CTEs can represent course prerequisites.
+
+#### Example: Course Prerequisites
+
+Consider a `courses` table that lists courses and their prerequisites:
+
+```sql
+CREATE TABLE courses (
+    course_id SERIAL PRIMARY KEY,
+    course_name VARCHAR(100),
+    prerequisite_id INT REFERENCES courses(course_id)
+);
+
+INSERT INTO courses (course_name, prerequisite_id) VALUES
+('Course A', NULL),
+('Course B', 1),
+('Course C', 2),
+('Course D', 2);
+```
+
+#### Recursive CTE to Find All Prerequisites for a Course
+
+```sql
+WITH RECURSIVE course_prerequisites AS (
+    SELECT course_id, course_name
+    FROM courses
+    WHERE course_name = 'Course C'  -- Starting course
+
+    UNION ALL
+
+    SELECT c.course_id, c.course_name
+    FROM courses c
+    JOIN course_prerequisites cp ON c.course_id = cp.prerequisite_id
+)
+SELECT * FROM course_prerequisites;
+```
+
+**Explanation:**
+
+- This CTE starts with a specific course and retrieves all its prerequisites.
+- The final SELECT lists the prerequisites needed for a particular course.
+
+### 18. **Content Management Systems (CMS)**
+
+Recursive CTEs can manage nested content structures, such as articles with categories and subcategories.
+
+#### Example: Articles and Categories
+
+Assuming you have a `categories` table related to articles:
+
+```sql
+CREATE TABLE categories (
+    id SERIAL PRIMARY KEY,
+    category_name VARCHAR(100),
+    parent_id INT REFERENCES categories(id)
+);
+
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(100),
+    category_id INT REFERENCES categories(id)
+);
+
+INSERT INTO categories (category_name, parent_id) VALUES
+('Technology', NULL),
+('Programming', 1),
+('Web Development', 2),
+('Databases', 2);
+
+INSERT INTO articles (title, category_id) VALUES
+('Intro to Web Development', 3),
+('Understanding Databases', 4);
+```
+
+#### Recursive CTE to Retrieve Articles by Category
+
+```sql
+WITH RECURSIVE category_tree AS (
+    SELECT id, category_name
+    FROM categories
+    WHERE category_name = 'Technology'  -- Starting category
+
+    UNION ALL
+
+    SELECT c.id, c.category_name
+    FROM categories c
+    JOIN category_tree ct ON c.parent_id = ct.id
+)
+SELECT a.title
+FROM articles a
+JOIN category_tree ct ON a.category_id = ct.id;
+```
+
+**Explanation:**
+
+- This CTE retrieves all subcategories of a specified category.
+- The final SELECT lists articles belonging to those categories.
+
+### 19. **Weather Data Aggregation**
+
+In meteorological analysis, recursive CTEs can summarize daily weather data into weekly reports.
+
+#### Example: Daily Weather Data
+
+Suppose you have a `weather` table:
+
+```sql
+CREATE TABLE weather (
+    date DATE,
+    temperature NUMERIC,
+    precipitation NUMERIC
+);
+
+INSERT INTO weather (date, temperature, precipitation) VALUES
+('2024-10-01', 75, 0),
+('2024-10-02', 70, 0),
+('2024-10-03', 68, 0.2),
+('2024-10-04', 72, 0),
+('2024-10-05', 74, 0.5);
+```
+
+#### Recursive CTE to Aggregate Weekly Weather
+
+```sql
+WITH RECURSIVE weekly_weather AS (
+    SELECT date, temperature, precipitation,
+           DATE_TRUNC('week', date) AS week_start
+    FROM weather
+    WHERE date = '2024-10-01'  -- Starting date for the first week
+
+    UNION ALL
+
+    SELECT w.date, w.temperature, w.precipitation,
+           DATE_TRUNC('week', w.date) AS week_start
+    FROM weather w
+    JOIN weekly_weather ww ON DATE_TRUNC('week', w.date) = ww.week_start
+    WHERE w.date > ww.date  -- Include only future dates
+)
+SELECT week_start, AVG(temperature) AS avg_temperature, SUM(precipitation) AS total_precipitation
+FROM weekly_weather
+GROUP BY week_start;
+```
+
+**Explanation:**
+
+- This CTE aggregates daily weather into weekly summaries.
+- The final SELECT retrieves average temperatures and total precipitation for each week.
+
+### 20. **Project Management Task Dependencies**
+
+In project management, recursive CTEs can be used to visualize and manage task dependencies.
+
+#### Example: Tasks with Dependencies
+
+Assume a `tasks` table:
+
+```sql
+CREATE TABLE tasks (
+    task_id SERIAL PRIMARY KEY,
+    task_name VARCHAR(100),
+    depends_on INT REFERENCES tasks(task_id)
+);
+
+INSERT INTO tasks (task_name, depends_on) VALUES
+('Project Planning', NULL),
+('Design', 1),
+('Development', 2),
+('Testing', 3),
+('Deployment', 3);
+```
+
+#### Recursive CTE to List Tasks and Their Dependencies
+
+```sql
+WITH RECURSIVE task_dependencies AS (
+    SELECT task_id, task_name, depends_on
+    FROM tasks
+    WHERE task_name = 'Project Planning'  -- Starting task
+
+    UNION ALL
+
+    SELECT t.task_id, t.task_name, t.depends_on
+    FROM tasks t
+    JOIN task_dependencies td ON t.depends_on = td.task_id
+)
+SELECT * FROM task_dependencies;
+```
+
+**Explanation:**
+
+- This CTE starts from a specific task and retrieves all dependent tasks.
+- The final SELECT lists all tasks along with their dependencies.
+
+---
+
+### 21. **Task Scheduling with Recurring Events**
+
+Recursive CTEs can be used to generate a schedule for recurring events (like meetings or deadlines).
+
+#### Example: Recurring Events
+
+Suppose you have a `recurring_events` table:
+
+```sql
+CREATE TABLE recurring_events (
+    id SERIAL PRIMARY KEY,
+    event_name VARCHAR(100),
+    start_date DATE,
+    recurrence_interval INTERVAL
+);
+
+INSERT INTO recurring_events (event_name, start_date, recurrence_interval) VALUES
+('Weekly Team Meeting', '2024-10-01', '1 week'),
+('Monthly Report Submission', '2024-10-01', '1 month');
+```
+
+#### Recursive CTE to Generate Event Dates
+
+```sql
+WITH RECURSIVE event_dates AS (
+    SELECT id, event_name, start_date AS event_date, recurrence_interval
+    FROM recurring_events
+
+    UNION ALL
+
+    SELECT e.id, e.event_name, ed.event_date + e.recurrence_interval, e.recurrence_interval
+    FROM recurring_events e
+    JOIN event_dates ed ON e.id = ed.id
+    WHERE ed.event_date + e.recurrence_interval < '2025-01-01'  -- Limit to a specific end date
+)
+SELECT * FROM event_dates;
+```
+
+**Explanation:**
+
+- The CTE generates dates for recurring events based on their start date and recurrence interval.
+- The final SELECT retrieves all occurrences until the specified end date.
+
+### 22. **Finding Ancestry in Genealogy**
+
+In genealogy applications, recursive CTEs can help trace ancestry by finding all ancestors of a given person.
+
+#### Example: Ancestry Relationships
+
+Assuming you have a `family_tree` table:
+
+```sql
+CREATE TABLE family_tree (
+    person_id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    parent_id INT REFERENCES family_tree(person_id)
+);
+
+INSERT INTO family_tree (name, parent_id) VALUES
+('Grandfather', NULL),
+('Father', 1),
+('Uncle', 1),
+('Me', 2);
+```
+
+#### Recursive CTE to Trace Ancestry
+
+```sql
+WITH RECURSIVE ancestry AS (
+    SELECT person_id, name
+    FROM family_tree
+    WHERE name = 'Me'  -- Starting point
+
+    UNION ALL
+
+    SELECT ft.person_id, ft.name
+    FROM family_tree ft
+    JOIN ancestry a ON ft.person_id = a.parent_id
+)
+SELECT * FROM ancestry;
+```
+
+**Explanation:**
+
+- The CTE traces all ancestors of the specified person.
+- The final SELECT retrieves the names of all ancestors.
+
+### 23. **Document Hierarchy Management**
+
+Recursive CTEs can manage hierarchical document structures like folders and subfolders in a document management system.
+
+#### Example: Document Folders
+
+Assuming you have a `documents` table:
+
+```sql
+CREATE TABLE documents (
+    doc_id SERIAL PRIMARY KEY,
+    doc_name VARCHAR(100),
+    parent_id INT REFERENCES documents(doc_id)
+);
+
+INSERT INTO documents (doc_name, parent_id) VALUES
+('Root Document', NULL),
+('Folder 1', 1),
+('Folder 2', 1),
+('Document A', 2),
+('Document B', 2),
+('Document C', 3);
+```
+
+#### Recursive CTE to List Documents in a Folder
+
+```sql
+WITH RECURSIVE document_hierarchy AS (
+    SELECT doc_id, doc_name
+    FROM documents
+    WHERE doc_name = 'Folder 1'  -- Starting folder
+
+    UNION ALL
+
+    SELECT d.doc_id, d.doc_name
+    FROM documents d
+    JOIN document_hierarchy dh ON d.parent_id = dh.doc_id
+)
+SELECT * FROM document_hierarchy;
+```
+
+**Explanation:**
+
+- The CTE retrieves all documents within a specified folder and its subfolders.
+- The final SELECT lists all documents under the chosen folder.
+
+### 24. **E-commerce Product Category Navigation**
+
+In e-commerce systems, recursive CTEs can manage product categories and subcategories.
+
+#### Example: Product Categories
+
+Assuming you have a `product_categories` table:
+
+```sql
+CREATE TABLE product_categories (
+    category_id SERIAL PRIMARY KEY,
+    category_name VARCHAR(100),
+    parent_id INT REFERENCES product_categories(category_id)
+);
+
+INSERT INTO product_categories (category_name, parent_id) VALUES
+('Electronics', NULL),
+('Computers', 1),
+('Laptops', 2),
+('Desktops', 2),
+('Mobile Phones', 1);
+```
+
+#### Recursive CTE to List All Categories
+
+```sql
+WITH RECURSIVE category_hierarchy AS (
+    SELECT category_id, category_name
+    FROM product_categories
+    WHERE category_name = 'Electronics'  -- Starting category
+
+    UNION ALL
+
+    SELECT pc.category_id, pc.category_name
+    FROM product_categories pc
+    JOIN category_hierarchy ch ON pc.parent_id = ch.category_id
+)
+SELECT * FROM category_hierarchy;
+```
+
+**Explanation:**
+
+- This CTE retrieves all product categories under the specified parent category.
+- The final SELECT lists all related categories.
+
+### 25. **Calculating Fibonacci Numbers**
+
+Recursive CTEs can generate Fibonacci numbers, which can be useful in mathematical or algorithmic applications.
+
+#### Example: Fibonacci Series
+
+```sql
+WITH RECURSIVE fibonacci AS (
+    SELECT 0 AS n, 0 AS fib
+    UNION ALL
+    SELECT 1, 1
+    UNION ALL
+    SELECT n + 1, fib + (SELECT fib FROM fibonacci WHERE n = n - 1)
+    FROM fibonacci
+    WHERE n < 20  -- Limit to the first 20 Fibonacci numbers
+)
+SELECT fib FROM fibonacci;
+```
+
+**Explanation:**
+
+- The CTE initializes with the first two Fibonacci numbers and then generates the series recursively.
+- The final SELECT retrieves the Fibonacci numbers generated.
+
+### 26. **Game Level Progression**
+
+In gaming applications, recursive CTEs can manage player levels and their dependencies or achievements.
+
+#### Example: Game Levels
+
+Assuming you have a `game_levels` table:
+
+```sql
+CREATE TABLE game_levels (
+    level_id SERIAL PRIMARY KEY,
+    level_name VARCHAR(100),
+    requires_level INT REFERENCES game_levels(level_id)
+);
+
+INSERT INTO game_levels (level_name, requires_level) VALUES
+('Level 1', NULL),
+('Level 2', 1),
+('Level 3', 2),
+('Level 4', 3);
+```
+
+#### Recursive CTE to Retrieve Level Requirements
+
+```sql
+WITH RECURSIVE level_requirements AS (
+    SELECT level_id, level_name
+    FROM game_levels
+    WHERE level_name = 'Level 4'  -- Starting level
+
+    UNION ALL
+
+    SELECT gl.level_id, gl.level_name
+    FROM game_levels gl
+    JOIN level_requirements lr ON gl.level_id = lr.requires_level
+)
+SELECT * FROM level_requirements;
+```
+
+**Explanation:**
+
+- The CTE retrieves all levels required to reach the specified starting level.
+- The final SELECT lists the necessary levels.
+
+### 27. **Dependency Graphs in Software Engineering**
+
+In software engineering, recursive CTEs can model dependencies between software components or modules.
+
+#### Example: Software Modules
+
+Assuming you have a `modules` table:
+
+```sql
+CREATE TABLE modules (
+    module_id SERIAL PRIMARY KEY,
+    module_name VARCHAR(100),
+    depends_on INT REFERENCES modules(module_id)
+);
+
+INSERT INTO modules (module_name, depends_on) VALUES
+('Core Module', NULL),
+('Feature A', 1),
+('Feature B', 2),
+('Feature C', 1);
+```
+
+#### Recursive CTE to Find Module Dependencies
+
+```sql
+WITH RECURSIVE module_dependencies AS (
+    SELECT module_id, module_name
+    FROM modules
+    WHERE module_name = 'Feature B'  -- Starting module
+
+    UNION ALL
+
+    SELECT m.module_id, m.module_name
+    FROM modules m
+    JOIN module_dependencies md ON m.depends_on = md.module_id
+)
+SELECT * FROM module_dependencies;
+```
+
+**Explanation:**
+
+- The CTE retrieves all dependencies of a specified module.
+- The final SELECT lists the modules that must be loaded for the specified feature.
+
+### 28. **Visualizing a Family Tree**
+
+Recursive CTEs can visualize family relationships, showing both descendants and ancestors.
+
+#### Example: Family Relationships
+
+Assuming you have a `family` table:
+
+```sql
+CREATE TABLE family (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    parent_id INT REFERENCES family(id)
+);
+
+INSERT INTO family (name, parent_id) VALUES
+('Grandfather', NULL),
+('Father', 1),
+('Mother', 1),
+('Me', 2),
+('Brother', 2),
+('Sister', 2);
+```
+
+#### Recursive CTE to Show Family Tree
+
+```sql
+WITH RECURSIVE family_tree AS (
+    SELECT id, name, parent_id, 0 AS level
+    FROM family
+    WHERE name = 'Grandfather'  -- Starting ancestor
+
+    UNION ALL
+
+    SELECT f.id, f.name, f.parent_id, ft.level + 1
+    FROM family f
+    JOIN family_tree ft ON f.parent_id = ft.id
+)
+SELECT name, level
+FROM family_tree
+ORDER BY level;  -- Show the tree level
+```
+
+**Explanation:**
+
+- The CTE starts from a specified ancestor and retrieves all descendants, displaying their levels.
+- The final SELECT lists all family members along with their respective levels in the tree.
+
+### 29. **User Role Hierarchy**
+
+In applications with user role management, recursive CTEs can manage and visualize role hierarchies.
+
+#### Example: User Roles
+
+Assuming you have a `roles` table:
+
+```sql
+CREATE TABLE roles (
+    role_id SERIAL PRIMARY KEY,
+    role_name VARCHAR(100),
+    parent_role INT REFERENCES roles(role_id)
+);
+
+INSERT INTO roles (role_name, parent_role) VALUES
+('Admin', NULL),
+('Manager', 1),
+('Supervisor', 2),
+('Employee', 2);
+```
+
+#### Recursive CTE to Retrieve Role Hierarchy
+
+```sql
+WITH RECURSIVE role_hierarchy AS (
+    SELECT role_id, role_name
+    FROM roles
+    WHERE role_name = 'Admin'  -- Starting role
+
+    UNION ALL
+
+    SELECT r.role_id, r.role_name
+    FROM roles r
+    JOIN role_hierarchy rh ON r.parent_role = rh.role_id
+)
+SELECT * FROM role_hierarchy;
+```
+
+**Explanation:**
+
+- The CTE starts from a specified role and retrieves all roles under it.
+- The final SELECT lists all roles in the hierarchy.
+
+### 30. **Content Versioning in CMS**
+
+In content management systems (CMS), recursive CTEs can track changes across content versions.
+
+#### Example: Content Versions
+
+Assuming you have a `content` table:
+
+```sql
+CREATE TABLE content (
+    version_id SERIAL PRIMARY KEY,
+    content_text TEXT,
+    previous_version INT REFERENCES content(version_id)
+);
+
+INSERT INTO content (content_text, previous_version) VALUES
+('Initial version', NULL),
+('Second version', 1),
+('Third version', 2);
+```
+
+#### Recursive CTE to Retrieve All Versions of a Content Item
+
+```sql
+WITH RECURSIVE content_versions AS (
+    SELECT version_id, content_text
+    FROM content
+    WHERE version_id = 3  -- Starting version
+
+    UNION ALL
+
+    SELECT c.version_id, c.content_text
+    FROM content c
+    JOIN content_versions cv ON c.version_id = cv.previous_version
+)
+SELECT * FROM content_versions;
+```
+
+**Explanation:**
+
+- The CTE retrieves all versions of a content item based on its previous versions.
+- The final SELECT lists the content across all versions.

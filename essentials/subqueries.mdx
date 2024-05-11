@@ -1,0 +1,606 @@
+Subqueries, also known as inner queries or nested queries, are powerful tools in SQL that allow you to perform complex queries by embedding one query within another. In PostgreSQL, subqueries can be used in various contexts, including the `SELECT`, `INSERT`, `UPDATE`, and `DELETE` statements.
+
+### Basics of Subqueries
+
+A subquery is a query within another SQL query. It can return a single value, a row, or a table. Here are some basic uses of subqueries:
+
+#### 1. Simple Subquery in a `SELECT` Statement
+
+This is used to retrieve data based on the results of another query.
+
+**Example**: Find employees who earn more than the average salary.
+
+```sql
+SELECT employee_id, employee_name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
+```
+
+#### 2. Subquery in `FROM` Clause
+
+Subqueries can also be used in the `FROM` clause to create a derived table.
+
+**Example**: List average salaries by department.
+
+```sql
+SELECT department_id, AVG(salary) AS average_salary
+FROM (SELECT department_id, salary FROM employees) AS dept_salaries
+GROUP BY department_id;
+```
+
+#### 3. Subquery in `WHERE` Clause
+
+Subqueries can help filter results in the `WHERE` clause.
+
+**Example**: Find all employees in the departments that have an average salary above 50000.
+
+```sql
+SELECT employee_id, employee_name
+FROM employees
+WHERE department_id IN (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    HAVING AVG(salary) > 50000
+);
+```
+
+### Advanced Usages of Subqueries
+
+Subqueries can also be more complex, involving joins, correlated subqueries, and updates.
+
+#### 4. Correlated Subquery
+
+A correlated subquery is a subquery that references columns from the outer query. It executes once for each row processed by the outer query.
+
+**Example**: Find employees who earn more than the average salary of their respective departments.
+
+```sql
+SELECT employee_id, employee_name, salary
+FROM employees e1
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees e2
+    WHERE e1.department_id = e2.department_id
+);
+```
+
+#### 5. Using Subquery for `UPDATE`
+
+You can use subqueries to update records based on another query.
+
+**Example**: Increase the salary of employees in the 'Sales' department by 10% where the average salary is below 60000.
+
+```sql
+UPDATE employees
+SET salary = salary * 1.10
+WHERE department_id = (
+    SELECT department_id
+    FROM departments
+    WHERE department_name = 'Sales'
+)
+AND (SELECT AVG(salary) FROM employees WHERE department_id = (
+    SELECT department_id FROM departments WHERE department_name = 'Sales'
+)) < 60000;
+```
+
+#### 6. Subquery for `DELETE`
+
+You can also use subqueries in delete statements.
+
+**Example**: Delete employees who work in departments with an average salary below 40000.
+
+```sql
+DELETE FROM employees
+WHERE department_id IN (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    HAVING AVG(salary) < 40000
+);
+```
+
+### Complete Implementation
+
+Let's consider a complete PostgreSQL implementation that includes creating tables, inserting data, and performing various subquery operations.
+
+#### Step 1: Create Tables
+
+```sql
+CREATE TABLE departments (
+    department_id SERIAL PRIMARY KEY,
+    department_name VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    employee_name VARCHAR(50) NOT NULL,
+    salary DECIMAL(10, 2) NOT NULL,
+    department_id INT REFERENCES departments(department_id)
+);
+```
+
+#### Step 2: Insert Data
+
+```sql
+INSERT INTO departments (department_name) VALUES
+('Sales'),
+('Engineering'),
+('HR'),
+('Marketing');
+
+INSERT INTO employees (employee_name, salary, department_id) VALUES
+('Alice', 70000, 1),
+('Bob', 55000, 1),
+('Charlie', 120000, 2),
+('David', 90000, 2),
+('Eve', 45000, 3),
+('Frank', 80000, 4);
+```
+
+#### Step 3: Queries with Subqueries
+
+1. **Find Employees Earning More Than Average Salary**
+
+```sql
+SELECT employee_name, salary
+FROM employees
+WHERE salary > (SELECT AVG(salary) FROM employees);
+```
+
+2. **Average Salary by Department**
+
+```sql
+SELECT department_id, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id;
+```
+
+3. **Find Departments with Employees Earning More than $80,000**
+
+```sql
+SELECT DISTINCT department_id
+FROM employees
+WHERE employee_id IN (
+    SELECT employee_id
+    FROM employees
+    WHERE salary > 80000
+);
+```
+
+4. **Update Salaries in Sales Department**
+
+```sql
+UPDATE employees
+SET salary = salary * 1.10
+WHERE department_id = (SELECT department_id FROM departments WHERE department_name = 'Sales');
+```
+
+5. **Delete Employees in Low Salary Departments**
+
+```sql
+DELETE FROM employees
+WHERE department_id IN (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    HAVING AVG(salary) < 50000
+);
+```
+
+---
+
+### 7. Subqueries with `JOIN` Operations
+
+Subqueries can be used in conjunction with `JOIN` operations to refine results.
+
+**Example**: Find employees along with their department names where the employee's salary is greater than the average salary of all employees.
+
+```sql
+SELECT e.employee_name, e.salary, d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE e.salary > (SELECT AVG(salary) FROM employees);
+```
+
+### 8. Ranking Employees with Subqueries
+
+You can use subqueries to rank employees based on their salaries.
+
+**Example**: Get the top 3 highest-paid employees from each department.
+
+```sql
+SELECT employee_id, employee_name, salary, department_id
+FROM employees e1
+WHERE (
+    SELECT COUNT(*)
+    FROM employees e2
+    WHERE e2.department_id = e1.department_id AND e2.salary > e1.salary
+) < 3;
+```
+
+### 9. Subquery to Aggregate Data
+
+Use subqueries to create aggregated views and reports.
+
+**Example**: Generate a report showing the total salary per department along with the count of employees.
+
+```sql
+SELECT d.department_name,
+       (SELECT SUM(salary) FROM employees WHERE department_id = d.department_id) AS total_salary,
+       (SELECT COUNT(*) FROM employees WHERE department_id = d.department_id) AS employee_count
+FROM departments d;
+```
+
+### 10. Subqueries with `EXISTS`
+
+Using the `EXISTS` operator can improve performance in certain cases by stopping execution as soon as it finds a match.
+
+**Example**: List departments that have at least one employee with a salary greater than 70000.
+
+```sql
+SELECT department_name
+FROM departments d
+WHERE EXISTS (
+    SELECT 1
+    FROM employees e
+    WHERE e.department_id = d.department_id AND e.salary > 70000
+);
+```
+
+### 11. Using Subqueries in Conditional Expressions
+
+Subqueries can be embedded in conditional expressions to determine output.
+
+**Example**: Create a view that shows employee names and their salary status (above or below average).
+
+```sql
+CREATE VIEW employee_salary_status AS
+SELECT employee_name,
+       CASE
+           WHEN salary > (SELECT AVG(salary) FROM employees) THEN 'Above Average'
+           ELSE 'Below Average'
+       END AS salary_status
+FROM employees;
+```
+
+### 12. Dynamic Filtering with Subqueries
+
+Use subqueries to dynamically filter data based on user-defined criteria.
+
+**Example**: Find all employees whose salaries are greater than the average salary of employees in the 'Engineering' department.
+
+```sql
+SELECT employee_name
+FROM employees
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees
+    WHERE department_id = (SELECT department_id FROM departments WHERE department_name = 'Engineering')
+);
+```
+
+### 13. Multi-Level Subqueries
+
+You can use nested subqueries to handle complex queries that require multiple layers of filtering.
+
+**Example**: Find employees who earn more than the average salary of employees who earn less than the average salary of the entire company.
+
+```sql
+SELECT employee_name
+FROM employees
+WHERE salary > (
+    SELECT AVG(salary)
+    FROM employees
+    WHERE salary < (SELECT AVG(salary) FROM employees)
+);
+```
+
+### 14. Subquery for Conditional Aggregation
+
+Use subqueries to conditionally aggregate data.
+
+**Example**: Calculate the total salary of employees in each department where the department has more than 2 employees.
+
+```sql
+SELECT department_id,
+       (SELECT SUM(salary) FROM employees e WHERE e.department_id = d.department_id) AS total_salary
+FROM departments d
+WHERE (SELECT COUNT(*) FROM employees e WHERE e.department_id = d.department_id) > 2;
+```
+
+### 15. Subqueries for Data Validation
+
+Subqueries can also be useful for data validation tasks.
+
+**Example**: Ensure that no employee has a salary less than the minimum salary in their department.
+
+```sql
+SELECT employee_id, employee_name
+FROM employees e
+WHERE salary < (
+    SELECT MIN(salary)
+    FROM employees
+    WHERE department_id = e.department_id
+);
+```
+
+### 16. Subqueries for Maintenance Operations
+
+Subqueries can be used in maintenance tasks, such as archiving old data.
+
+**Example**: Find and archive employees who haven’t had any salary increment for more than 5 years.
+
+```sql
+SELECT employee_id, employee_name, salary
+FROM employees
+WHERE employee_id NOT IN (
+    SELECT employee_id
+    FROM salary_changes
+    WHERE change_date > NOW() - INTERVAL '5 years'
+);
+```
+
+### 17. Subquery with Aggregate Functions in `HAVING` Clause
+
+You can utilize subqueries in the `HAVING` clause to filter grouped data.
+
+**Example**: List departments with an average salary greater than the overall average salary.
+
+```sql
+SELECT department_id, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id
+HAVING AVG(salary) > (SELECT AVG(salary) FROM employees);
+```
+
+### 18. Using Common Table Expressions (CTE) as Subqueries
+
+Common Table Expressions (CTEs) can also serve a similar purpose as subqueries and can improve readability.
+
+**Example**: Find departments with their average salaries using a CTE.
+
+```sql
+WITH avg_salaries AS (
+    SELECT department_id, AVG(salary) AS average_salary
+    FROM employees
+    GROUP BY department_id
+)
+SELECT d.department_name, a.average_salary
+FROM departments d
+JOIN avg_salaries a ON d.department_id = a.department_id
+WHERE a.average_salary > 60000;
+```
+
+---
+
+### 19. Subqueries for Conditional Updates
+
+You can use subqueries to perform conditional updates based on certain criteria.
+
+**Example**: Increase the salary of employees in departments with an average salary below 50,000 by 10%.
+
+```sql
+UPDATE employees
+SET salary = salary * 1.10
+WHERE department_id IN (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    HAVING AVG(salary) < 50000
+);
+```
+
+### 20. Using Subqueries with `GROUP BY`
+
+Subqueries can also be helpful in grouping data in a more dynamic way.
+
+**Example**: Get the number of employees in each department that has a salary higher than the average salary for that department.
+
+```sql
+SELECT department_id, COUNT(*)
+FROM employees
+WHERE employee_id IN (
+    SELECT employee_id
+    FROM employees e2
+    WHERE e2.salary > (SELECT AVG(salary) FROM employees WHERE department_id = e2.department_id)
+)
+GROUP BY department_id;
+```
+
+### 21. Subqueries for Data Comparison
+
+Use subqueries to compare data across different conditions or groups.
+
+**Example**: Identify employees whose salary is above the average salary in their own department and also above the overall company average.
+
+```sql
+SELECT employee_name, salary, department_id
+FROM employees e
+WHERE salary > (SELECT AVG(salary) FROM employees WHERE department_id = e.department_id)
+AND salary > (SELECT AVG(salary) FROM employees);
+```
+
+### 22. Use Subqueries to Filter by Multiple Conditions
+
+Subqueries can be used in filtering based on multiple related conditions.
+
+**Example**: List all employees who earn more than the average salary of employees in the same department but only if their department has more than 3 employees.
+
+```sql
+SELECT employee_name, salary
+FROM employees e
+WHERE department_id IN (
+    SELECT department_id
+    FROM employees
+    GROUP BY department_id
+    HAVING COUNT(*) > 3 AND AVG(salary) < (
+        SELECT AVG(salary) FROM employees WHERE department_id = e.department_id
+    )
+);
+```
+
+### 23. Find Employees with Unique Conditions Using Subqueries
+
+You can identify unique records based on certain conditions.
+
+**Example**: Find all employees whose salaries are higher than those of employees in the same department who have a lower rank.
+
+```sql
+SELECT employee_name
+FROM employees e1
+WHERE salary > (
+    SELECT MAX(salary)
+    FROM employees e2
+    WHERE e1.department_id = e2.department_id AND e2.rank < e1.rank
+);
+```
+
+### 24. Subqueries for Summarizing Data
+
+Subqueries can be very effective for summarizing data over multiple levels.
+
+**Example**: Calculate total compensation (salary + bonuses) for employees in each department.
+
+```sql
+SELECT department_id,
+       SUM(salary + COALESCE(bonus, 0)) AS total_compensation
+FROM employees
+LEFT JOIN bonuses ON employees.employee_id = bonuses.employee_id
+GROUP BY department_id;
+```
+
+### 25. Subqueries for Aggregation with Joins
+
+You can join aggregated results from subqueries with other tables for detailed reporting.
+
+**Example**: List departments with their total salary and the number of employees.
+
+```sql
+SELECT d.department_name,
+       dept_totals.total_salary,
+       dept_totals.employee_count
+FROM departments d
+JOIN (
+    SELECT department_id,
+           SUM(salary) AS total_salary,
+           COUNT(*) AS employee_count
+    FROM employees
+    GROUP BY department_id
+) AS dept_totals ON d.department_id = dept_totals.department_id;
+```
+
+### 26. Subqueries for Complex Reporting
+
+Use subqueries to create complex reports that involve multiple criteria.
+
+**Example**: Generate a report showing departments and the number of employees with salaries above the department average.
+
+```sql
+SELECT d.department_name,
+       COUNT(e.employee_id) AS above_average_count
+FROM departments d
+LEFT JOIN employees e ON d.department_id = e.department_id
+WHERE e.salary > (SELECT AVG(salary)
+                  FROM employees
+                  WHERE department_id = d.department_id)
+GROUP BY d.department_name;
+```
+
+### 27. Using Subqueries to Analyze Trends
+
+You can analyze trends over time using subqueries.
+
+**Example**: Find employees whose salaries have increased over the past two years.
+
+Assuming you have a `salary_history` table that logs salary changes.
+
+```sql
+SELECT employee_id, employee_name
+FROM employees
+WHERE employee_id IN (
+    SELECT employee_id
+    FROM salary_history
+    WHERE change_date > NOW() - INTERVAL '2 years'
+    GROUP BY employee_id
+    HAVING COUNT(*) > 1 AND MAX(salary) > MIN(salary)
+);
+```
+
+### 28. Subqueries for Recursive Data Structures
+
+If you have hierarchical data, you can use subqueries in conjunction with recursive CTEs.
+
+**Example**: Given a `employees` table that contains a `manager_id` field, find all employees under a specific manager.
+
+```sql
+WITH RECURSIVE subordinates AS (
+    SELECT employee_id, employee_name, manager_id
+    FROM employees
+    WHERE manager_id = (SELECT employee_id FROM employees WHERE employee_name = 'John Doe')  -- Replace with actual manager name
+    UNION ALL
+    SELECT e.employee_id, e.employee_name, e.manager_id
+    FROM employees e
+    INNER JOIN subordinates s ON e.manager_id = s.employee_id
+)
+SELECT * FROM subordinates;
+```
+
+### 29. Validate Data Integrity Using Subqueries
+
+Subqueries can help in data validation tasks.
+
+**Example**: Find employees who have a salary greater than the average salary of all employees in their department but do not have any associated bonus records.
+
+```sql
+SELECT e.employee_id, e.employee_name
+FROM employees e
+WHERE salary > (
+    SELECT AVG(salary) FROM employees WHERE department_id = e.department_id
+)
+AND e.employee_id NOT IN (
+    SELECT employee_id FROM bonuses
+);
+```
+
+### 30. Subqueries for Handling Duplicates
+
+Identify and handle duplicate records using subqueries.
+
+**Example**: List employees with duplicate names in the system.
+
+```sql
+SELECT employee_name
+FROM employees
+GROUP BY employee_name
+HAVING COUNT(*) > 1;
+```
+
+### 31. Subqueries for Generating Reports with Conditional Logic
+
+You can use subqueries to include conditional logic in your reports.
+
+**Example**: Create a report showing employees with a flag indicating if they are above average earners.
+
+```sql
+SELECT employee_name,
+       salary,
+       CASE
+           WHEN salary > (SELECT AVG(salary) FROM employees) THEN 'Above Average'
+           ELSE 'Below Average'
+       END AS salary_flag
+FROM employees;
+```
+
+### 32. Complex Hierarchical Queries with Subqueries
+
+Analyze hierarchical structures effectively with subqueries.
+
+**Example**: Find all employees in a department and their managers.
+
+```sql
+SELECT e.employee_name AS employee,
+       m.employee_name AS manager
+FROM employees e
+LEFT JOIN employees m ON e.manager_id = m.employee_id;
+```

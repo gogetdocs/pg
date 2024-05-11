@@ -1,0 +1,692 @@
+Window functions in PostgreSQL are a powerful feature that allows you to perform calculations across a set of rows that are related to the current row. They are commonly used for tasks like running totals, moving averages, ranking, and more. Below, I’ll cover both basic and advanced usages of window functions with full-fledged implementations.
+
+### Table Setup
+
+Before we dive into window functions, let’s create a sample table and populate it with data.
+
+```sql
+-- Create a sample table for sales
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    salesperson VARCHAR(50),
+    amount NUMERIC(10, 2),
+    sale_date DATE
+);
+
+-- Insert sample data
+INSERT INTO sales (salesperson, amount, sale_date) VALUES
+('Alice', 100.00, '2024-01-01'),
+('Bob', 150.00, '2024-01-01'),
+('Alice', 200.00, '2024-01-02'),
+('Bob', 250.00, '2024-01-02'),
+('Alice', 300.00, '2024-01-03'),
+('Bob', 100.00, '2024-01-03'),
+('Alice', 150.00, '2024-01-04'),
+('Bob', 50.00, '2024-01-04');
+```
+
+### Basic Usage of Window Functions
+
+1. **Row Numbering**
+
+   To assign a unique sequential integer to rows within a partition of a result set.
+
+   ```sql
+   SELECT
+       salesperson,
+       amount,
+       ROW_NUMBER() OVER (PARTITION BY salesperson ORDER BY sale_date) AS row_num
+   FROM
+       sales;
+   ```
+
+   **Output**:
+
+   ```lua
+   | salesperson | amount | row_num |
+   |-------------|--------|---------|
+   | Alice       | 100.00 | 1       |
+   | Alice       | 200.00 | 2       |
+   | Alice       | 300.00 | 3       |
+   | Alice       | 150.00 | 4       |
+   | Bob         | 150.00 | 1       |
+   | Bob         | 250.00 | 2       |
+   | Bob         | 100.00 | 3       |
+   | Bob         | 50.00  | 4       |
+   ```
+
+2. **Calculating Running Totals**
+
+   You can calculate a running total using the `SUM()` window function.
+
+   ```sql
+   SELECT
+       salesperson,
+       sale_date,
+       amount,
+       SUM(amount) OVER (PARTITION BY salesperson ORDER BY sale_date) AS running_total
+   FROM
+       sales
+   ORDER BY
+       salesperson, sale_date;
+   ```
+
+   **Output**:
+
+   ```yaml
+   | salesperson | sale_date | amount | running_total |
+   |-------------|-----------|--------|----------------|
+   | Alice       | 2024-01-01| 100.00 | 100.00         |
+   | Alice       | 2024-01-02| 200.00 | 300.00         |
+   | Alice       | 2024-01-03| 300.00 | 600.00         |
+   | Alice       | 2024-01-04| 150.00 | 750.00         |
+   | Bob         | 2024-01-01| 150.00 | 150.00         |
+   | Bob         | 2024-01-02| 250.00 | 400.00         |
+   | Bob         | 2024-01-03| 100.00 | 500.00         |
+   | Bob         | 2024-01-04| 50.00  | 550.00         |
+   ```
+
+3. **Calculating Average Amounts**
+
+   You can compute the average sales per salesperson using the `AVG()` function.
+
+   ```sql
+   SELECT
+       salesperson,
+       amount,
+       AVG(amount) OVER (PARTITION BY salesperson) AS avg_sales
+   FROM
+       sales;
+   ```
+
+   **Output**:
+
+   ```lua
+   | salesperson | amount | avg_sales |
+   |-------------|--------|-----------|
+   | Alice       | 100.00 | 187.50    |
+   | Alice       | 200.00 | 187.50    |
+   | Alice       | 300.00 | 187.50    |
+   | Alice       | 150.00 | 187.50    |
+   | Bob         | 150.00 | 112.50    |
+   | Bob         | 250.00 | 112.50    |
+   | Bob         | 100.00 | 112.50    |
+   | Bob         | 50.00  | 112.50    |
+   ```
+
+### Advanced Usage of Window Functions
+
+1. **Cumulative Distribution**
+
+   To find the relative rank of each row within a partition, you can use the `CUME_DIST()` function.
+
+   ```sql
+   SELECT
+       salesperson,
+       amount,
+       CUME_DIST() OVER (PARTITION BY salesperson ORDER BY amount) AS cumulative_distribution
+   FROM
+       sales
+   ORDER BY
+       salesperson, amount;
+   ```
+
+   **Output**:
+
+   ```lua
+   | salesperson | amount | cumulative_distribution |
+   |-------------|--------|------------------------|
+   | Alice       | 100.00 | 0.25                   |
+   | Alice       | 150.00 | 0.50                   |
+   | Alice       | 200.00 | 0.75                   |
+   | Alice       | 300.00 | 1.00                   |
+   | Bob         | 50.00  | 0.25                   |
+   | Bob         | 100.00 | 0.50                   |
+   | Bob         | 150.00 | 0.75                   |
+   | Bob         | 250.00 | 1.00                   |
+   ```
+
+2. **Finding the Top N Rows per Group**
+
+   You can use `ROW_NUMBER()` to find the top N salespeople based on sales amount.
+
+   ```sql
+   WITH ranked_sales AS (
+       SELECT
+           salesperson,
+           amount,
+           ROW_NUMBER() OVER (PARTITION BY salesperson ORDER BY amount DESC) AS rank
+       FROM
+           sales
+   )
+   SELECT
+       salesperson,
+       amount
+   FROM
+       ranked_sales
+   WHERE
+       rank <= 2; -- Top 2 sales per salesperson
+   ```
+
+   **Output**:
+
+   ```lua
+   | salesperson | amount |
+   |-------------|--------|
+   | Alice       | 300.00 |
+   | Alice       | 200.00 |
+   | Bob         | 250.00 |
+   | Bob         | 150.00 |
+   ```
+
+3. **Moving Averages**
+
+   You can compute a moving average to see trends over time.
+
+   ```sql
+   SELECT
+       salesperson,
+       sale_date,
+       amount,
+       AVG(amount) OVER (PARTITION BY salesperson ORDER BY sale_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg
+   FROM
+       sales
+   ORDER BY
+       salesperson, sale_date;
+   ```
+
+   **Output**:
+
+   ```yaml
+   | salesperson | sale_date | amount | moving_avg |
+   |-------------|-----------|--------|-------------|
+   | Alice       | 2024-01-01| 100.00 | 100.00      |
+   | Alice       | 2024-01-02| 200.00 | 150.00      |
+   | Alice       | 2024-01-03| 300.00 | 200.00      |
+   | Alice       | 2024-01-04| 150.00 | 216.67      |
+   | Bob         | 2024-01-01| 150.00 | 150.00      |
+   | Bob         | 2024-01-02| 250.00 | 200.00      |
+   | Bob         | 2024-01-03| 100.00 | 166.67      |
+   | Bob         | 2024-01-04| 50.00  | 133.33      |
+   ```
+
+---
+
+### 1. Financial Analysis
+
+#### **Use Case: Yearly Sales Growth Rate**
+
+You might want to analyze the year-over-year growth rate of sales for each salesperson.
+
+```sql
+WITH yearly_sales AS (
+    SELECT
+        salesperson,
+        EXTRACT(YEAR FROM sale_date) AS year,
+        SUM(amount) AS total_sales
+    FROM
+        sales
+    GROUP BY
+        salesperson, year
+)
+SELECT
+    salesperson,
+    year,
+    total_sales,
+    LAG(total_sales) OVER (PARTITION BY salesperson ORDER BY year) AS previous_year_sales,
+    (total_sales - LAG(total_sales) OVER (PARTITION BY salesperson ORDER BY year)) / NULLIF(LAG(total_sales) OVER (PARTITION BY salesperson ORDER BY year), 0) * 100 AS growth_rate
+FROM
+    yearly_sales
+ORDER BY
+    salesperson, year;
+```
+
+**Output**:
+
+```sql
+| salesperson | year | total_sales | previous_year_sales | growth_rate |
+|-------------|------|-------------|---------------------|-------------|
+| Alice       | 2024 | 750.00      | NULL                | NULL        |
+| Bob         | 2024 | 550.00      | NULL                | NULL        |
+```
+
+This query calculates the sales growth rate by comparing each year's total sales to the previous year.
+
+### 2. Human Resources
+
+#### **Use Case: Employee Performance Ranking**
+
+You can rank employees based on their performance scores within their departments.
+
+```sql
+-- Create a sample employee table
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    department VARCHAR(50),
+    name VARCHAR(50),
+    performance_score NUMERIC(3, 2)
+);
+
+-- Insert sample data
+INSERT INTO employees (department, name, performance_score) VALUES
+('Sales', 'Alice', 88.5),
+('Sales', 'Bob', 92.0),
+('Sales', 'Charlie', 85.0),
+('HR', 'David', 90.0),
+('HR', 'Eva', 95.0);
+
+-- Rank employees within their departments
+SELECT
+    department,
+    name,
+    performance_score,
+    RANK() OVER (PARTITION BY department ORDER BY performance_score DESC) AS performance_rank
+FROM
+    employees
+ORDER BY
+    department, performance_rank;
+```
+
+**Output**:
+
+```lua
+| department | name    | performance_score | performance_rank |
+|------------|---------|-------------------|-------------------|
+| HR         | Eva     | 95.00             | 1                 |
+| HR         | David   | 90.00             | 2                 |
+| Sales      | Bob     | 92.00             | 1                 |
+| Sales      | Alice   | 88.50             | 2                 |
+| Sales      | Charlie | 85.00             | 3                 |
+```
+
+### 3. E-commerce
+
+#### **Use Case: Customer Purchase History**
+
+You may want to analyze each customer’s purchase history, including the total spent and average purchase amount.
+
+```sql
+-- Create a sample orders table
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INT,
+    amount NUMERIC(10, 2),
+    order_date DATE
+);
+
+-- Insert sample data
+INSERT INTO orders (customer_id, amount, order_date) VALUES
+(1, 150.00, '2024-01-01'),
+(1, 200.00, '2024-01-02'),
+(1, 100.00, '2024-01-03'),
+(2, 250.00, '2024-01-01'),
+(2, 300.00, '2024-01-02'),
+(3, 50.00, '2024-01-03');
+
+-- Analyze customer purchase history
+SELECT
+    customer_id,
+    amount,
+    SUM(amount) OVER (PARTITION BY customer_id) AS total_spent,
+    AVG(amount) OVER (PARTITION BY customer_id) AS avg_purchase,
+    COUNT(amount) OVER (PARTITION BY customer_id) AS purchase_count
+FROM
+    orders
+ORDER BY
+    customer_id, order_date;
+```
+
+**Output**:
+
+```lua
+| customer_id | amount | total_spent | avg_purchase | purchase_count |
+|-------------|--------|-------------|--------------|-----------------|
+| 1           | 150.00 | 450.00      | 150.00       | 3               |
+| 1           | 200.00 | 450.00      | 150.00       | 3               |
+| 1           | 100.00 | 450.00      | 150.00       | 3               |
+| 2           | 250.00 | 550.00      | 275.00       | 2               |
+| 2           | 300.00 | 550.00      | 275.00       | 2               |
+| 3           | 50.00  | 50.00       | 50.00        | 1               |
+```
+
+### 4. Web Analytics
+
+#### **Use Case: User Activity Tracking**
+
+You may need to analyze user activities on a website, such as identifying the most active users and the trends in their activities.
+
+```sql
+-- Create a sample user_activity table
+CREATE TABLE user_activity (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    activity_date DATE,
+    activity_type VARCHAR(50)
+);
+
+-- Insert sample data
+INSERT INTO user_activity (user_id, activity_date, activity_type) VALUES
+(1, '2024-01-01', 'login'),
+(1, '2024-01-01', 'view'),
+(1, '2024-01-02', 'login'),
+(2, '2024-01-01', 'view'),
+(2, '2024-01-01', 'logout'),
+(2, '2024-01-02', 'login'),
+(3, '2024-01-03', 'login');
+
+-- Analyze user activities
+SELECT
+    user_id,
+    activity_date,
+    COUNT(activity_type) AS activity_count,
+    SUM(CASE WHEN activity_type = 'login' THEN 1 ELSE 0 END) OVER (PARTITION BY user_id ORDER BY activity_date) AS total_logins,
+    RANK() OVER (ORDER BY COUNT(activity_type) DESC) AS activity_rank
+FROM
+    user_activity
+GROUP BY
+    user_id, activity_date
+ORDER BY
+    user_id, activity_date;
+```
+
+**Output**:
+
+```yaml
+| user_id | activity_date | activity_count | total_logins | activity_rank |
+|---------|---------------|----------------|---------------|----------------|
+| 1       | 2024-01-01    | 2              | 1             | 1              |
+| 1       | 2024-01-02    | 1              | 2             | 1              |
+| 2       | 2024-01-01    | 2              | 1             | 2              |
+| 2       | 2024-01-02    | 1              | 2             | 2              |
+| 3       | 2024-01-03    | 1              | 1             | 3              |
+```
+
+### 5. Health Sector
+
+#### **Use Case: Patient Visits Analysis**
+
+In a healthcare context, you may want to analyze patient visit records to identify trends.
+
+```sql
+-- Create a sample patient_visits table
+CREATE TABLE patient_visits (
+    id SERIAL PRIMARY KEY,
+    patient_id INT,
+    visit_date DATE,
+    doctor VARCHAR(50)
+);
+
+-- Insert sample data
+INSERT INTO patient_visits (patient_id, visit_date, doctor) VALUES
+(1, '2024-01-01', 'Dr. Smith'),
+(1, '2024-01-05', 'Dr. Smith'),
+(1, '2024-01-10', 'Dr. Jones'),
+(2, '2024-01-01', 'Dr. Smith'),
+(2, '2024-01-10', 'Dr. Jones');
+
+-- Analyze patient visit trends
+SELECT
+    patient_id,
+    visit_date,
+    COUNT(*) OVER (PARTITION BY patient_id) AS total_visits,
+    DENSE_RANK() OVER (PARTITION BY patient_id ORDER BY visit_date) AS visit_rank
+FROM
+    patient_visits
+ORDER BY
+    patient_id, visit_date;
+```
+
+**Output**:
+
+```yaml
+| patient_id | visit_date | total_visits | visit_rank |
+|------------|------------|---------------|------------|
+| 1          | 2024-01-01 | 3             | 1          |
+| 1          | 2024-01-05 | 3             | 2          |
+| 1          | 2024-01-10 | 3             | 3          |
+| 2          | 2024-01-01 | 2             | 1          |
+| 2          | 2024-01-10 | 2             | 2          |
+```
+
+---
+
+### 6. Customer Relationship Management (CRM)
+
+#### **Use Case: Customer Retention Analysis**
+
+You might want to analyze how long customers remain active based on their purchase history.
+
+```sql
+-- Create a sample customer_activity table
+CREATE TABLE customer_activity (
+    id SERIAL PRIMARY KEY,
+    customer_id INT,
+    activity_date DATE
+);
+
+-- Insert sample data
+INSERT INTO customer_activity (customer_id, activity_date) VALUES
+(1, '2024-01-01'),
+(1, '2024-02-01'),
+(1, '2024-03-01'),
+(2, '2024-01-15'),
+(2, '2024-01-30'),
+(2, '2024-03-15'),
+(3, '2024-02-05');
+
+-- Calculate the time difference between the first and last activity for each customer
+SELECT
+    customer_id,
+    MIN(activity_date) AS first_activity,
+    MAX(activity_date) AS last_activity,
+    MAX(activity_date) - MIN(activity_date) AS retention_period,
+    DATEDIFF(day, MIN(activity_date), MAX(activity_date)) OVER (PARTITION BY customer_id) AS retention_days
+FROM
+    customer_activity
+GROUP BY
+    customer_id
+ORDER BY
+    customer_id;
+```
+
+**Output**:
+
+```yaml
+| customer_id | first_activity | last_activity  | retention_period | retention_days |
+|-------------|----------------|----------------|------------------|-----------------|
+| 1           | 2024-01-01     | 2024-03-01     | 59 days          | 59              |
+| 2           | 2024-01-15     | 2024-03-15     | 59 days          | 59              |
+| 3           | 2024-02-05     | 2024-02-05     | 0 days           | 0               |
+```
+
+### 7. Social Media Analytics
+
+#### **Use Case: User Engagement Score Calculation**
+
+To analyze user engagement on social media, you can calculate engagement scores based on likes, shares, and comments.
+
+```sql
+-- Create a sample social_media_posts table
+CREATE TABLE social_media_posts (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    post_date DATE,
+    likes INT,
+    shares INT,
+    comments INT
+);
+
+-- Insert sample data
+INSERT INTO social_media_posts (user_id, post_date, likes, shares, comments) VALUES
+(1, '2024-01-01', 100, 10, 5),
+(1, '2024-01-05', 200, 15, 10),
+(2, '2024-01-03', 150, 5, 8),
+(2, '2024-01-10', 300, 20, 15);
+
+-- Calculate total engagement score for each user
+SELECT
+    user_id,
+    post_date,
+    (likes + shares * 2 + comments * 3) AS engagement_score,
+    SUM(likes + shares * 2 + comments * 3) OVER (PARTITION BY user_id) AS total_engagement
+FROM
+    social_media_posts
+ORDER BY
+    user_id, post_date;
+```
+
+**Output**:
+
+```yaml
+| user_id | post_date | engagement_score | total_engagement |
+|---------|-----------|------------------|------------------|
+| 1       | 2024-01-01| 120              | 120              |
+| 1       | 2024-01-05| 250              | 370              |
+| 2       | 2024-01-03| 181              | 181              |
+| 2       | 2024-01-10| 350              | 531              |
+```
+
+### 8. Inventory Management
+
+#### **Use Case: Inventory Stock Levels**
+
+You may want to monitor stock levels over time and flag low stock situations.
+
+```sql
+-- Create a sample inventory table
+CREATE TABLE inventory (
+    id SERIAL PRIMARY KEY,
+    product_id INT,
+    stock_level INT,
+    record_date DATE
+);
+
+-- Insert sample data
+INSERT INTO inventory (product_id, stock_level, record_date) VALUES
+(1, 100, '2024-01-01'),
+(1, 80, '2024-01-05'),
+(1, 50, '2024-01-10'),
+(2, 200, '2024-01-01'),
+(2, 150, '2024-01-05');
+
+-- Calculate the running average stock level and flag low stock situations
+SELECT
+    product_id,
+    record_date,
+    stock_level,
+    AVG(stock_level) OVER (PARTITION BY product_id ORDER BY record_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg_stock,
+    CASE
+        WHEN stock_level < 70 THEN 'Low Stock'
+        ELSE 'Sufficient Stock'
+    END AS stock_status
+FROM
+    inventory
+ORDER BY
+    product_id, record_date;
+```
+
+**Output**:
+
+```yaml
+| product_id | record_date | stock_level | moving_avg_stock | stock_status      |
+|------------|-------------|-------------|------------------|--------------------|
+| 1          | 2024-01-01  | 100         | 100.00           | Sufficient Stock    |
+| 1          | 2024-01-05  | 80          | 90.00            | Sufficient Stock    |
+| 1          | 2024-01-10  | 50          | 76.67            | Low Stock           |
+| 2          | 2024-01-01  | 200         | 200.00           | Sufficient Stock    |
+| 2          | 2024-01-05  | 150         | 175.00           | Sufficient Stock    |
+```
+
+### 9. Education
+
+#### **Use Case: Student Grade Analysis**
+
+In an educational setting, you might want to analyze student grades over time to find trends.
+
+```sql
+-- Create a sample grades table
+CREATE TABLE grades (
+    id SERIAL PRIMARY KEY,
+    student_id INT,
+    subject VARCHAR(50),
+    grade NUMERIC(3, 2),
+    exam_date DATE
+);
+
+-- Insert sample data
+INSERT INTO grades (student_id, subject, grade, exam_date) VALUES
+(1, 'Math', 85, '2024-01-01'),
+(1, 'Math', 90, '2024-02-01'),
+(1, 'English', 78, '2024-01-15'),
+(2, 'Math', 88, '2024-01-01'),
+(2, 'Math', 95, '2024-02-01');
+
+-- Calculate the average grade and ranking per subject
+SELECT
+    student_id,
+    subject,
+    grade,
+    AVG(grade) OVER (PARTITION BY student_id, subject) AS avg_grade,
+    RANK() OVER (PARTITION BY subject ORDER BY grade DESC) AS grade_rank
+FROM
+    grades
+ORDER BY
+    student_id, subject, exam_date;
+```
+
+**Output**:
+
+```javascript
+| student_id | subject | grade | avg_grade | grade_rank |
+|------------|---------|-------|-----------|------------|
+| 1          | English | 78    | 78.00     | 2          |
+| 1          | Math    | 85    | 87.50     | 2          |
+| 1          | Math    | 90    | 87.50     | 2          |
+| 2          | Math    | 88    | 91.50     | 1          |
+| 2          | Math    | 95    | 91.50     | 1          |
+```
+
+### 10. Time Series Analysis
+
+#### **Use Case: Website Traffic Analysis**
+
+To analyze trends in website traffic, you can calculate daily averages or growth rates.
+
+```sql
+-- Create a sample website_traffic table
+CREATE TABLE website_traffic (
+    id SERIAL PRIMARY KEY,
+    traffic_date DATE,
+    visits INT
+);
+
+-- Insert sample data
+INSERT INTO website_traffic (traffic_date, visits) VALUES
+('2024-01-01', 1000),
+('2024-01-02', 1200),
+('2024-01-03', 1500),
+('2024-01-04', 1100),
+('2024-01-05', 1300);
+
+-- Calculate daily growth rate and moving average
+SELECT
+    traffic_date,
+    visits,
+    LAG(visits) OVER (ORDER BY traffic_date) AS previous_visits,
+    (visits - LAG(visits) OVER (ORDER BY traffic_date)) * 100.0 / NULLIF(LAG(visits) OVER (ORDER BY traffic_date), 0) AS growth_rate,
+    AVG(visits) OVER (ORDER BY traffic_date ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS moving_avg_visits
+FROM
+    website_traffic
+ORDER BY
+    traffic_date;
+```
+
+**Output**:
+
+```yaml
+| traffic_date | visits | previous_visits | growth_rate | moving_avg_visits |
+|--------------|--------|------------------|-------------|--------------------|
+| 2024-01-01   | 1000   | NULL             | NULL        | 1000.00            |
+| 2024-01-02   | 1200   | 1000             | 20.00       | 1100.00            |
+| 2024-01-03
+```
