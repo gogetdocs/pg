@@ -1,0 +1,130 @@
+## PostgreSQL Rules
+
+### Overview
+
+PostgreSQL rules are a powerful feature that allows you to manipulate and transform queries. Unlike triggers, which are executed for each row affected by a query, rules are applied at the query level, allowing for more complex and efficient transformations.
+
+### Types of Rules
+
+There are two main types of rules in PostgreSQL:
+
+- **View Rules**: These are used to rewrite queries on views into queries on the underlying tables.
+- **Update Rules**: These are used to manipulate queries on insert, update, and delete operations.
+
+### Update Rules
+
+Update rules are defined using the `CREATE RULE` command and can be used to perform various actions, such as inserting into a log table or updating a related table.
+
+#### How Update Rules Work
+
+Update rules are applied by the rule system when the result relation and the command type of a query tree match the object and event specified in the `CREATE RULE` command. The rule system creates a list of query trees, which can include zero, one, or multiple actions.
+
+Here is an example of an update rule that logs changes to the `sl_avail` column in the `shoelace_data` table:
+
+```sql
+CREATE TABLE shoelace_log (
+    sl_name text,
+    sl_avail integer,
+    log_who text,
+    log_when timestamp
+);
+
+CREATE RULE log_shoelace AS ON UPDATE TO shoelace_data
+WHERE NEW.sl_avail <> OLD.sl_avail
+DO INSERT INTO shoelace_log VALUES (
+    NEW.sl_name,
+    NEW.sl_avail,
+    current_user,
+    current_timestamp
+);
+```
+
+This rule will insert a new log entry into the `shoelace_log` table whenever the `sl_avail` column is updated in the `shoelace_data` table.
+
+#### Usage
+
+Suppose we have a table `shoelace_data` that stores information about shoelaces, and we want to keep a log of all changes to the `sl_avail` column.
+
+```sql
+CREATE TABLE shoelace_data (
+    sl_name text,
+    sl_avail integer,
+    sl_color text,
+    sl_len numeric,
+    sl_unit text
+);
+
+INSERT INTO shoelace_data VALUES ('sl1', 5, 'black', 80, 'cm');
+INSERT INTO shoelace_data VALUES ('sl2', 6, 'black', 100, 'cm');
+
+UPDATE shoelace_data SET sl_avail = 10 WHERE sl_name = 'sl1';
+
+SELECT * FROM shoelace_log;
+```
+
+This will result in a new log entry being inserted into the `shoelace_log` table:
+
+| sl_name | sl_avail | log_who | log_when         |
+| ------- | -------- | ------- | ---------------- |
+| sl1     | 10       | Al      | 2023-02-20 14:30 |
+
+### Cooperation with Views
+
+Rules can also be used to protect view relations from insert, update, and delete operations.
+
+#### Usage
+
+Suppose we have a view `shoelace` that is based on the `shoelace_data` table, and we want to prevent users from inserting, updating, or deleting rows in the view.
+
+```sql
+CREATE VIEW shoelace AS
+SELECT * FROM shoelace_data;
+
+CREATE RULE shoe_ins_protect AS ON INSERT TO shoelace
+DO INSTEAD NOTHING;
+
+CREATE RULE shoe_upd_protect AS ON UPDATE TO shoelace
+DO INSTEAD NOTHING;
+
+CREATE RULE shoe_del_protect AS ON DELETE TO shoelace
+DO INSTEAD NOTHING;
+```
+
+This will prevent any insert, update, or delete operations on the `shoelace` view.
+
+### Advanced Usage
+
+Rules can also be used to perform more complex transformations, such as rewriting queries on views into queries on the underlying tables.
+
+#### Usage
+
+Suppose we have a view `shoelace` that is based on the `shoelace_data` table, and we want to allow users to insert, update, and delete rows in the view.
+
+```sql
+CREATE RULE shoelace_ins AS ON INSERT TO shoelace
+DO INSTEAD
+INSERT INTO shoelace_data VALUES (
+    NEW.sl_name,
+    NEW.sl_avail,
+    NEW.sl_color,
+    NEW.sl_len,
+    NEW.sl_unit
+);
+
+CREATE RULE shoelace_upd AS ON UPDATE TO shoelace
+DO INSTEAD
+UPDATE shoelace_data
+SET sl_name = NEW.sl_name,
+    sl_avail = NEW.sl_avail,
+    sl_color = NEW.sl_color,
+    sl_len = NEW.sl_len,
+    sl_unit = NEW.sl_unit
+WHERE sl_name = OLD.sl_name;
+
+CREATE RULE shoelace_del AS ON DELETE TO shoelace
+DO INSTEAD
+DELETE FROM shoelace_data
+WHERE sl_name = OLD.sl_name;
+```
+
+This will allow users to insert, update, and delete rows in the `shoelace` view, and the rules will transform the queries into queries on the underlying `shoelace_data` table.
