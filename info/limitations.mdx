@@ -1,0 +1,57 @@
+## PostgreSQL Limits
+
+PostgreSQL has various hard limits that are important to understand when designing and managing databases. These limits are outlined in Table K.1 of the PostgreSQL documentation and include:
+
+- **Database Size**: Unlimited[2].
+- **Number of Databases**: 4,294,950,911[2].
+- **Relations per Database**: 1,431,650,303[2].
+- **Relation Size**: 32 TB with the default block size (BLCKSZ) of 8192 bytes. However, this can be increased to 128 TB by configuring a larger block size, and even further with partitioning[1][2].
+- **Rows per Table**: Limited by the number of tuples that can fit onto 4,294,967,295 pages[2].
+- **Columns per Table**: 1,600, further limited by tuple size fitting on a single page[2].
+- **Columns in a Result Set**: 1,664[2].
+- **Field Size**: 1 GB[2].
+- **Indexes per Table**: Unlimited, constrained by maximum relations per database[2].
+- **Columns per Index**: 32, can be increased by recompiling PostgreSQL[2].
+- **Partition Keys**: 32, can be increased by recompiling PostgreSQL[2].
+- **Identifier Length**: 63 bytes, can be increased by recompiling PostgreSQL[2].
+- **Function Arguments**: 100, can be increased by recompiling PostgreSQL[2].
+- **Query Parameters**: 65,535[2].
+
+### Understanding Table Size Limits
+
+The maximum table size in PostgreSQL is determined by the block size and the number of blocks. The default block size is 8192 bytes, which limits the table size to 32 TB. However, by configuring a larger block size (up to 32768 bytes), the table size can be increased to 128 TB. Additionally, with the use of partitioning, the effective table size can be much larger. In PostgreSQL 11 and later, the maximum table size can theoretically reach 2 exabytes (2 EB) due to the ability to have 2^32 subtables, each of size 2^32 \* 8192 bytes[1].
+
+### Practical Considerations
+
+While these hard limits are important, practical limits such as performance limitations and available disk space may apply before these absolute hard limits are reached. For example, the actual number of rows per table is limited by how many tuples can fit on the available pages, considering the size of each tuple and the overhead of storing variable-length fields[2].
+
+### Example Usage
+
+Understanding these limits is crucial for designing efficient databases. For instance, when creating a table with many columns, it's essential to consider the tuple size to ensure it fits within a single heap page. Here's an example of how to calculate the tuple size for a table with 1,600 int columns:
+
+```sql
+-- Calculate the tuple size for 1,600 int columns
+-- Assuming each int column consumes 4 bytes
+SELECT 1600 * 4 AS tuple_size_bytes;
+```
+
+This query returns 6400 bytes, which fits within a single 8192-byte heap page. However, if the columns were bigint (consuming 8 bytes each), the tuple size would be 12800 bytes, exceeding the heap page size.
+
+### Managing Large Datasets
+
+For managing large datasets, PostgreSQL offers features like partitioning, which allows dividing a large table into smaller, more manageable pieces. Here's an example of how to create a partitioned table:
+
+```sql
+-- Create a partitioned table
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL
+) PARTITION BY RANGE (EXTRACT(YEAR FROM date));
+
+-- Create partitions for each year
+CREATE TABLE sales_2022 PARTITION OF sales FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+CREATE TABLE sales_2023 PARTITION OF sales FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+```
+
+This approach helps in managing large datasets by distributing the data across multiple smaller tables, improving performance and reducing the impact of reaching the hard limits.
