@@ -1,0 +1,116 @@
+## PostgreSQL Statistics for Query Planning
+
+PostgreSQL uses statistics to estimate the number of rows retrieved by a query, which is crucial for choosing the best query plan. This section explains the types of statistics used by PostgreSQL and provides examples of their usage.
+
+### 14.2.1. Single-Column Statistics
+
+Single-column statistics are used to estimate the number of rows in a table and the distribution of values in each column.
+
+#### Example: Viewing Single-Column Statistics
+
+To view single-column statistics, you can query the `pg_class` and `pg_stats` system catalogs.
+
+```sql
+-- View table and index statistics
+SELECT relname, relkind, reltuples, relpages
+FROM pg_class
+WHERE relname LIKE 'tenk1%';
+
+-- View column statistics
+SELECT attname, inherited, n_distinct,
+       array_to_string(most_common_vals, E'\n') as most_common_vals
+FROM pg_stats
+WHERE tablename = 'road';
+```
+
+#### Note:
+
+- `reltuples` and `relpages` in `pg_class` contain the total number of rows and disk blocks occupied by each table and index.
+- `pg_stats` provides more detailed statistics, including the number of distinct values (`n_distinct`) and the most common values (`most_common_vals`) for each column.
+
+### 14.2.2. Extended Statistics
+
+Extended statistics capture correlations between multiple columns, which can significantly improve query planning for queries with conditions on multiple columns.
+
+#### 14.2.2.1. Functional Dependencies
+
+Functional dependencies track the relationship between columns where knowing the value of one column determines the value of another.
+
+##### Example: Creating and Viewing Functional Dependency Statistics
+
+```sql
+-- Create a statistics object for functional dependencies
+CREATE STATISTICS stts (dependencies) ON city, zip FROM zipcodes;
+
+-- Analyze the table to collect statistics
+ANALYZE zipcodes;
+
+-- View the collected statistics
+SELECT stxname, stxkeys, stxddependencies
+FROM pg_statistic_ext join pg_statistic_ext_data on (oid = stxoid)
+WHERE stxname = 'stts';
+```
+
+#### 14.2.2.2. Multivariate N-Distinct Counts
+
+N-distinct statistics estimate the number of distinct values when combining multiple columns.
+
+##### Example: Creating and Viewing N-Distinct Statistics
+
+```sql
+-- Create a statistics object for n-distinct counts
+CREATE STATISTICS stts2 (ndistinct) ON city, state, zip FROM zipcodes;
+
+-- Analyze the table to collect statistics
+ANALYZE zipcodes;
+
+-- View the collected statistics
+SELECT stxkeys AS k, stxdndistinct AS nd
+FROM pg_statistic_ext join pg_statistic_ext_data on (oid = stxoid)
+WHERE stxname = 'stts2';
+```
+
+#### 14.2.2.3. Multivariate MCV Lists
+
+MCV (Most Common Values) lists for combinations of columns improve estimates for queries with conditions on multiple columns.
+
+##### Example: Creating and Viewing MCV Statistics
+
+```sql
+-- Create a statistics object for MCV lists
+CREATE STATISTICS stts3 (mcv) ON city, state FROM zipcodes;
+
+-- Analyze the table to collect statistics
+ANALYZE zipcodes;
+
+-- View the collected statistics
+SELECT m.*
+FROM pg_statistic_ext join pg_statistic_ext_data on (oid = stxoid),
+     pg_mcv_list_items(stxdmcv) m
+WHERE stxname = 'stts3';
+```
+
+### Important Considerations
+
+- **Limitations of Functional Dependencies**: Currently, functional dependencies are only applied to simple equality conditions comparing columns to constant values and IN clauses with constant values. They are not used for other types of conditions.
+- **Creating Statistics Objects**: It is advisable to create statistics objects only for column groups that are strongly correlated and actually used in queries, to avoid unnecessary overhead in ANALYZE and query planning.
+- **Updating Statistics**: Statistics are updated by VACUUM, ANALYZE, and certain DDL commands. Regularly running ANALYZE can help keep statistics up-to-date and improve query planning.
+
+### Usage
+
+Consider a database table `zipcodes` with columns `city`, `state`, and `zip`. If queries frequently filter on combinations of these columns, creating extended statistics can improve query performance.
+
+```sql
+-- Create extended statistics
+CREATE STATISTICS zip_stats (dependencies) ON city, zip FROM zipcodes;
+CREATE STATISTICS zip_stats_ndistinct (ndistinct) ON city, state, zip FROM zipcodes;
+CREATE STATISTICS zip_stats_mcv (mcv) ON city, state FROM zipcodes;
+
+-- Analyze the table
+ANALYZE zipcodes;
+
+-- Example query that benefits from extended statistics
+SELECT * FROM zipcodes WHERE city = 'San Francisco' AND zip = '94105';
+```
+
+By creating and maintaining appropriate statistics, PostgreSQL can make more accurate estimates and choose better query plans, leading to improved performance.

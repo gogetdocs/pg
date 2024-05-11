@@ -1,0 +1,152 @@
+## Understanding PostgreSQL Query Plans
+
+PostgreSQL devises a query plan for each query it receives. Choosing the right plan to match the query structure and the properties of the data is crucial for good performance. The `EXPLAIN` command is used to see what query plan the planner creates for any query.
+
+### EXPLAIN Basics
+
+The structure of a query plan is a tree of plan nodes. Nodes at the bottom level of the tree are scan nodes: they return raw rows from a table. There are different types of scan nodes for different table access methods: sequential scans, index scans, and bitmap index scans.
+
+#### Example 1: Simple Sequential Scan
+
+```sql
+EXPLAIN SELECT * FROM tenk1;
+```
+
+**Output:**
+
+```sql
+QUERY PLAN
+-------------------------------------------------------------
+Seq Scan on tenk1  (cost=0.00..458.00 rows=10000 width=244)
+```
+
+- **Estimated start-up cost**: Time expended before the output phase can begin.
+- **Estimated total cost**: Time to run the plan node to completion.
+- **Estimated number of rows**: Number of rows output by this plan node.
+- **Estimated average width of rows**: Average width of rows output by this plan node (in bytes).
+
+### EXPLAIN ANALYZE
+
+`EXPLAIN ANALYZE` actually executes the query and then displays the true row counts and true run time accumulated within each plan node, along with the same estimates that a plain `EXPLAIN` shows.
+
+#### Example 2: Using EXPLAIN ANALYZE
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM tenk1 WHERE unique1 < 10 AND unique2 = tenk2.unique2;
+```
+
+**Output:**
+
+```sql
+QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------
+Nested Loop  (cost=4.65..118.62 rows=10 width=488) (actual time=0.128..0.377 rows=10 loops=1)
+  -> Bitmap Heap Scan on tenk1 t1  (cost=4.36..39.47 rows=10 width=244) (actual time=0.057..0.121 rows=10 loops=1)
+        Recheck Cond: (unique1 < 10)
+        -> Bitmap Index Scan on tenk1_unique1  (cost=0.00..4.36 rows=10 width=0) (actual time=0.024..0.024 rows=10 loops=1)
+              Index Cond: (unique1 < 10)
+  -> Index Scan using tenk2_unique2 on tenk2 t2  (cost=0.29..7.91 rows=1 width=244) (actual time=0.021..0.022 rows=1 loops=10)
+        Index Cond: (unique2 = t1.unique2)
+Planning time: 0.181 ms
+Execution time: 0.501 ms
+```
+
+- **Actual time**: Real time spent in each node.
+- **Rows**: Actual number of rows processed by each node.
+- **Loops**: Number of times each node was executed.
+
+### Usage Examples
+
+#### Example 3: Using Index Scans
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    salary DECIMAL(10, 2)
+);
+
+CREATE INDEX idx_employees_salary ON employees (salary);
+
+EXPLAIN SELECT * FROM employees WHERE salary > 50000;
+```
+
+**Output:**
+
+```sql
+QUERY PLAN
+-------------------------------------------------------------
+Index Scan using idx_employees_salary on employees  (cost=0.29..8.30 rows=1 width=244)
+  Index Cond: (salary > 50000)
+```
+
+#### Example 4: Joining Tables
+
+```sql
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER,
+    order_date DATE
+);
+
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255)
+);
+
+CREATE INDEX idx_orders_customer_id ON orders (customer_id);
+
+EXPLAIN SELECT * FROM orders o JOIN customers c ON o.customer_id = c.id WHERE o.order_date > '2020-01-01';
+```
+
+**Output:**
+
+```sql
+QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------
+Nested Loop  (cost=4.65..118.62 rows=10 width=488)
+  -> Index Scan using idx_orders_customer_id on orders o  (cost=0.29..8.30 rows=1 width=244)
+        Index Cond: (customer_id = c.id)
+        Filter: (order_date > '2020-01-01'::date)
+  -> Seq Scan on customers c  (cost=0.00..39.47 rows=10 width=244)
+Planning time: 0.181 ms
+Execution time: 0.501 ms
+```
+
+### Additional Options
+
+- **BUFFERS**: Shows the number of shared buffer hits.
+- **ANALYZE**: Executes the query and shows actual times and row counts.
+- **VERBOSE**: Displays additional information about the plan.
+
+#### Example 5: Using BUFFERS
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM tenk1 WHERE unique1 < 100 AND unique2 > 9000;
+```
+
+**Output:**
+
+```sql
+QUERY PLAN
+---------------------------------------------------------------------------------------------------------------------------------
+Bitmap Heap Scan on tenk1  (cost=25.08..60.21 rows=10 width=244) (actual time=0.323..0.342 rows=10 loops=1)
+  Recheck Cond: ((unique1 < 100) AND (unique2 > 9000))
+  Buffers: shared hit=15
+  -> BitmapAnd  (cost=25.08..25.08 rows=10 width=0) (actual time=0.309..0.309 rows=0 loops=1)
+        Buffers: shared hit=7
+        -> Bitmap Index Scan on tenk1_unique1  (cost=0.00..5.04 rows=101 width=0) (actual time=0.043..0.043 rows=100 loops=1)
+              Index Cond: (unique1 < 100)
+              Buffers: shared hit=2
+        -> Bitmap Index Scan on tenk1_unique2  (cost=0.00..19.78 rows=999 width=0) (actual time=0.227..0.227 rows=999 loops=1)
+              Index Cond: (unique2 > 9000)
+              Buffers: shared hit=5
+Planning time: 0.088 ms
+Execution time: 0.423 ms
+```
+
+### Caveats
+
+- **Run times**: Measured by `EXPLAIN ANALYZE` can deviate from normal execution due to network transmission costs and measurement overhead.
+- **Estimation errors**: Can occur due to discrepancies in the way estimates and true values are displayed, especially with `LIMIT` and merge joins.
+- **Implementation limitations**: Certain nodes like `BitmapAnd` and `BitmapOr` always report actual row counts as zero.

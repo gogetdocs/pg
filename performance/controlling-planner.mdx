@@ -1,0 +1,88 @@
+# **Controlling the Planner with Explicit JOIN Clauses**
+
+In PostgreSQL, the query planner can be controlled to some extent by using explicit JOIN syntax. This section explains how to use explicit JOINs to control the planner and provides examples of usage.
+
+## **Background**
+
+In a simple join query, the planner is free to join the given tables in any order. For example, consider the following query:
+
+```sql
+SELECT * FROM a, b, c WHERE a.id = b.id AND b.ref = c.id;
+```
+
+The planner can generate a query plan that joins A to B, using the WHERE condition `a.id = b.id`, and then joins C to this joined table, using the other WHERE condition. Or it could join B to C and then join A to that result. The important point is that these different join possibilities give semantically equivalent results but might have hugely different execution costs.
+
+## **Controlling Join Order**
+
+To control the join order, you can use explicit JOIN syntax. For example, consider the following query:
+
+```sql
+SELECT * FROM a JOIN (b JOIN c ON (b.ref = c.id)) ON (a.id = b.id);
+```
+
+This query forces the planner to join B to C and then join A to that result.
+
+## **Usage**
+
+Here are some examples of usage of explicit JOINs to control the planner:
+
+### Example 1: Reducing Planning Time
+
+Suppose we have a query that involves many tables:
+
+```sql
+SELECT * FROM a, b, c, d, e WHERE a.id = b.id AND b.ref = c.id AND c.id = d.id AND d.id = e.id;
+```
+
+To reduce planning time, we can use explicit JOINs to control the join order:
+
+```sql
+SELECT * FROM a JOIN (b JOIN (c JOIN (d JOIN e ON (d.id = e.id)) ON (c.id = d.id)) ON (b.ref = c.id)) ON (a.id = b.id);
+```
+
+By setting `join_collapse_limit` to 1, we can force the planner to follow the join order laid out by explicit JOINs:
+
+```sql
+SET join_collapse_limit = 1;
+```
+
+### Example 2: Directing the Planner to a Good Query Plan
+
+Suppose we have a query that involves outer joins:
+
+```sql
+SELECT * FROM a LEFT JOIN b ON (a.bid = b.id) LEFT JOIN c ON (a.cid = c.id);
+```
+
+To direct the planner to a good query plan, we can use explicit JOINs to control the join order:
+
+```sql
+SELECT * FROM a JOIN (b LEFT JOIN c ON (b.id = c.id)) ON (a.bid = b.id);
+```
+
+By setting `join_collapse_limit` to 1, we can force the planner to follow the join order laid out by explicit JOINs:
+
+```sql
+SET join_collapse_limit = 1;
+```
+
+---
+
+## **Related Issues**
+
+A closely related issue that affects planning time is collapsing of subqueries into their parent query. For example, consider the following query:
+
+```sql
+SELECT *
+FROM x, y,
+    (SELECT * FROM a, b, c WHERE something) AS ss
+WHERE somethingelse;
+```
+
+Normally, the planner will try to collapse the subquery into the parent, yielding:
+
+```sql
+SELECT * FROM x, y, a, b, c WHERE something AND somethingelse;
+```
+
+This usually results in a better plan than planning the subquery separately. However, it can increase planning time. The planner tries to avoid getting stuck in huge join search problems by not collapsing a subquery if more than `from_collapse_limit` FROM items would result in the parent query. You can trade off planning time against quality of plan by adjusting this run-time parameter up or down.

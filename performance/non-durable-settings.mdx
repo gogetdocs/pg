@@ -1,0 +1,117 @@
+## Non-Durable Settings in PostgreSQL
+
+### Overview
+
+Non-durable settings in PostgreSQL allow for improved performance by sacrificing some of the guarantees provided by durable settings. Durable settings ensure that committed transactions are recorded even in the event of a server crash or power loss. However, these settings come with significant database overhead. If your site does not require such guarantees, you can configure PostgreSQL to run faster by making the following changes.
+
+### Configuration Changes
+
+#### 1. Memory-Backed File System
+
+Place the database cluster's data directory in a memory-backed file system (i.e., RAM disk). This eliminates all database disk I/O, but limits data storage to the amount of available memory (and perhaps swap).
+
+**Example:**
+Create a RAM disk on Linux:
+
+```bash
+sudo mkdir /mnt/ramdisk
+sudo mount -t tmpfs -o size=4G tmpfs /mnt/ramdisk
+```
+
+Then, initialize a new PostgreSQL cluster on the RAM disk:
+
+```sql
+initdb -D /mnt/ramdisk/data
+```
+
+#### 2. Disable `fsync`
+
+Turn off `fsync`; there is no need to flush data to disk.
+
+**Example:**
+Set `fsync` to `off` in the PostgreSQL configuration file (`postgresql.conf`):
+
+```sql
+ALTER SYSTEM SET fsync = off;
+```
+
+Alternatively, you can set it in the `postgresql.conf` file:
+
+```ini
+fsync = off
+```
+
+#### 3. Disable `synchronous_commit`
+
+Turn off `synchronous_commit`; there might be no need to force WAL writes to disk on every commit. This setting does risk transaction loss (though not data corruption) in case of a crash of the database.
+
+**Example:**
+Set `synchronous_commit` to `off` in the PostgreSQL configuration file (`postgresql.conf`):
+
+```sql
+ALTER SYSTEM SET synchronous_commit = off;
+```
+
+Alternatively, you can set it in the `postgresql.conf` file:
+
+```ini
+synchronous_commit = off
+```
+
+#### 4. Disable `full_page_writes`
+
+Turn off `full_page_writes`; there is no need to guard against partial page writes.
+
+**Example:**
+Set `full_page_writes` to `off` in the PostgreSQL configuration file (`postgresql.conf`):
+
+```sql
+ALTER SYSTEM SET full_page_writes = off;
+```
+
+Alternatively, you can set it in the `postgresql.conf` file:
+
+```ini
+full_page_writes = off
+```
+
+#### 5. Increase `max_wal_size` and `checkpoint_timeout`
+
+Increase `max_wal_size` and `checkpoint_timeout`; this reduces the frequency of checkpoints, but increases the storage requirements of `/pg_wal`.
+
+**Example:**
+Set `max_wal_size` to `16GB` and `checkpoint_timeout` to `30 minutes` in the PostgreSQL configuration file (`postgresql.conf`):
+
+```sql
+ALTER SYSTEM SET max_wal_size = 16GB;
+ALTER SYSTEM SET checkpoint_timeout = 30min;
+```
+
+Alternatively, you can set it in the `postgresql.conf` file:
+
+```ini
+max_wal_size = 16GB
+checkpoint_timeout = 30min
+```
+
+#### 6. Create Unlogged Tables
+
+Create unlogged tables to avoid WAL writes, though it makes the tables non-crash-safe.
+
+**Example:**
+Create an unlogged table:
+
+```sql
+CREATE UNLOGGED TABLE mytable (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+```
+
+Note that unlogged tables are not crash-safe, and data may be lost in the event of a crash.
+
+### Important Considerations
+
+- Disabling durability settings can lead to data loss or corruption in the event of a crash.
+- Unlogged tables are not crash-safe and may lose data in the event of a crash.
+- Increasing `max_wal_size` and `checkpoint_timeout` can lead to increased storage requirements for `/pg_wal`.
