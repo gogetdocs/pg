@@ -1,0 +1,108 @@
+## Examining Index Usage in PostgreSQL
+
+### Overview
+
+Examining index usage is crucial to optimize query performance in PostgreSQL. This section provides guidance on how to analyze index usage, including using the `EXPLAIN` command, gathering overall statistics, and tips for experimentation.
+
+### Using `EXPLAIN` to Analyze Index Usage
+
+The `EXPLAIN` command is used to analyze the query plan and identify which indexes are used. Here's an example:
+
+```sql
+EXPLAIN SELECT * FROM mytable WHERE mycolumn = 'value';
+```
+
+This will output the query plan, including information on which indexes are used.
+
+### Gathering Overall Statistics
+
+To gather overall statistics about index usage in a running server, use the `pg_stat_user_indexes` view:
+
+```sql
+SELECT * FROM pg_stat_user_indexes;
+```
+
+This will output statistics on index usage, including the number of scans, rows fetched, and rows inserted.
+
+### Tips for Experimentation
+
+#### 1. Run `ANALYZE` First
+
+Always run `ANALYZE` before examining index usage. This command collects statistics about the distribution of values in the table, which is required to estimate the number of rows returned by a query.
+
+```sql
+ANALYZE mytable;
+```
+
+#### 2. Use Real Data for Experimentation
+
+Use real data for experimentation, as test data may not accurately reflect the distribution of values in the production data.
+
+#### 3. Be Careful with Test Data
+
+Be careful when making up test data, as values that are very similar, completely random, or inserted in sorted order can skew the statistics away from the distribution that real data would have.
+
+#### 4. Force Index Usage
+
+To force index usage, use run-time parameters to turn off various plan types. For example:
+
+```sql
+SET enable_seqscan = off;
+SET enable_nestloop = off;
+```
+
+This will force the system to use a different plan. If the system still chooses a sequential scan or nested-loop join, then there is probably a more fundamental reason why the index is not being used.
+
+#### 5. Time Queries with and without Indexes
+
+Time your query with and without indexes to determine if the cost estimates are accurate. Use the `EXPLAIN ANALYZE` command to analyze the query plan and estimate the execution time.
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM mytable WHERE mycolumn = 'value';
+```
+
+#### 6. Adjust Cost Estimates
+
+If the cost estimates are wrong, adjust the per-row costs of each plan node via run-time parameters. For example:
+
+```sql
+SET cpu_tuple_cost = 0.01;
+SET cpu_index_tuple_cost = 0.005;
+```
+
+Alternatively, improve the selectivity estimate by tuning the statistics-gathering parameters using `ALTER TABLE`.
+
+### Example Use Case
+
+Suppose we have a table `mytable` with a column `mycolumn` and an index on `mycolumn`. We want to analyze the index usage for the query `SELECT * FROM mytable WHERE mycolumn = 'value';`.
+
+First, run `ANALYZE` to collect statistics:
+
+```sql
+ANALYZE mytable;
+```
+
+Next, use `EXPLAIN` to analyze the query plan:
+
+```sql
+EXPLAIN SELECT * FROM mytable WHERE mycolumn = 'value';
+```
+
+This outputs the query plan, including information on which indexes are used.
+
+To force index usage, set the run-time parameters:
+
+```sql
+SET enable_seqscan = off;
+SET enable_nestloop = off;
+```
+
+Then, time the query with and without indexes:
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM mytable WHERE mycolumn = 'value';
+```
+
+This will output the estimated execution time and help determine if the cost estimates are accurate.
+
+By following these steps and using the `EXPLAIN` command, gathering overall statistics, and experimenting with different scenarios, you can effectively examine index usage in PostgreSQL and optimize query performance.

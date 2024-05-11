@@ -1,0 +1,107 @@
+## Unique Indexes in PostgreSQL
+
+### Overview
+
+Unique indexes in PostgreSQL are used to enforce the uniqueness of a column's value or the combined values of multiple columns. This is achieved by creating a unique index on the specified column(s).
+
+### Creating a Unique Index
+
+The syntax to create a unique index is as follows:
+
+```sql
+CREATE UNIQUE INDEX name ON table (column [, ...]) [ NULLS [ NOT ] DISTINCT ];
+```
+
+**Note:** Currently, only B-tree indexes can be declared unique.
+
+### Usage
+
+Let's consider a simple example where we want to ensure that each email address in a `users` table is unique.
+
+```sql
+-- Create a table for users
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+-- Create a unique index on the email column
+CREATE UNIQUE INDEX idx_users_email ON users (email);
+
+-- Insert some data
+INSERT INTO users (name, email) VALUES ('John Doe', 'john@example.com');
+INSERT INTO users (name, email) VALUES ('Jane Doe', 'jane@example.com');
+
+-- Attempt to insert a duplicate email
+INSERT INTO users (name, email) VALUES ('Bob Smith', 'john@example.com');
+
+-- This will result in an error
+-- ERROR:  duplicate key value violates unique constraint "idx_users_email"
+-- DETAIL:  Key (email)=(john@example.com) already exists.
+```
+
+### Handling Null Values
+
+By default, null values in a unique column are not considered equal, allowing multiple nulls in the column. The `NULLS NOT DISTINCT` option modifies this behavior and causes the index to treat nulls as equal.
+
+```sql
+-- Create a table for users with a unique index on email that treats nulls as equal
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+CREATE UNIQUE INDEX idx_users_email ON users (email) NULLS NOT DISTINCT;
+
+-- Insert some data
+INSERT INTO users (name, email) VALUES ('John Doe', NULL);
+-- Attempt to insert another null email
+INSERT INTO users (name, email) VALUES ('Jane Doe', NULL);
+
+-- This will result in an error
+-- ERROR:  duplicate key value violates unique constraint "idx_users_email"
+-- DETAIL:  Key (email)=(null) already exists.
+```
+
+### Multicolumn Unique Indexes
+
+A multicolumn unique index will only reject cases where all indexed columns are equal in multiple rows.
+
+```sql
+-- Create a table for users with a multicolumn unique index on name and email
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+CREATE UNIQUE INDEX idx_users_name_email ON users (name, email);
+
+-- Insert some data
+INSERT INTO users (name, email) VALUES ('John Doe', 'john@example.com');
+INSERT INTO users (name, email) VALUES ('John Doe', 'jane@example.com');
+
+-- Attempt to insert a duplicate name and email
+INSERT INTO users (name, email) VALUES ('John Doe', 'john@example.com');
+
+-- This will result in an error
+-- ERROR:  duplicate key value violates unique constraint "idx_users_name_email"
+-- DETAIL:  Key (name, email)=(John Doe, john@example.com) already exists.
+```
+
+### Automatic Index Creation
+
+PostgreSQL automatically creates a unique index when a unique constraint or primary key is defined for a table. Therefore, there is no need to manually create indexes on unique columns.
+
+```sql
+-- Create a table for users with a primary key on id
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+-- A unique index on id is automatically created
+```

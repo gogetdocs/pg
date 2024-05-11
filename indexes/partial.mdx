@@ -1,0 +1,101 @@
+## Partial Indexes in PostgreSQL
+
+### Overview
+
+Partial indexes in PostgreSQL are specialized indexes built over a subset of a table, defined by a conditional expression known as the predicate of the partial index. These indexes contain entries only for those table rows that satisfy the predicate, making them particularly useful in several scenarios.
+
+### 1. Avoiding Indexing of Common Values
+
+One major use of partial indexes is to avoid indexing common values. Since queries searching for common values (those that account for more than a few percent of all table rows) will not use the index anyway, there is no benefit in keeping those rows in the index. This approach reduces the size of the index, speeding up queries that do use the index and many table update operations because the index does not need to be updated in all cases.
+
+#### Example 1.1: Setting Up a Partial Index to Exclude Common Values
+
+Consider a scenario where you are storing web server access logs in a database. Most accesses originate from the IP address range of your organization, but some are from elsewhere. If your searches by IP are primarily for outside accesses, you probably do not need to index the IP range that corresponds to your organization's subnet.
+
+```sql
+-- Create a table for access logs
+CREATE TABLE access_log (
+    url varchar,
+    client_ip inet,
+    -- Other columns...
+);
+
+-- Create a partial index that excludes the organization's subnet
+CREATE INDEX access_log_client_ip_ix ON access_log (client_ip)
+WHERE NOT (client_ip > inet '192.168.100.0' AND client_ip < inet '192.168.100.255');
+
+-- A query that can use this index
+SELECT *
+FROM access_log
+WHERE url = '/index.html' AND client_ip = inet '212.78.10.32';
+
+-- A query that cannot use this index
+SELECT *
+FROM access_log
+WHERE url = '/index.html' AND client_ip = inet '192.168.100.23';
+```
+
+### 2. Excluding Uninteresting Values
+
+Another use for partial indexes is to exclude values from the index that the typical query workload is not interested in. This approach results in the same advantages as listed above but prevents the "uninteresting" values from being accessed via that index, even if an index scan might be profitable.
+
+#### Example 1.2: Setting Up a Partial Index to Exclude Uninteresting Values
+
+Consider a table that contains both billed and unbilled orders, where unbilled orders are the most accessed but make up a small fraction of the total table.
+
+```sql
+-- Create a table for orders
+CREATE TABLE orders (
+    order_nr integer,
+    billed boolean,
+    -- Other columns...
+);
+
+-- Create a partial index on unbilled orders
+CREATE INDEX orders_unbilled_index ON orders (order_nr)
+WHERE billed is not true;
+
+-- A query that can use this index
+SELECT * FROM orders WHERE billed is not true AND order_nr < 10000;
+
+-- Another query that can use this index
+SELECT * FROM orders WHERE billed is not true AND amount > 5000.00;
+
+-- A query that cannot use this index
+SELECT * FROM orders WHERE order_nr = 3501;
+```
+
+### 3. Enforcing Uniqueness
+
+Partial indexes can also be used to enforce uniqueness among a subset of rows in a table.
+
+#### Example 1.3: Setting Up a Partial Unique Index
+
+Consider a table describing test outcomes where you want to ensure that there is only one "successful" entry for a given subject and target combination.
+
+```sql
+-- Create a table for test outcomes
+CREATE TABLE tests (
+    subject text,
+    target text,
+    success boolean,
+    -- Other columns...
+);
+
+-- Create a unique partial index on successful tests
+CREATE UNIQUE INDEX tests_success_constraint ON tests (subject, target)
+WHERE success;
+
+-- This setup ensures that there can be only one successful entry for each subject and target combination.
+```
+
+### 4. Overriding Query Plan Choices
+
+Partial indexes can be used to override the system's query plan choices, especially in cases where the system might use an index when it should not.
+
+### Important Considerations
+
+- **Predicate Matching**: A partial index can be used in a query only if the system can recognize that the WHERE condition of the query mathematically implies the predicate of the index. PostgreSQL does not have a sophisticated theorem prover to recognize mathematically equivalent expressions written in different forms.
+- **Parameterized Queries**: Parameterized query clauses do not work with partial indexes because the predicate must match the conditions used in the queries exactly.
+- **Maintenance**: Partial indexes require careful setup and occasional recreation to adjust for new data distributions, adding maintenance effort.
+- **Partitioning**: Using a large set of non-overlapping partial indexes is generally a bad idea and can be counterproductive. Instead, consider using partitioning for large tables to achieve better performance.

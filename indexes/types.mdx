@@ -1,0 +1,145 @@
+## PostgreSQL Index Types
+
+PostgreSQL provides several index types, each suited for different types of queries and data structures. Understanding these index types is crucial for optimizing database performance.
+
+### 11.2.1. B-Tree
+
+B-trees are the default index type in PostgreSQL and are suitable for most common situations. They can handle equality and range queries on data that can be sorted into some ordering. The PostgreSQL query planner considers using a B-tree index for comparisons involving these operators:
+
+- `<`
+- `<=`
+- `=`
+- `>=`
+- `>`
+
+Constructs equivalent to combinations of these operators, such as `BETWEEN` and `IN`, can also be implemented with a B-tree index search. Additionally, `IS NULL` or `IS NOT NULL` conditions on an index column can be used with a B-tree index.
+
+**Example: Creating a B-Tree Index**
+
+```sql
+CREATE INDEX idx_name ON table_name (column_name);
+```
+
+### 11.2.2. Hash
+
+Hash indexes store a 32-bit hash code derived from the value of the indexed column. They can only handle simple equality comparisons using the `=` operator.
+
+**Example: Creating a Hash Index**
+
+```sql
+CREATE INDEX idx_name ON table_name USING HASH (column_name);
+```
+
+### 11.2.3. GiST
+
+GiST indexes are an infrastructure that supports various indexing strategies. The particular operators with which a GiST index can be used vary depending on the indexing strategy. For example, GiST operator classes for two-dimensional geometric data types support indexed queries using these operators:
+
+- `<<`
+- `&<`
+- `&>`
+- `>>`
+- `<<|`
+- `&<|`
+- `|&>`
+- `|>>`
+- `@>`
+- `<@`
+- `~=`
+- `&&`
+
+GiST indexes are also capable of optimizing “nearest-neighbor” searches.
+
+**Example: Creating a GiST Index**
+
+```sql
+CREATE INDEX idx_name ON table_name USING GIST (column_name);
+```
+
+### 11.2.4. SP-GiST
+
+SP-GiST indexes, like GiST indexes, offer an infrastructure that supports various kinds of searches. They permit the implementation of non-balanced disk-based data structures, such as quadtrees, k-d trees, and radix trees (tries). SP-GiST operator classes for two-dimensional points support indexed queries using these operators:
+
+- `<<`
+- `>>`
+- `~=`
+- `<@`
+- `<<|`
+- `|>>`
+
+Like GiST, SP-GiST supports “nearest-neighbor” searches.
+
+**Example: Creating an SP-GiST Index**
+
+```sql
+CREATE INDEX idx_name ON table_name USING SPGIST (column_name);
+```
+
+### 11.2.5. GIN
+
+GIN indexes are “inverted indexes” suitable for data values that contain multiple component values, such as arrays. They can efficiently handle queries that test for the presence of specific component values.
+
+**Example: Creating a GIN Index**
+
+```sql
+CREATE INDEX idx_name ON table_name USING GIN (column_name);
+```
+
+### 11.2.6. BRIN
+
+BRIN indexes store summaries about the values stored in consecutive physical block ranges of a table. They are most effective for columns whose values are well-correlated with the physical order of the table rows.
+
+**Example: Creating a BRIN Index**
+
+```sql
+CREATE INDEX idx_name ON table_name USING BRIN (column_name);
+```
+
+### Usage Examples
+
+#### Using B-Tree Index for Range Queries
+
+```sql
+-- Create a table with a B-tree index on a column
+CREATE TABLE employees (id SERIAL PRIMARY KEY, salary INTEGER);
+CREATE INDEX idx_salary ON employees (salary);
+
+-- Query using the B-tree index for a range query
+SELECT * FROM employees WHERE salary BETWEEN 50000 AND 100000;
+```
+
+#### Using GiST Index for Geometric Data
+
+```sql
+-- Create a table with a GiST index on a geometric column
+CREATE TABLE locations (id SERIAL PRIMARY KEY, point POINT);
+CREATE INDEX idx_point ON locations USING GIST (point);
+
+-- Query using the GiST index for a nearest-neighbor search
+SELECT * FROM locations ORDER BY point <-> POINT '(101,456)' LIMIT 10;
+```
+
+#### Using GIN Index for Array Data
+
+```sql
+-- Create a table with a GIN index on an array column
+CREATE TABLE tags (id SERIAL PRIMARY KEY, tags TEXT[]);
+CREATE INDEX idx_tags ON tags USING GIN (tags);
+
+-- Query using the GIN index for an array containment check
+SELECT * FROM tags WHERE tags @> ARRAY['tag1', 'tag2'];
+```
+
+#### Using BRIN Index for Large Tables
+
+```sql
+-- Create a large table with a BRIN index on a column
+CREATE TABLE large_data (id SERIAL PRIMARY KEY, value INTEGER);
+CREATE INDEX idx_value ON large_data USING BRIN (value);
+
+-- Query using the BRIN index for a range query
+SELECT * FROM large_data WHERE value BETWEEN 100000 AND 200000;
+```
+
+### Summary
+
+Choosing the appropriate index type based on the data structure and query patterns is crucial for optimizing PostgreSQL database performance. Each index type has its strengths and is suited for different use cases. Understanding these differences helps in creating efficient indexes that significantly improve query performance.

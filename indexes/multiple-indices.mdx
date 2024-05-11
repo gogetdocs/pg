@@ -1,0 +1,68 @@
+## Combining Multiple Indexes in PostgreSQL
+
+### Overview
+
+PostgreSQL has the ability to combine multiple indexes to handle complex query conditions that cannot be implemented by single index scans. This feature allows the system to form AND and OR conditions across several index scans.
+
+### How it Works
+
+When combining multiple indexes, the system scans each needed index and prepares a bitmap in memory giving the locations of table rows that are reported as matching that index's conditions. The bitmaps are then ANDed and ORed together as needed by the query. Finally, the actual table rows are visited and returned.
+
+### Example Use Cases
+
+#### Using Multiple Indexes with OR Conditions
+
+Suppose we have a table `employees` with columns `id`, `name`, and `department`, and we want to query all employees who work in either the sales or marketing department.
+
+```sql
+CREATE TABLE employees (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50),
+  department VARCHAR(50)
+);
+
+CREATE INDEX idx_department ON employees (department);
+
+INSERT INTO employees (name, department) VALUES
+  ('John Doe', 'Sales'),
+  ('Jane Doe', 'Marketing'),
+  ('Bob Smith', 'Sales'),
+  ('Alice Johnson', 'Marketing');
+
+SELECT * FROM employees WHERE department = 'Sales' OR department = 'Marketing';
+```
+
+In this example, the query can be broken down into two separate scans of the `idx_department` index, one for each query clause. The results of these scans are then ORed together to produce the result.
+
+#### Using Multiple Indexes with AND Conditions
+
+Suppose we have a table `orders` with columns `id`, `customer_id`, and `order_date`, and we want to query all orders made by a specific customer on a specific date.
+
+```sql
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER,
+  order_date DATE
+);
+
+CREATE INDEX idx_customer_id ON orders (customer_id);
+CREATE INDEX idx_order_date ON orders (order_date);
+
+INSERT INTO orders (customer_id, order_date) VALUES
+  (1, '2022-01-01'),
+  (1, '2022-01-15'),
+  (2, '2022-01-01'),
+  (2, '2022-01-15');
+
+SELECT * FROM orders WHERE customer_id = 1 AND order_date = '2022-01-01';
+```
+
+In this example, the query can be broken down into two separate scans of the `idx_customer_id` and `idx_order_date` indexes, one for each query clause. The results of these scans are then ANDed together to produce the result.
+
+### Trade-Offs and Best Practices
+
+When deciding which indexes to create, the database developer must make trade-offs between the benefits of using multiple indexes and the overhead of maintaining additional indexes.
+
+- Sometimes, creating separate indexes on individual columns and relying on index combination can be more efficient than creating a multicolumn index.
+- In other cases, creating a multicolumn index can be more efficient for queries that involve multiple columns, but may be less efficient for queries that involve only one of the columns.
+- Creating all possible indexes can be reasonable if the table is searched much more often than it is updated and all types of queries are common.

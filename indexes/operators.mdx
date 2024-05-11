@@ -1,0 +1,92 @@
+## Operator Classes and Operator Families
+
+### Overview
+
+Operator classes and operator families are used in PostgreSQL to define the behavior of indexes on specific data types. An operator class identifies the operators to be used by an index for a particular column, while an operator family groups together operator classes for multiple data types that have similar behaviors.
+
+### Creating an Index with a Specific Operator Class
+
+To create an index with a specific operator class, you can use the following syntax:
+
+```sql
+CREATE INDEX name ON table (column opclass [ ( opclass_options ) ] [sort options] [, ...]);
+```
+
+For example, to create a B-tree index on a `varchar` column using the `varchar_pattern_ops` operator class:
+
+```sql
+CREATE INDEX test_index ON test_table (col varchar_pattern_ops);
+```
+
+### Built-in Operator Classes
+
+PostgreSQL provides several built-in operator classes, including:
+
+- `text_pattern_ops`, `varchar_pattern_ops`, and `bpchar_pattern_ops` for B-tree indexes on `text`, `varchar`, and `char` data types, respectively. These operator classes compare values strictly character by character, rather than using locale-specific collation rules.
+
+### Querying Operator Classes and Operator Families
+
+To view all defined operator classes, you can use the following query:
+
+```sql
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc
+    WHERE opc.opcmethod = am.oid
+    ORDER BY index_method, opclass_name;
+```
+
+To view the operator family for each operator class, you can use the following query:
+
+```sql
+SELECT am.amname AS index_method,
+       opc.opcname AS opclass_name,
+       opf.opfname AS opfamily_name,
+       opc.opcintype::regtype AS indexed_type,
+       opc.opcdefault AS is_default
+    FROM pg_am am, pg_opclass opc, pg_opfamily opf
+    WHERE opc.opcmethod = am.oid AND
+          opc.opcfamily = opf.oid
+    ORDER BY index_method, opclass_name;
+```
+
+To view all defined operator families and their included operators, you can use the following query:
+
+```sql
+SELECT am.amname AS index_method,
+       opf.opfname AS opfamily_name,
+       amop.amopopr::regoperator AS opfamily_operator
+    FROM pg_am am, pg_opfamily opf, pg_amop amop
+    WHERE opf.opfmethod = am.oid AND
+          amop.amopfamily = opf.oid
+    ORDER BY index_method, opfamily_name, opfamily_operator;
+```
+
+### Example Use Case
+
+Suppose we have a table `test_table` with a `varchar` column `col`, and we want to create an index on this column that can be used for pattern-matching queries. We can create an index with the `varchar_pattern_ops` operator class:
+
+```sql
+CREATE TABLE test_table (col varchar(50));
+CREATE INDEX test_index ON test_table (col varchar_pattern_ops);
+```
+
+We can then use this index for pattern-matching queries, such as:
+
+```sql
+SELECT * FROM test_table WHERE col LIKE '%pattern%';
+```
+
+Note that we should also create an index with the default operator class if we want to use the index for ordinary comparison queries:
+
+```sql
+CREATE INDEX test_index_default ON test_table (col);
+```
+
+This index can be used for queries such as:
+
+```sql
+SELECT * FROM test_table WHERE col = 'value';
+```

@@ -1,0 +1,86 @@
+## Index-Only Scans and Covering Indexes in PostgreSQL
+
+### Overview
+
+PostgreSQL supports index-only scans, which allow queries to be answered directly from an index without accessing the heap (table data). This feature can significantly improve performance by reducing the need for random heap accesses. However, there are specific requirements and considerations for using index-only scans effectively.
+
+### Requirements for Index-Only Scans
+
+1. **Index Type Support**: The index type must support index-only scans. B-tree indexes always do, while GiST and SP-GiST indexes support it for some operator classes but not others. Other index types have no support[1].
+
+2. **Query Column Restrictions**: The query must only reference columns stored in the index. For example, if an index is created on columns `x` and `y`, queries that only select `x` and `y` can use index-only scans, but queries that select `x` and `z` cannot[1].
+
+### Visibility and Performance Considerations
+
+- **Visibility**: PostgreSQL must verify that each retrieved row is "visible" to the query's MVCC snapshot. This is done by checking the visibility map bit for the corresponding heap page. If the bit is set, the row is known to be visible, and no further heap access is needed[1].
+- **Performance**: Index-only scans are most beneficial when a significant fraction of the table's heap pages have their all-visible map bits set, which is common in tables with seldom-changing data[1].
+
+### Creating Covering Indexes
+
+To make effective use of index-only scans, you can create a covering index, which includes the columns needed by a particular type of query. This is done by adding an `INCLUDE` clause listing the extra columns.
+
+#### Example: Creating a Covering Index
+
+```sql
+-- Create a table
+CREATE TABLE tab (
+    x VARCHAR(10),
+    y INTEGER,
+    z TEXT
+);
+
+-- Insert some data
+INSERT INTO tab (x, y, z) VALUES ('key', 42, 'extra data');
+
+-- Create a covering index on x including y
+CREATE INDEX tab_x_y ON tab(x) INCLUDE (y);
+
+-- Query that can use index-only scan
+SELECT x, y FROM tab WHERE x = 'key';
+```
+
+### Additional Considerations
+
+- **Non-Key Columns**: Be conservative about adding non-key payload columns to an index, as they can bloat the index size and slow searches. There is little point in including payload columns unless the table changes slowly enough that an index-only scan is likely to not need to access the heap[1].
+- **Expression Indexes**: Index-only scans can be used with expression indexes, but the planner may not always recognize this possibility. Adding the base column as an included column can work around this limitation[1].
+- **Partial Indexes**: Partial indexes can also be used with index-only scans, but there are specific considerations regarding the visibility of rows and the handling of the `WHERE` clause[1].
+
+### Usage Examples
+
+#### Example 1: Using Index-Only Scans with Expression Indexes
+
+```sql
+-- Create a table
+CREATE TABLE tab (
+    x INTEGER
+);
+
+-- Insert some data
+INSERT INTO tab (x) VALUES (1), (2), (3);
+
+-- Create an expression index on f(x) including x
+CREATE INDEX tab_f_x ON tab (x * 2) INCLUDE (x);
+
+-- Query that can use index-only scan
+SELECT x * 2 FROM tab WHERE x * 2 < 6;
+```
+
+#### Example 2: Using Index-Only Scans with Partial Indexes
+
+```sql
+-- Create a table
+CREATE TABLE tests (
+    subject VARCHAR(10),
+    target VARCHAR(10),
+    success BOOLEAN
+);
+
+-- Insert some data
+INSERT INTO tests (subject, target, success) VALUES ('some-subject', 'target', TRUE);
+
+-- Create a partial index on subject and target where success is true
+CREATE UNIQUE INDEX tests_success_constraint ON tests (subject, target) WHERE success;
+
+-- Query that can use index-only scan
+SELECT target FROM tests WHERE subject = 'some-subject' AND success;
+```

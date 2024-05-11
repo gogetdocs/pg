@@ -1,0 +1,73 @@
+## Indexes and Collations
+
+### Overview
+
+Indexes in PostgreSQL can support only one collation per index column. If multiple collations are required, multiple indexes must be created.
+
+### Creating a Table with a Specific Collation
+
+```sql
+CREATE TABLE test1c (
+    id integer,
+    content varchar COLLATE "en_US.UTF-8"
+);
+```
+
+In this example, the `content` column is created with the `en_US.UTF-8` collation.
+
+### Creating an Index with a Specific Collation
+
+```sql
+CREATE INDEX test1c_content_index ON test1c (content);
+```
+
+This index will automatically use the collation of the underlying `content` column.
+
+### Using the Index with a Query
+
+```sql
+SELECT * FROM test1c WHERE content > 'constant';
+```
+
+This query can use the `test1c_content_index` index because the comparison will default to the collation of the `content` column.
+
+### Creating an Additional Index with a Different Collation
+
+```sql
+CREATE INDEX test1c_content_y_index ON test1c (content COLLATE "fr_FR.UTF-8");
+```
+
+This index supports the `fr_FR.UTF-8` collation and can be used for queries that require this collation.
+
+### Using the Additional Index with a Query
+
+```sql
+SELECT * FROM test1c WHERE content > 'constant' COLLATE "fr_FR.UTF-8";
+```
+
+This query can use the `test1c_content_y_index` index because it specifies the `fr_FR.UTF-8` collation.
+
+### Example
+
+Suppose we have a table `books` with a column `title` that contains book titles in different languages. We want to create indexes to support queries with different collations.
+
+```sql
+CREATE TABLE books (
+    id integer,
+    title varchar COLLATE "en_US.UTF-8"
+);
+
+CREATE INDEX books_title_en_index ON books (title);
+CREATE INDEX books_title_fr_index ON books (title COLLATE "fr_FR.UTF-8");
+CREATE INDEX books_title_es_index ON books (title COLLATE "es_ES.UTF-8");
+```
+
+We can then use these indexes for queries with different collations:
+
+```sql
+SELECT * FROM books WHERE title > 'constant';  -- uses books_title_en_index
+SELECT * FROM books WHERE title > 'constant' COLLATE "fr_FR.UTF-8";  -- uses books_title_fr_index
+SELECT * FROM books WHERE title > 'constant' COLLATE "es_ES.UTF-8";  -- uses books_title_es_index
+```
+
+Note that creating multiple indexes can increase storage requirements and slow down write operations. Therefore, it's essential to carefully evaluate the need for multiple indexes and consider the trade-offs.

@@ -1,0 +1,59 @@
+## Indexes and ORDER BY
+
+### Overview
+
+Indexes in PostgreSQL can be used to deliver rows in a specific sorted order, allowing a query's ORDER BY specification to be honored without a separate sorting step. Only B-tree indexes can produce sorted output, while other index types return matching rows in an unspecified order.
+
+### How Indexes Work with ORDER BY
+
+The planner considers satisfying an ORDER BY specification by either scanning an available index that matches the specification or by scanning the table in physical order and doing an explicit sort. For large tables, an explicit sort is often faster than using an index due to sequential access patterns.
+
+### Special Case: ORDER BY with LIMIT
+
+When using ORDER BY with LIMIT, an explicit sort would require processing all data to identify the first n rows. However, if there is an index matching the ORDER BY, the first n rows can be retrieved directly without scanning the remainder.
+
+### Default B-Tree Index Ordering
+
+By default, B-tree indexes store entries in ascending order with nulls last. This means a forward scan of an index on column x produces output satisfying ORDER BY x (or ORDER BY x ASC NULLS LAST). The index can also be scanned backward, producing output satisfying ORDER BY x DESC (or ORDER BY x DESC NULLS FIRST).
+
+### Customizing Index Ordering
+
+You can adjust the ordering of a B-tree index by including options ASC, DESC, NULLS FIRST, and/or NULLS LAST when creating the index. For example:
+
+```sql
+CREATE INDEX test2_info_nulls_low ON test2 (info NULLS FIRST);
+CREATE INDEX test3_desc_index ON test3 (id DESC NULLS LAST);
+```
+
+### Multicolumn Indexes
+
+In multicolumn indexes, custom ordering can be useful. Consider a two-column index on (x, y):
+
+```sql
+CREATE INDEX test_xy_index ON test (x ASC, y DESC);
+```
+
+This index can satisfy ORDER BY x ASC, y DESC, which is not possible with a plain index.
+
+### Usage
+
+Suppose we have a table `employees` with columns `name` and `salary`, and we frequently query the top 10 employees by salary:
+
+```sql
+CREATE TABLE employees (
+  name VARCHAR(50),
+  salary INTEGER
+);
+
+CREATE INDEX employees_salary_index ON employees (salary DESC NULLS LAST);
+
+SELECT * FROM employees ORDER BY salary DESC LIMIT 10;
+```
+
+In this case, the index `employees_salary_index` can be used to retrieve the top 10 employees by salary without scanning the entire table.
+
+### Example Use Cases
+
+- **Sorting by multiple columns**: Create a multicolumn index with custom ordering to satisfy complex ORDER BY specifications.
+- **Frequent queries with LIMIT**: Create an index with matching ORDER BY specification to retrieve the first n rows directly.
+- **Large tables with infrequent queries**: Use an explicit sort instead of an index to reduce disk I/O.

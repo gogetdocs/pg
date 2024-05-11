@@ -1,0 +1,62 @@
+## Indexes on Expressions
+
+### Overview
+
+Indexes on expressions allow you to create an index on a column that is derived from one or more columns of the underlying table. This feature is useful for obtaining fast access to tables based on the results of computations.
+
+### Example 1: Case-Insensitive Comparisons
+
+Suppose we have a table `test1` with a column `col1` and we want to perform case-insensitive comparisons on this column.
+
+```sql
+-- Create a table
+CREATE TABLE test1 (
+    col1 VARCHAR(50)
+);
+
+-- Insert some data
+INSERT INTO test1 (col1) VALUES ('Value'), ('value'), ('VALUE');
+
+-- Create an index on the lower(col1) function
+CREATE INDEX test1_lower_col1_idx ON test1 (lower(col1));
+
+-- Query the table using the index
+SELECT * FROM test1 WHERE lower(col1) = 'value';
+```
+
+In this example, the index `test1_lower_col1_idx` is created on the result of the `lower(col1)` function. This allows the query to use the index for fast access to the table.
+
+### Example 2: Concatenating Columns
+
+Suppose we have a table `people` with columns `first_name` and `last_name` and we want to perform queries on the concatenation of these columns.
+
+```sql
+-- Create a table
+CREATE TABLE people (
+    first_name VARCHAR(50),
+    last_name VARCHAR(50)
+);
+
+-- Insert some data
+INSERT INTO people (first_name, last_name) VALUES ('John', 'Smith'), ('Jane', 'Doe');
+
+-- Create an index on the concatenation of first_name and last_name
+CREATE INDEX people_names ON people ((first_name || ' ' || last_name));
+
+-- Query the table using the index
+SELECT * FROM people WHERE (first_name || ' ' || last_name) = 'John Smith';
+```
+
+In this example, the index `people_names` is created on the concatenation of `first_name` and `last_name`. This allows the query to use the index for fast access to the table.
+
+### Important Considerations
+
+- Index expressions are relatively expensive to maintain, because the derived expression(s) must be computed for each row insertion and non-HOT update.
+- The index expressions are not recomputed during an indexed search, since they are already stored in the index.
+- Indexes on expressions are useful when retrieval speed is more important than insertion and update speed.
+
+### Best Practices
+
+- Use indexes on expressions when you need to perform queries on computed columns.
+- Consider the trade-off between retrieval speed and insertion/update speed when deciding whether to use an index on an expression.
+- Use parentheses around index expressions in the `CREATE INDEX` command, unless the expression is just a function call.
