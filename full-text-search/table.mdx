@@ -1,0 +1,84 @@
+## Full Text Search in PostgreSQL
+
+### Overview
+
+PostgreSQL provides a robust full text search functionality that allows you to search for specific words or phrases within text data stored in your database. This section will cover how to perform full text searches on tables and create indexes to speed up these searches.
+
+### Searching a Table
+
+You can perform a full text search on a table using the `to_tsvector` and `to_tsquery` functions.
+
+#### Example 1: Simple Full Text Search
+
+The following query searches for the word "friend" in the `body` field of the `pgweb` table:
+
+```sql
+SELECT title
+FROM pgweb
+WHERE to_tsvector('english', body) @@ to_tsquery('english', 'friend');
+```
+
+This query will also find related words such as "friends" and "friendly" since all these are reduced to the same normalized lexeme.
+
+#### Example 2: Searching Multiple Fields
+
+The following query searches for the words "create" and "table" in the `title` and `body` fields of the `pgweb` table:
+
+```sql
+SELECT title
+FROM pgweb
+WHERE to_tsvector(title || ' ' || body) @@ to_tsquery('create & table')
+ORDER BY last_mod_date DESC
+LIMIT 10;
+```
+
+This query will return the 10 most recent documents that contain both "create" and "table" in the `title` or `body` fields.
+
+### Creating Indexes
+
+To speed up full text searches, you can create a GIN (Generalized Inverted Index) index on the `to_tsvector` expression.
+
+#### Example 1: Creating a GIN Index
+
+The following query creates a GIN index on the `body` field of the `pgweb` table:
+
+```sql
+CREATE INDEX pgweb_idx ON pgweb USING GIN (to_tsvector('english', body));
+```
+
+This index will be used by queries that use the `to_tsvector` function with the same configuration name.
+
+#### Example 2: Creating a GIN Index with a Separate Column
+
+The following query creates a separate `tsvector` column to hold the output of `to_tsvector` and creates a GIN index on that column:
+
+```sql
+ALTER TABLE pgweb
+    ADD COLUMN textsearchable_index_col tsvector
+               GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''))) STORED;
+
+CREATE INDEX textsearch_idx ON pgweb USING GIN (textsearchable_index_col);
+```
+
+This approach allows you to perform fast full text searches without having to specify the text search configuration in the query.
+
+#### Example 3: Using the Index
+
+The following query uses the `textsearchable_index_col` column to perform a fast full text search:
+
+```sql
+SELECT title
+FROM pgweb
+WHERE textsearchable_index_col @@ to_tsquery('create & table')
+ORDER BY last_mod_date DESC
+LIMIT 10;
+```
+
+This query will return the 10 most recent documents that contain both "create" and "table" in the `title` or `body` fields.
+
+### Best Practices
+
+- Use the `to_tsvector` function with a specific configuration name to ensure that the index is used correctly.
+- Create a separate `tsvector` column to hold the output of `to_tsvector` to improve performance.
+- Use a GIN index to speed up full text searches.
+- Use the `coalesce` function to handle NULL values in the `title` and `body` fields.

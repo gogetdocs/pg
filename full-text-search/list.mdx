@@ -1,0 +1,126 @@
+# **PostgreSQL Full Text Search Support**
+
+PostgreSQL provides a robust full text search functionality that allows users to search for specific words or phrases within text data. This documentation will cover the various commands and techniques available in PostgreSQL for full text search.
+
+## **psql Support**
+
+The `psql` command-line tool provides several commands for working with full text search objects.
+
+### List Text Search Configurations
+
+The `\dF` command is used to list text search configurations. The optional `+` parameter provides more detailed information.
+
+**Example:**
+
+```sql
+=> \dF *fulltext*
+       List of text search configurations
+ Schema |  Name        | Description
+--------+--------------+-------------
+ public | fulltext_cfg |
+```
+
+### List Text Search Dictionaries
+
+The `\dFd` command is used to list text search dictionaries. The optional `+` parameter provides more detailed information.
+
+**Example:**
+
+```sql
+=> \dFd
+                             List of text search dictionaries
+   Schema   |      Name       |                        Description
+------------+-----------------+-----------------------------------------------------------
+ pg_catalog | arabic_stem     | snowball stemmer for arabic language
+ pg_catalog | armenian_stem   | snowball stemmer for armenian language
+ ...
+```
+
+### List Text Search Parsers
+
+The `\dFp` command is used to list text search parsers. The optional `+` parameter provides more detailed information.
+
+**Example:**
+
+```sql
+=> \dFp
+        List of text search parsers
+   Schema   |  Name   |     Description
+------------+---------+---------------------
+ pg_catalog | default | default word parser
+```
+
+### List Text Search Templates
+
+The `\dFt` command is used to list text search templates. The optional `+` parameter provides more detailed information.
+
+**Example:**
+
+```sql
+=> \dFt
+                           List of text search templates
+   Schema   |   Name    |                        Description
+------------+-----------+-----------------------------------------------------------
+ pg_catalog | ispell    | ispell dictionary
+ pg_catalog | simple    | simple dictionary: just lower case and check for stopword
+ ...
+```
+
+## **Usage**
+
+Here are some examples of using full text search in PostgreSQL:
+
+### Creating a Text Search Configuration
+
+```sql
+CREATE TEXT SEARCH CONFIGURATION my_config (
+  PARSER = pg_catalog.default
+);
+
+CREATE TEXT SEARCH DICTIONARY my_dict (
+  TEMPLATE = pg_catalog.simple
+);
+
+ALTER TEXT SEARCH CONFIGURATION my_config
+  ADD MAPPING FOR asciiword WITH my_dict;
+```
+
+### Creating a Table with a Text Search Column
+
+```sql
+CREATE TABLE my_table (
+  id SERIAL PRIMARY KEY,
+  text_column tsvector
+);
+
+CREATE INDEX my_index ON my_table USING GIN (text_column);
+```
+
+### Searching for Text
+
+```sql
+SELECT * FROM my_table
+  WHERE text_column @@ to_tsquery('my_config', 'search_term');
+```
+
+Note: The `to_tsquery` function is used to convert the search term into a tsquery object, which is then used to search the text column.
+
+### Using a Text Search Dictionary
+
+```sql
+CREATE TEXT SEARCH DICTIONARY my_dict (
+  TEMPLATE = pg_catalog.snowball
+);
+
+CREATE TEXT SEARCH CONFIGURATION my_config (
+  PARSER = pg_catalog.default
+);
+
+ALTER TEXT SEARCH CONFIGURATION my_config
+  ADD MAPPING FOR asciiword WITH my_dict;
+
+SELECT * FROM my_table
+  WHERE text_column @@ to_tsquery('my_config', 'search_term');
+```
+
+In this example, the `my_dict` dictionary is used to stem the words in the text column, and the `my_config` configuration is used to search for the stemmed words.

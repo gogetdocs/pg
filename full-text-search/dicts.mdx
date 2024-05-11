@@ -1,0 +1,206 @@
+## PostgreSQL Dictionaries for Full Text Search
+
+### Overview
+
+PostgreSQL dictionaries are essential components of full text search configurations. They help eliminate stop words and normalize words to their base forms, known as lexemes, which improves search quality and performance. This documentation covers the various types of dictionaries available in PostgreSQL, including their usage and examples.
+
+### 1. Stop Words
+
+#### Overview
+
+Stop words are common words that do not carry significant meaning in a search context, such as "a" and "the". They are ignored in full text searches to reduce noise and improve performance.
+
+#### Example
+
+To demonstrate the impact of stop words, consider the following SQL queries:
+
+```sql
+-- Create a tsvector with stop words
+SELECT to_tsvector('english', 'in the list of stop words');
+
+-- Result: 'list':3 'stop':5 'word':6
+
+-- Create a tsvector without stop words
+SELECT to_tsvector('english', 'list stop words');
+
+-- Result: 'list':1 'stop':2 'word':3
+
+-- Compare ranks with and without stop words
+SELECT ts_rank_cd (to_tsvector('english', 'in the list of stop words'), to_tsquery('list & stop'));
+SELECT ts_rank_cd (to_tsvector('english', 'list stop words'), to_tsquery('list & stop'));
+```
+
+### 2. Simple Dictionary
+
+#### Overview
+
+The simple dictionary template converts input tokens to lower case and checks them against a file of stop words. If a token is found in the file, it is discarded; otherwise, its lower-cased form is returned as the normalized lexeme.
+
+#### Example
+
+To create and use a simple dictionary:
+
+```sql
+-- Create a simple dictionary
+CREATE TEXT SEARCH DICTIONARY public.simple_dict (
+  TEMPLATE = pg_catalog.simple,
+  STOPWORDS = english
+);
+
+-- Test the dictionary
+SELECT ts_lexize('public.simple_dict', 'YeS');
+-- Result: {yes}
+
+SELECT ts_lexize('public.simple_dict', 'The');
+-- Result: {}
+
+-- Modify the dictionary to return NULL for non-stop words
+ALTER TEXT SEARCH DICTIONARY public.simple_dict ( Accept = false );
+
+-- Test the modified dictionary
+SELECT ts_lexize('public.simple_dict', 'YeS');
+-- Result:
+
+SELECT ts_lexize('public.simple_dict', 'The');
+-- Result: {}
+```
+
+### 3. Synonym Dictionary
+
+#### Overview
+
+The synonym dictionary template replaces words with their synonyms. It is useful for overcoming linguistic issues, such as preventing an English stemmer from reducing "Paris" to "pari".
+
+#### Example
+
+To create and use a synonym dictionary:
+
+```sql
+-- Create a synonym dictionary
+CREATE TEXT SEARCH DICTIONARY my_synonym (
+  TEMPLATE = synonym,
+  SYNONYMS = my_synonyms
+);
+
+-- Add the synonym dictionary to a text search configuration
+ALTER TEXT SEARCH CONFIGURATION english
+  ALTER MAPPING FOR asciiword
+  WITH my_synonym, english_stem;
+
+-- Test the configuration
+SELECT * FROM ts_debug('english', 'Paris');
+-- Result: asciiword | Word, all ASCII | Paris | {my_synonym,english_stem} | my_synonym | {paris}
+```
+
+### 4. Thesaurus Dictionary
+
+#### Overview
+
+The thesaurus dictionary template is an extension of the synonym dictionary that supports phrases. It replaces non-preferred terms with preferred terms and optionally preserves the original terms for indexing.
+
+#### Example
+
+To create and use a thesaurus dictionary:
+
+```sql
+-- Create a thesaurus dictionary
+CREATE TEXT SEARCH DICTIONARY thesaurus_astro (
+  TEMPLATE = thesaurus,
+  DictFile = thesaurus_astro,
+  Dictionary = english_stem
+);
+
+-- Add the thesaurus dictionary to a text search configuration
+ALTER TEXT SEARCH CONFIGURATION russian
+  ALTER MAPPING FOR asciiword, asciihword, hword_asciipart
+  WITH thesaurus_astro, english_stem;
+
+-- Test the configuration
+SELECT plainto_tsquery('supernova star');
+-- Result: 'sn'
+
+SELECT to_tsvector('supernova star');
+-- Result: 'sn':1
+```
+
+### 5. Ispell Dictionary
+
+#### Overview
+
+The Ispell dictionary template supports morphological dictionaries, which normalize different linguistic forms of a word into the same lexeme.
+
+#### Example
+
+To create and use an Ispell dictionary:
+
+```sql
+-- Download and prepare the dictionary files
+-- ...
+
+-- Create an Ispell dictionary
+CREATE TEXT SEARCH DICTIONARY english_hunspell (
+  TEMPLATE = ispell,
+  DictFile = en_us,
+  AffFile = en_us,
+  Stopwords = english
+);
+
+-- Test the dictionary
+SELECT ts_lexize('english_hunspell', 'banking');
+-- Result: {bank}
+```
+
+### 6. Snowball Dictionary
+
+#### Overview
+
+The Snowball dictionary template is based on the Porter's stemming algorithm and provides stemming algorithms for many languages.
+
+#### Example
+
+To create and use a Snowball dictionary:
+
+```sql
+-- Create a Snowball dictionary
+CREATE TEXT SEARCH DICTIONARY english_stem (
+  TEMPLATE = snowball,
+  Language = english,
+  StopWords = english
+);
+
+-- Test the dictionary
+SELECT ts_lexize('english_stem', 'running');
+-- Result: {run}
+```
+
+### Usage
+
+To demonstrate the usage of these dictionaries in a scenario, consider the following example:
+
+```sql
+-- Create a text search configuration with multiple dictionaries
+CREATE TEXT SEARCH CONFIGURATION my_config (
+  COPY = simple
+);
+
+ALTER TEXT SEARCH CONFIGURATION my_config
+  ALTER MAPPING FOR asciiword
+  WITH my_synonym, english_hunspell, english_stem;
+
+-- Create a table with a tsvector column
+CREATE TABLE documents (
+  id SERIAL PRIMARY KEY,
+  content TEXT,
+  tsvector tsvector
+);
+
+-- Insert some data
+INSERT INTO documents (content, tsvector)
+VALUES ('This is a sample document about PostgreSQL.', to_tsvector('my_config', 'This is a sample document about PostgreSQL.'));
+
+-- Search for documents
+SELECT * FROM documents
+WHERE tsvector @@ to_tsquery('my_config', 'PostgreSQL');
+```
+
+This example demonstrates how to create a text search configuration with multiple dictionaries, create a table with a tsvector column, and search for documents using the `to_tsquery` function.

@@ -1,0 +1,215 @@
+## Full Text Search in PostgreSQL
+
+### Introduction
+
+Full Text Search (FTS) in PostgreSQL provides the capability to identify natural-language documents that satisfy a query, and optionally to sort them by relevance to the query. This functionality is essential for modern information systems that require efficient and flexible text search capabilities.
+
+### What Is a Document?
+
+In the context of FTS, a document is the unit of searching. It can be a textual field within a row of a database table, a combination of such fields, or even a text file stored outside the database.
+
+### Basic Text Matching
+
+FTS in PostgreSQL is based on the match operator `@@`, which returns true if a `tsvector` (document) matches a `tsquery` (query).
+
+#### Example Usage:
+
+```sql
+-- Create a table with a text column
+CREATE TABLE messages (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(100),
+    author VARCHAR(100),
+    abstract TEXT,
+    body TEXT
+);
+
+-- Insert some data
+INSERT INTO messages (title, author, abstract, body)
+VALUES ('A Fat Cat', 'John Doe', 'A story about a fat cat.', 'Once upon a time, there was a fat cat who sat on a mat and ate a fat rat.');
+
+-- Convert text to tsvector and tsquery
+SELECT to_tsvector('fat cats ate fat rats') @@ to_tsquery('fat & rat');
+
+-- Use the @@ operator directly with text
+SELECT 'a fat cat sat on a mat and ate a fat rat'::tsvector @@ 'cat & rat'::tsquery;
+
+-- Use the @@ operator with a table column
+SELECT title, author
+FROM messages
+WHERE to_tsvector(title || ' ' || author || ' ' || abstract || ' ' || body) @@ to_tsquery('fat & cat');
+```
+
+### Configurations
+
+PostgreSQL provides predefined configurations for many languages, and you can easily create your own configurations. These configurations control how tokens are normalized and which words are considered stop words.
+
+#### Example Usage:
+
+```sql
+-- Show available configurations
+\dF
+
+-- Set the default text search configuration for the database
+ALTER DATABASE mydatabase SET default_text_search_config = 'english';
+
+-- Use a specific configuration for a query
+SELECT to_tsvector('english', 'fat cats ate fat rats') @@ to_tsquery('english', 'fat & rat');
+```
+
+### Text Search Parsers
+
+Text search parsers break documents into tokens and classify each token.
+
+#### Example Usage:
+
+```sql
+-- Create a custom parser
+CREATE TEXT SEARCH PARSER myparser (
+    START = prsd_start,
+    GETTOKEN = prsd_nexttoken,
+    END = prsd_end,
+    LEXTYPES = prsd_lextype
+);
+
+-- Use the custom parser
+SELECT to_tsvector('myparser', 'fat cats ate fat rats') @@ to_tsquery('myparser', 'fat & rat');
+```
+
+### Text Search Dictionaries
+
+Text search dictionaries convert tokens to normalized form and reject stop words.
+
+#### Example Usage:
+
+```sql
+-- Create a custom dictionary
+CREATE TEXT SEARCH DICTIONARY mydict (
+    TEMPLATE = snowball,
+    LANGUAGE = 'english',
+    STOPWORDS = 'a, an, the'
+);
+
+-- Use the custom dictionary
+SELECT to_tsvector('mydict', 'fat cats ate fat rats') @@ to_tsquery('mydict', 'fat & rat');
+```
+
+### Text Search Templates
+
+Text search templates provide the functions underlying dictionaries.
+
+#### Example Usage:
+
+```sql
+-- Create a custom template
+CREATE TEXT SEARCH TEMPLATE mytemplate (
+    INIT = myinit,
+    LEXIZE = mylexize
+);
+
+-- Use the custom template
+SELECT to_tsvector('mytemplate', 'fat cats ate fat rats') @@ to_tsquery('mytemplate', 'fat & rat');
+```
+
+### Text Search Configurations
+
+Text search configurations select a parser and a set of dictionaries to use to normalize the tokens produced by the parser.
+
+#### Example Usage:
+
+```sql
+-- Create a custom configuration
+CREATE TEXT SEARCH CONFIGURATION myconfig (
+    PARSER = myparser,
+    DICTIONARY = mydict
+);
+
+-- Use the custom configuration
+SELECT to_tsvector('myconfig', 'fat cats ate fat rats') @@ to_tsquery('myconfig', 'fat & rat');
+```
+
+### Proximity Ranking
+
+Proximity ranking allows you to search for phrases and rank documents based on the proximity of the query words.
+
+#### Example Usage:
+
+```sql
+-- Search for a phrase
+SELECT to_tsvector('fatal error') @@ to_tsquery('fatal <-> error');
+
+-- Search for a phrase with a specific distance
+SELECT to_tsvector('error is not fatal') @@ to_tsquery('fatal <2> error');
+```
+
+### Using `phraseto_tsquery`
+
+The `phraseto_tsquery` function makes it easy to search for phrases.
+
+#### Example Usage:
+
+```sql
+-- Search for a phrase
+SELECT phraseto_tsquery('cats ate rats');
+
+-- Search for a phrase with stop words
+SELECT phraseto_tsquery('the cats ate the rats');
+```
+
+### Using `to_tsvector` and `to_tsquery`
+
+The `to_tsvector` and `to_tsquery` functions are used to convert text to `tsvector` and `tsquery` respectively.
+
+#### Example Usage:
+
+```sql
+-- Convert text to tsvector
+SELECT to_tsvector('fat cats ate fat rats');
+
+-- Convert text to tsquery
+SELECT to_tsquery('fat & rat');
+```
+
+### Using `plainto_tsquery`
+
+The `plainto_tsquery` function is used to convert plain text to `tsquery`.
+
+#### Example Usage:
+
+```sql
+-- Convert plain text to tsquery
+SELECT plainto_tsquery('fat cat');
+```
+
+### Using `@@` Operator
+
+The `@@` operator is used to match a `tsvector` with a `tsquery`.
+
+#### Example Usage:
+
+```sql
+-- Match a tsvector with a tsquery
+SELECT 'a fat cat sat on a mat and ate a fat rat'::tsvector @@ 'cat & rat'::tsquery;
+```
+
+### Using `text @@ tsquery`
+
+The `text @@ tsquery` form is equivalent to `to_tsvector(x) @@ y`.
+
+#### Example Usage:
+
+```sql
+-- Match text with a tsquery
+SELECT 'a fat cat sat on a mat and ate a fat rat' @@ 'cat & rat'::tsquery;
+```
+
+### Using `text @@ text`
+
+The `text @@ text` form is equivalent to `to_tsvector(x) @@ plainto_tsquery(y)`.
+
+#### Example Usage:
+
+```sql
+-- Match text with text
+SELECT 'a fat cat sat on a mat and ate a fat rat' @@ 'fat cat';
+```

@@ -1,0 +1,121 @@
+## PostgreSQL Full-Text Search: A Comprehensive Guide
+
+### Introduction
+
+PostgreSQL offers powerful full-text search capabilities that enable efficient querying of textual data. This guide provides a detailed overview of PostgreSQL's full-text search features, including configuration, indexing, and querying techniques.
+
+### Key Components
+
+1. **Text Normalization**: PostgreSQL's full-text search functionality starts by reducing input text to a normalized form called a `tsvector`. This process involves tokenizing the text into separate words, converting them to lowercase, and removing inflections by stemming[3][4].
+
+2. **Query Parsing and Normalization**: Search queries are also normalized into a `tsquery` format, which represents a logical combination of search terms. This process includes tokenization, stemming, and the addition of logical operators such as AND, OR, and NOT[3][4].
+
+3. **Indexing**: To speed up full-text search operations, PostgreSQL allows you to create indexes on `tsvector` columns. These indexes, called `tsvector` indexes, store pre-processed text data, enabling fast and efficient searching[3][4].
+
+### Configuration
+
+A text search configuration specifies all options necessary to transform a document into a `tsvector`. This includes the parser to use to break text into tokens and the dictionaries to use to transform each token into a lexeme. Every call of `to_tsvector` or `to_tsquery` needs a text search configuration to perform its processing[2][4].
+
+### Example Configuration
+
+To create a custom text search configuration, you can duplicate an existing configuration and modify it as needed. Here is an example of creating a configuration named `pg`:
+
+```sql
+CREATE TEXT SEARCH CONFIGURATION public.pg ( COPY = pg_catalog.english );
+
+CREATE TEXT SEARCH DICTIONARY pg_dict (
+    TEMPLATE = synonym,
+    SYNONYMS = pg_dict
+);
+
+CREATE TEXT SEARCH DICTIONARY english_ispell (
+    TEMPLATE = ispell,
+    DictFile = english,
+    AffFile = english,
+    StopWords = english
+);
+
+ALTER TEXT SEARCH CONFIGURATION pg
+    ALTER MAPPING FOR asciiword, asciihword, hword_asciipart,
+                      word, hword, hword_part
+    WITH pg_dict, english_ispell, english_stem;
+
+ALTER TEXT SEARCH CONFIGURATION pg
+    DROP MAPPING FOR email, url, url_path, sfloat, float;
+
+SET default_text_search_config = 'public.pg';
+```
+
+### Practical Usage
+
+To implement full-text search in PostgreSQL, follow these steps:
+
+1. **Create a `tsvector` column**: Add a new column of type `tsvector` to your table to store the normalized text data.
+
+```sql
+ALTER TABLE articles ADD COLUMN search_vector tsvector;
+```
+
+2. **Populate the `tsvector` column**: Update the `search_vector` column with normalized text data from the relevant columns.
+
+```sql
+UPDATE articles SET search_vector = to_tsvector('english', title || ' ' || content);
+```
+
+3. **Create an index**: Create an index on the `search_vector` column to speed up search operations.
+
+```sql
+CREATE INDEX articles_search_vector_idx ON articles USING gin(search_vector);
+```
+
+4. **Search for articles**: Use the `@@` operator to search for articles that match a given search query.
+
+```sql
+SELECT id, title FROM articles WHERE search_vector @@ to_tsquery('english', 'search terms');
+```
+
+### Advanced Query Techniques
+
+PostgreSQL offers several functions for more user-friendly and flexible searches:
+
+- **`plainto_tsquery`**: Converts plain text to a `tsquery`, treating the input as a phrase.
+- **`phraseto_tsquery`**: Similar to `plainto_tsquery`, but it also creates phrase searches.
+- **`websearch_to_tsquery`**: Supports a syntax similar to what web search engines use.
+
+Here are examples of using these functions:
+
+```sql
+SELECT id, title FROM articles WHERE search_vector @@ plainto_tsquery('search terms');
+
+SELECT id, title FROM articles WHERE search_vector @@ phraseto_tsquery('search terms');
+
+SELECT id, title FROM articles WHERE search_vector @@ websearch_to_tsquery('search terms');
+```
+
+### Ranking and Highlighting
+
+PostgreSQL provides functions to rank and highlight search results:
+
+- **`ts_rank`**: Assigns a relevance score to each result.
+- **`ts_headline`**: Creates an excerpt of the content with the matching terms highlighted.
+
+Here is an example of using these functions:
+
+```sql
+SELECT id, title, ts_rank(search_vector, query) as rank, ts_headline('english', content, query) as excerpt
+FROM articles, to_tsquery('english', 'search terms') query
+WHERE search_vector @@ query
+ORDER BY rank DESC;
+```
+
+### Fuzzy Searching
+
+While PostgreSQL's built-in full-text search does not support fuzzy searching, you can use an extension like `pg_trgm` to combine full-text search and fuzzy search in the same SQL query.
+
+Here is an example of using `pg_trgm` for fuzzy searching:
+
+```sql
+CREATE EXTENSION pg_trgm;
+
+SELECT id, title FROM articles WHERE similarity('search terms', content) > 0.5;
+```

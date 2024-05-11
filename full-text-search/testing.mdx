@@ -1,0 +1,214 @@
+## Testing and Debugging Text Search in PostgreSQL
+
+=====================================================
+
+PostgreSQL provides several functions to test and debug text search configurations, parsers, and dictionaries. This documentation will cover these functions and provide usage examples.
+
+### 12.8.1. Configuration Testing
+
+---
+
+The `ts_debug` function allows easy testing of a text search configuration. It displays information about every token of a document as produced by the parser and processed by the configured dictionaries.
+
+**Function Signature:**
+
+```sql
+ts_debug([ config regconfig, ] document text,
+         OUT alias text,
+         OUT description text,
+         OUT token text,
+         OUT dictionaries regdictionary[],
+         OUT dictionary regdictionary,
+         OUT lexemes text[])
+returns setof record
+```
+
+**Example Usage:**
+
+```sql
+SELECT * FROM ts_debug('english', 'a fat cat sat on a mat - it ate a fat rats');
+```
+
+This will return a table with the following columns:
+
+- `alias`: short name of the token type
+- `description`: description of the token type
+- `token`: text of the token
+- `dictionaries`: the dictionaries selected by the configuration for this token type
+- `dictionary`: the dictionary that recognized the token, or NULL if none did
+- `lexemes`: the lexeme(s) produced by the dictionary that recognized the token, or NULL if none did
+
+**Example Output:**
+
+```markdown
+alias | description | token | dictionaries | dictionary | lexemes
+-----------+-----------------+-------+----------------+--------------+---------
+asciiword | Word, all ASCII | a | {english_stem} | english_stem | {}
+blank | Space symbols | | {} | |
+asciiword | Word, all ASCII | fat | {english_stem} | english_stem | {fat}
+...
+```
+
+### 12.8.2. Parser Testing
+
+---
+
+The `ts_parse` function allows direct testing of a text search parser.
+
+**Function Signature:**
+
+```sql
+ts_parse(parser_name text, document text,
+         OUT tokid integer, OUT token text)
+returns setof record
+```
+
+**Example Usage:**
+
+```sql
+SELECT * FROM ts_parse('default', '123 - a number');
+```
+
+This will return a table with the following columns:
+
+- `tokid`: assigned token type
+- `token`: text of the token
+
+**Example Output:**
+
+```markdown
+tokid | token
+-------+--------
+22 | 123
+12 |
+12 | -
+1 | a
+12 |
+1 | number
+```
+
+The `ts_token_type` function returns a table that describes each type of token the specified parser can recognize.
+
+**Function Signature:**
+
+```sql
+ts_token_type(parser_name text, OUT tokid integer,
+              OUT alias text, OUT description text)
+returns setof record
+```
+
+**Example Usage:**
+
+```sql
+SELECT * FROM ts_token_type('default');
+```
+
+This will return a table with the following columns:
+
+- `tokid`: integer tokid that the parser uses to label a token of that type
+- `alias`: alias that names the token type in configuration commands
+- `description`: short description of the token type
+
+**Example Output:**
+
+```markdown
+tokid | alias | description
+-------+-----------------+------------------------------------------
+1 | asciiword | Word, all ASCII
+2 | word | Word, all letters
+3 | numword | Word, letters and digits
+...
+```
+
+### 12.8.3. Dictionary Testing
+
+---
+
+The `ts_lexize` function facilitates dictionary testing.
+
+**Function Signature:**
+
+```sql
+ts_lexize(dict regdictionary, token text)
+returns text[]
+```
+
+**Example Usage:**
+
+```sql
+SELECT ts_lexize('english_stem', 'stars');
+```
+
+This will return an array of lexemes if the input token is known to the dictionary, or an empty array if the token is known to the dictionary but it is a stop word, or NULL if it is an unknown word.
+
+**Example Output:**
+
+```markdown
+## ts_lexize
+
+{star}
+```
+
+Note that the `ts_lexize` function expects a single token, not text. To test thesaurus dictionaries, use `plainto_tsquery` or `to_tsvector` instead.
+
+**Example Usage:**
+
+```sql
+SELECT plainto_tsquery('supernovae stars');
+```
+
+This will return a tsquery that can be used to test thesaurus dictionaries.
+
+**Example Output:**
+
+```markdown
+## plainto_tsquery
+
+'sn'
+```
+
+### Usage Examples
+
+---
+
+**Creating a Custom Text Search Configuration:**
+
+```sql
+CREATE TEXT SEARCH CONFIGURATION public.english (COPY = pg_catalog.english);
+
+CREATE TEXT SEARCH DICTIONARY english_ispell (
+  TEMPLATE = ispell,
+  DictFile = english,
+  AffFile = english,
+  StopWords = english
+);
+
+ALTER TEXT SEARCH CONFIGURATION public.english
+  ALTER MAPPING FOR asciiword WITH english_ispell, english_stem;
+```
+
+**Testing the Custom Text Search Configuration:**
+
+```sql
+SELECT * FROM ts_debug('public.english', 'The Brightest supernovaes');
+```
+
+This will return a table with the following columns:
+
+- `alias`: short name of the token type
+- `description`: description of the token type
+- `token`: text of the token
+- `dictionaries`: the dictionaries selected by the configuration for this token type
+- `dictionary`: the dictionary that recognized the token, or NULL if none did
+- `lexemes`: the lexeme(s) produced by the dictionary that recognized the token, or NULL if none did
+
+**Example Output:**
+
+```markdown
+alias | description | token | dictionaries | dictionary | lexemes
+-----------+-----------------+-------------+-------------------------------+----------------+-------------
+asciiword | Word, all ASCII | The | {english_ispell,english_stem} | english_ispell | {}
+blank | Space symbols | | {} | |
+asciiword | Word, all ASCII | Brightest | {english_ispell,english_stem} | english_ispell | {bright}
+...
+```

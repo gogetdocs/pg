@@ -1,0 +1,171 @@
+## Full Text Search in PostgreSQL
+
+PostgreSQL provides a robust full text search functionality that allows you to search for specific words or phrases within text documents stored in your database. This section covers the key functions and techniques for implementing full text search in PostgreSQL, along with practical examples.
+
+### 12.3.1. Parsing Documents
+
+To perform full text search, you need to convert text documents into a format that can be efficiently searched. PostgreSQL uses the `tsvector` data type to represent documents in a way that is optimized for text search.
+
+#### `to_tsvector` Function
+
+The `to_tsvector` function converts a text document into a `tsvector`. It parses the document into tokens, reduces these tokens to lexemes (normalized words), and returns a `tsvector` that lists the lexemes along with their positions in the document.
+
+**Example:**
+
+```sql
+SELECT to_tsvector('english', 'a fat cat sat on a mat - it ate a fat rats');
+
+-- Output:
+-- 'ate':9 'cat':3 'fat':2,11 'mat':7 'rat':12 'sat':4
+```
+
+#### Using `setweight` for Weighted Lexemes
+
+You can use the `setweight` function to label the entries of a `tsvector` with a given weight. This is useful for marking entries coming from different parts of a document, such as title versus body.
+
+**Example:**
+
+```sql
+UPDATE tt SET ti =
+setweight(to_tsvector(coalesce(title,'')), 'A') ||
+setweight(to_tsvector(coalesce(keyword,'')), 'B') ||
+setweight(to_tsvector(coalesce(abstract,'')), 'C') ||
+setweight(to_tsvector(coalesce(body,'')), 'D');
+```
+
+### 12.3.2. Parsing Queries
+
+To search for specific words or phrases, you need to convert your query into a `tsquery` object. PostgreSQL provides several functions to create `tsquery` objects from text queries.
+
+#### `to_tsquery` Function
+
+The `to_tsquery` function creates a `tsquery` value from a query text. It normalizes each token into a lexeme using the specified or default configuration and discards any tokens that are stop words according to the configuration.
+
+**Example:**
+
+```sql
+SELECT to_tsquery('english', 'The & Fat & Rats');
+
+-- Output:
+-- 'fat' & 'rat'
+```
+
+#### `plainto_tsquery` Function
+
+The `plainto_tsquery` function transforms unformatted text into a `tsquery` value. It parses and normalizes the text much like `to_tsvector`, then inserts the `&` (AND) `tsquery` operator between surviving words.
+
+**Example:**
+
+```sql
+SELECT plainto_tsquery('english', 'The Fat Rats');
+
+-- Output:
+-- 'fat' & 'rat'
+```
+
+#### `phraseto_tsquery` Function
+
+The `phraseto_tsquery` function behaves much like `plainto_tsquery`, except that it inserts the `<->` (FOLLOWED BY) operator between surviving words instead of the `&` (AND) operator.
+
+**Example:**
+
+```sql
+SELECT phraseto_tsquery('english', 'The Fat Rats');
+
+-- Output:
+-- 'fat' <-> 'rat'
+```
+
+#### `websearch_to_tsquery` Function
+
+The `websearch_to_tsquery` function creates a `tsquery` value from a query text using an alternative syntax similar to that used by web search engines. It recognizes certain operators and never raises syntax errors, making it suitable for raw user-supplied input.
+
+**Examples:**
+
+```sql
+SELECT websearch_to_tsquery('english', 'The fat rats');
+
+-- Output:
+-- 'fat' & 'rat'
+
+SELECT websearch_to_tsquery('english', '"supernovae stars" -crab');
+
+-- Output:
+-- 'supernova' <-> 'star' & !'crab'
+```
+
+### 12.3.3. Ranking Search Results
+
+Ranking attempts to measure how relevant documents are to a particular query. PostgreSQL provides two predefined ranking functions: `ts_rank` and `ts_rank_cd`.
+
+#### `ts_rank` Function
+
+The `ts_rank` function ranks vectors based on the frequency of their matching lexemes.
+
+**Example:**
+
+```sql
+SELECT title, ts_rank(textsearch, query) AS rank
+FROM apod, to_tsquery('neutrino|(dark & matter)') query
+WHERE query @@ textsearch
+ORDER BY rank DESC
+LIMIT 10;
+```
+
+#### `ts_rank_cd` Function
+
+The `ts_rank_cd` function computes the cover density ranking for the given document vector and query. It takes into account the proximity of matching lexemes to each other.
+
+**Example:**
+
+```sql
+SELECT title, ts_rank_cd(textsearch, query) AS rank
+FROM apod, to_tsquery('neutrino|(dark & matter)') query
+WHERE query @@ textsearch
+ORDER BY rank DESC
+LIMIT 10;
+```
+
+### 12.3.4. Highlighting Results
+
+To present search results, it is ideal to show a part of each document and how it is related to the query. PostgreSQL provides the `ts_headline` function for this purpose.
+
+#### `ts_headline` Function
+
+The `ts_headline` function accepts a document along with a query and returns an excerpt from the document in which terms from the query are highlighted.
+
+**Example:**
+
+```sql
+SELECT ts_headline('english',
+'The most common type of search
+is to find all documents containing given query terms
+and return them in order of their similarity to the
+query.',
+to_tsquery('english', 'query & similarity'));
+
+-- Output:
+-- containing given query terms +
+-- and return them in order of their similarity to the+
+-- query.
+```
+
+### Additional Options for `ts_headline`
+
+The `ts_headline` function can be customized with various options to control the output.
+
+**Example with options:**
+
+```sql
+SELECT ts_headline('english',
+'Search terms may occur
+many times in a document,
+requiring ranking of the search matches to decide which
+occurrences to display in the result.',
+to_tsquery('english', 'search & term'),
+'MaxFragments=10, MaxWords=7, MinWords=3, StartSel=<<, StopSel=>>');
+
+-- Output:
+-- <> <> may occur +
+-- many times ... ranking of the <> matches to decide
+```

@@ -1,0 +1,177 @@
+## Full Text Search in PostgreSQL: Additional Features
+
+PostgreSQL provides a robust full-text search capability that includes various functions and operators to manipulate documents and queries. This section explores these additional features with practical examples.
+
+### 12.4.1. Manipulating Documents
+
+#### **Concatenating Documents**
+
+The `tsvector` concatenation operator (`||`) combines two vectors, retaining lexemes and positional information.
+
+```sql
+SELECT to_tsvector('fat cat') || to_tsvector('rat');
+```
+
+This operation is useful for combining different sections of a document parsed with different configurations.
+
+#### **Setting Weight Labels**
+
+The `setweight` function labels every position in a vector with a specified weight (A, B, C, or D).
+
+```sql
+SELECT setweight(to_tsvector('fat cat'), 'A');
+```
+
+This allows different parts of a document to be weighted differently by ranking functions.
+
+#### **Getting Vector Length**
+
+The `length` function returns the number of lexemes stored in a vector.
+
+```sql
+SELECT length(to_tsvector('fat cat rat'));
+```
+
+#### **Stripping Vector Information**
+
+The `strip` function removes position and weight information from a vector.
+
+```sql
+SELECT strip(to_tsvector('fat cat rat'));
+```
+
+Stripped vectors are smaller but less useful for relevance ranking and certain query operators.
+
+### 12.4.2. Manipulating Queries
+
+#### **Combining Queries**
+
+- **AND-Combination**: The `&&` operator returns the AND-combination of two queries.
+
+  ```sql
+  SELECT to_tsquery('fat') && to_tsquery('cat');
+  ```
+
+- **OR-Combination**: The `||` operator returns the OR-combination of two queries.
+
+  ```sql
+  SELECT to_tsquery('fat') || to_tsquery('cat');
+  ```
+
+- **Negation**: The `!!` operator returns the negation (NOT) of a query.
+
+  ```sql
+  SELECT !! to_tsquery('fat');
+  ```
+
+#### **Query Sequencing**
+
+- **FOLLOWED BY Operator**: The `<->` operator searches for a match to the first query followed by a match to the second query.
+
+  ```sql
+  SELECT to_tsquery('fat') <-> to_tsquery('cat | rat');
+  ```
+
+- **tsquery_phrase**: This function searches for a match to the first query followed by a match to the second query at a specified distance.
+
+  ```sql
+  SELECT tsquery_phrase(to_tsquery('fat'), to_tsquery('cat'), 10);
+  ```
+
+#### **Query Inspection**
+
+- **numnode**: This function returns the number of nodes (lexemes plus operators) in a tsquery.
+
+  ```sql
+  SELECT numnode(to_tsquery('fat & cat'));
+  ```
+
+- **querytree**: This function returns the portion of a tsquery that can be used for searching an index.
+
+  ```sql
+  SELECT querytree(to_tsquery('defined'));
+  ```
+
+### 12.4.2.1. Query Rewriting
+
+#### **ts_rewrite**
+
+The `ts_rewrite` function replaces occurrences of a target subquery with a substitute subquery in a given tsquery.
+
+- **Simple Rewrite**:
+
+  ```sql
+  SELECT ts_rewrite('a & b'::tsquery, 'a'::tsquery, 'c'::tsquery);
+  ```
+
+- **Table-Driven Rewrite**:
+
+  ```sql
+  CREATE TABLE aliases (t tsquery PRIMARY KEY, s tsquery);
+  INSERT INTO aliases VALUES('a', 'c');
+  SELECT ts_rewrite('a & b'::tsquery, 'SELECT t,s FROM aliases');
+  ```
+
+### 12.4.3. Triggers for Automatic Updates
+
+#### **Built-in Trigger Functions**
+
+- **tsvector_update_trigger**: Automatically computes a tsvector column from one or more textual columns.
+
+  ```sql
+  CREATE TABLE messages (
+    title text,
+    body text,
+    tsv tsvector
+  );
+
+  CREATE TRIGGER tsvectorupdate BEFORE INSERT OR UPDATE
+  ON messages FOR EACH ROW EXECUTE FUNCTION
+  tsvector_update_trigger(tsv, 'pg_catalog.english', title, body);
+  ```
+
+- **tsvector_update_trigger_column**: Similar to `tsvector_update_trigger` but allows per-row selection of configuration.
+
+  ```sql
+  -- Example not provided due to complexity and requirement for additional setup.
+  ```
+
+#### **Custom Trigger Functions**
+
+- **PL/pgSQL Trigger**:
+
+  ```sql
+  CREATE FUNCTION messages_trigger() RETURNS trigger AS $$
+  begin
+    new.tsv :=
+      setweight(to_tsvector('pg_catalog.english', coalesce(new.title,'')), 'A') ||
+      setweight(to_tsvector('pg_catalog.english', coalesce(new.body,'')), 'D');
+    return new;
+  end
+  $$ LANGUAGE plpgsql;
+
+  CREATE TRIGGER tsvectorupdate BEFORE INSERT OR UPDATE
+  ON messages FOR EACH ROW EXECUTE FUNCTION messages_trigger();
+  ```
+
+### 12.4.4. Gathering Document Statistics
+
+#### **ts_stat**
+
+The `ts_stat` function returns statistics about each distinct lexeme (word) contained in the tsvector data.
+
+- **Basic Usage**:
+
+  ```sql
+  SELECT * FROM ts_stat('SELECT vector FROM apod')
+  ORDER BY nentry DESC, ndoc DESC, word
+  LIMIT 10;
+  ```
+
+- **Weighted Statistics**:
+
+  ```sql
+  SELECT * FROM ts_stat('SELECT vector FROM apod', 'ab')
+  ORDER BY nentry DESC, ndoc DESC, word
+  LIMIT 10;
+  ```
