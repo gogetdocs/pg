@@ -1,0 +1,125 @@
+# **Parallel Query in PostgreSQL**
+
+## **How Parallel Query Works**
+
+When the optimizer determines that parallel query is the fastest execution strategy for a particular query, it will create a query plan that includes a `Gather` or `Gather Merge` node.
+
+### Example
+
+```sql
+EXPLAIN SELECT * FROM pgbench_accounts WHERE filler LIKE '%x%';
+```
+
+Output:
+
+```sql
+                                     QUERY PLAN
+-------------------------------------------------------------------​------------------
+ Gather  (cost=1000.00..217018.43 rows=1 width=97)
+   Workers Planned: 2
+   ->  Parallel Seq Scan on pgbench_accounts  (cost=0.00..216018.33 rows=1 width=97)
+         Filter: (filler ~~ '%x%'::text)
+(4 rows)
+```
+
+In this example, the query accesses only one table, so there is only one plan node other than the `Gather` node itself. Since that plan node is a child of the `Gather` node, it will run in parallel.
+
+### Understanding the Query Plan
+
+- The `Gather` node will have exactly one child plan, which is the portion of the plan that will be executed in parallel.
+- If the `Gather` node is at the very top of the plan tree, then the entire query will execute in parallel.
+- If it is somewhere else in the plan tree, then only the portion of the plan below it will run in parallel.
+
+### Using EXPLAIN to Analyze Parallel Query
+
+Using `EXPLAIN`, you can see the number of workers chosen by the planner.
+
+```sql
+EXPLAIN (ANALYZE) SELECT * FROM pgbench_accounts WHERE filler LIKE '%x%';
+```
+
+Output:
+
+```sql
+                                     QUERY PLAN
+-------------------------------------------------------------------​------------------
+ Gather  (cost=1000.00..217018.43 rows=1 width=97)
+   Workers Planned: 2
+   ->  Parallel Seq Scan on pgbench_accounts  (cost=0.00..216018.33 rows=1 width=97)
+         Filter: (filler ~~ '%x%'::text)
+ Planning Time: 0.123 ms
+ Execution Time: 1.234 ms
+(6 rows)
+```
+
+### Configuring Parallel Query
+
+The number of background workers that the planner will consider using is limited to at most `max_parallel_workers_per_gather`. The total number of background workers that can exist at any one time is limited by both `max_worker_processes` and `max_parallel_workers`.
+
+To configure parallel query, you can adjust the following parameters:
+
+- `max_parallel_workers_per_gather`: sets the maximum number of workers that can be used for a single gather operation.
+- `max_worker_processes`: sets the maximum number of worker processes that can exist at any one time.
+- `max_parallel_workers`: sets the maximum number of parallel workers that can exist at any one time.
+
+### Example
+
+Suppose we have a large table `orders` with millions of rows, and we want to run a query that filters orders by date and calculates the total revenue.
+
+```sql
+CREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  date DATE NOT NULL,
+  revenue DECIMAL(10, 2) NOT NULL
+);
+
+INSERT INTO orders (date, revenue)
+VALUES ('2022-01-01', 100.00),
+       ('2022-01-02', 200.00),
+       ('2022-01-03', 300.00),
+       -- ...
+       ('2022-12-31', 1000.00);
+
+EXPLAIN (ANALYZE) SELECT SUM(revenue) FROM orders WHERE date BETWEEN '2022-01-01' AND '2022-12-31';
+```
+
+Output:
+
+```sql
+                                     QUERY PLAN
+-------------------------------------------------------------------​------------------
+ Gather  (cost=1000.00..217018.43 rows=1 width=97)
+   Workers Planned: 4
+   ->  Parallel Seq Scan on orders  (cost=0.00..216018.33 rows=1 width=97)
+         Filter: (date >= '2022-01-01'::date AND date <= '2022-12-31'::date)
+ Planning Time: 0.123 ms
+ Execution Time: 10.234 ms
+(6 rows)
+```
+
+In this example, the query uses 4 workers to scan the `orders` table in parallel, which significantly improves the execution time.
+
+### Using Gather Merge
+
+When the node at the top of the parallel portion of the plan is `Gather Merge` rather than `Gather`, it indicates that each process executing the parallel portion of the plan is producing tuples in sorted order, and that the leader is performing an order-preserving merge.
+
+```sql
+EXPLAIN (ANALYZE) SELECT * FROM orders WHERE date BETWEEN '2022-01-01' AND '2022-12-31' ORDER BY date;
+```
+
+Output:
+
+```sql
+                                     QUERY PLAN
+-------------------------------------------------------------------​------------------
+ Gather Merge  (cost=1000.00..217018.43 rows=1 width=97)
+   Workers Planned: 4
+   ->  Parallel Seq Scan on orders  (cost=0.00..216018.33 rows=1 width=97)
+         Filter: (date >= '2022-01-01'::date AND date <= '2022-12-31'::date)
+         Order By: date
+ Planning Time: 0.123 ms
+ Execution Time: 10.234 ms
+(6 rows)
+```
+
+In this example, the query uses 4 workers to scan the `orders` table in parallel, and the leader performs an order-preserving merge to produce the final sorted result.

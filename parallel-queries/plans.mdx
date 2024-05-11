@@ -1,0 +1,129 @@
+## Parallel Plans in PostgreSQL
+
+PostgreSQL supports parallel execution of queries, which can significantly improve performance on multi-core systems. This section explains how parallel plans work and provides examples of their usage.
+
+### 15.3.1. Parallel Scans
+
+Parallel scans allow multiple worker processes to scan a table in parallel. There are several types of parallel-aware table scans:
+
+- **Parallel Sequential Scan**: The table's blocks are divided into ranges and shared among the cooperating processes. Each worker process completes the scanning of its given range of blocks before requesting an additional range of blocks.
+- **Parallel Bitmap Heap Scan**: One process is chosen as the leader. It performs a scan of one or more indexes and builds a bitmap indicating which table blocks need to be visited. These blocks are then divided among the cooperating processes as in a parallel sequential scan.
+- **Parallel Index Scan or Parallel Index-Only Scan**: The cooperating processes take turns reading data from the index. Currently, parallel index scans are supported only for btree indexes. Each process claims a single index block and scans and returns all tuples referenced by that block.
+
+**Example: Parallel Sequential Scan**
+
+```sql
+-- Create a large table
+CREATE TABLE large_table AS
+SELECT generate_series(1, 1000000) AS id;
+
+-- Enable parallel query
+SET max_parallel_workers_per_gather = 4;
+SET parallel_setup_cost = 0;
+SET parallel_tuple_cost = 0;
+
+-- Execute a parallel sequential scan
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM large_table;
+```
+
+### 15.3.2. Parallel Joins
+
+Parallel joins allow multiple worker processes to perform joins in parallel. The driving table may be joined to one or more other tables using a nested loop, hash join, or merge join.
+
+- **Nested Loop Join**: The inner side is always non-parallel. Although it is executed in full, this is efficient if the inner side is an index scan.
+- **Merge Join**: The inner side is always a non-parallel plan and therefore executed in full. This may be inefficient, especially if a sort must be performed.
+- **Hash Join**: The inner side is executed in full by every cooperating process to build identical copies of the hash table. In a parallel hash join, the inner side is a parallel hash that divides the work of building a shared hash table over the cooperating processes.
+
+**Example: Parallel Hash Join**
+
+```sql
+-- Create two large tables
+CREATE TABLE large_table1 AS
+SELECT generate_series(1, 1000000) AS id;
+
+CREATE TABLE large_table2 AS
+SELECT generate_series(1, 1000000) AS id;
+
+-- Enable parallel query
+SET max_parallel_workers_per_gather = 4;
+SET parallel_setup_cost = 0;
+SET parallel_tuple_cost = 0;
+
+-- Execute a parallel hash join
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM large_table1
+JOIN large_table2 ON large_table1.id = large_table2.id;
+```
+
+### 15.3.3. Parallel Aggregation
+
+PostgreSQL supports parallel aggregation by aggregating in two stages:
+
+1. **Partial Aggregate**: Each process participating in the parallel portion of the query performs an aggregation step, producing a partial result for each group.
+2. **Finalize Aggregate**: The partial results are transferred to the leader via Gather or Gather Merge, and the leader re-aggregates the results across all workers to produce the final result.
+
+**Example: Parallel Aggregation**
+
+```sql
+-- Create a large table
+CREATE TABLE large_table AS
+SELECT generate_series(1, 1000000) AS id;
+
+-- Enable parallel query
+SET max_parallel_workers_per_gather = 4;
+SET parallel_setup_cost = 0;
+SET parallel_tuple_cost = 0;
+
+-- Execute a parallel aggregation
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT SUM(id) FROM large_table;
+```
+
+### 15.3.4. Parallel Append
+
+Parallel append allows multiple worker processes to combine rows from multiple sources into a single result set. This is commonly used when implementing UNION ALL or scanning a partitioned table.
+
+- **Append Node**: Each process executes the child plans in the order they appear, so that all participating processes cooperate to execute the first child plan until it is complete and then move to the second plan at around the same time.
+- **Parallel Append Node**: The executor spreads out the participating processes as evenly as possible across its child plans, so that multiple child plans are executed simultaneously.
+
+**Example: Parallel Append**
+
+```sql
+-- Create two large tables
+CREATE TABLE large_table1 AS
+SELECT generate_series(1, 1000000) AS id;
+
+CREATE TABLE large_table2 AS
+SELECT generate_series(1, 1000000) AS id;
+
+-- Enable parallel query
+SET max_parallel_workers_per_gather = 4;
+SET parallel_setup_cost = 0;
+SET parallel_tuple_cost = 0;
+
+-- Execute a parallel append
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM large_table1
+UNION ALL
+SELECT * FROM large_table2;
+```
+
+### 15.3.5. Parallel Plan Tips
+
+If a query that is expected to do so does not produce a parallel plan, you can try reducing `parallel_setup_cost` or `parallel_tuple_cost`. You can also use `EXPLAIN (ANALYZE, VERBOSE)` to display per-worker statistics for each plan node.
+
+**Example: Using EXPLAIN (ANALYZE, VERBOSE)**
+
+```sql
+-- Enable parallel query
+SET max_parallel_workers_per_gather = 4;
+SET parallel_setup_cost = 0;
+SET parallel_tuple_cost = 0;
+
+-- Execute a parallel query with EXPLAIN (ANALYZE, VERBOSE)
+EXPLAIN (ANALYZE, VERBOSE)
+SELECT * FROM large_table;
+```
+
+By following these examples and adjusting the parallel query settings, you can optimize the performance of your PostgreSQL queries on multi-core systems.

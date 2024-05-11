@@ -1,0 +1,80 @@
+# **Parallel Query in PostgreSQL: Configuration and Limitations**
+
+### Overview
+
+PostgreSQL provides parallel query capabilities to improve performance on multi-core systems. However, there are specific settings and conditions that must be met for parallel query plans to be generated and executed.
+
+### Configuration Settings
+
+To enable parallel query plans, the following settings must be configured:
+
+- `max_parallel_workers_per_gather` must be set to a value greater than zero.
+- The system must not be running in single-user mode.
+
+**Example: Enabling Parallel Query**
+
+```sql
+-- Set max_parallel_workers_per_gather to 4
+ALTER SYSTEM SET max_parallel_workers_per_gather = 4;
+
+-- Restart the PostgreSQL server to apply the changes
+pg_ctl restart
+```
+
+### Limitations
+
+Even when parallel query plans are enabled, the planner will not generate them for a given query if any of the following conditions are true:
+
+- The query writes any data or locks any database rows.
+- The query might be suspended during execution (e.g., using a cursor or a PL/pgSQL loop).
+- The query uses any function marked `PARALLEL UNSAFE`.
+- The query is running inside another query that is already parallel.
+
+**Example: Parallel Query with CREATE TABLE**
+
+```sql
+-- Create a new table using a parallel query plan
+CREATE TABLE my_table AS
+SELECT * FROM large_table;
+```
+
+In this example, the `CREATE TABLE` statement can use a parallel query plan for the underlying `SELECT` statement.
+
+### Execution Time Limitations
+
+Even when a parallel query plan is generated, there are circumstances under which it will be impossible to execute that plan in parallel at execution time. These include:
+
+- No background workers can be obtained due to the `max_worker_processes` or `max_parallel_workers` limitations.
+- The client sends an `Execute` message with a non-zero fetch count.
+
+**Example: Disabling Parallel Query for a Session**
+
+```sql
+-- Set max_parallel_workers_per_gather to 0 for the current session
+SET max_parallel_workers_per_gather = 0;
+
+-- Execute a query that would normally use a parallel plan
+SELECT * FROM large_table;
+```
+
+In this example, the query will be executed serially, even if a parallel query plan was generated.
+
+### Usage
+
+To demonstrate the usage of parallel query in PostgreSQL, let's create a large table and execute a query that can benefit from parallel execution.
+
+```sql
+-- Create a large table
+CREATE TABLE large_table AS
+SELECT * FROM generate_series(1, 1000000);
+
+-- Enable parallel query for the current session
+SET max_parallel_workers_per_gather = 4;
+
+-- Execute a query that can benefit from parallel execution
+EXPLAIN (ANALYZE, VERBOSE) SELECT * FROM large_table WHERE column1 > 500000;
+```
+
+In this example, the query will be executed in parallel, using multiple background workers to improve performance.
+
+Note: The `EXPLAIN (ANALYZE, VERBOSE)` statement is used to display the query plan and execution time. The `VERBOSE` option provides additional information about the query plan.
