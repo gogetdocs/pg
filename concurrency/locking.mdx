@@ -1,0 +1,192 @@
+## PostgreSQL Locking Mechanisms
+
+PostgreSQL provides various locking mechanisms to control concurrent access to data in tables. These mechanisms are crucial for ensuring data integrity and consistency in multi-user environments.
+
+### Table-Level Locks
+
+Table-level locks are used to control access to entire tables. PostgreSQL provides several table-level lock modes, each with its own set of conflicts and usage scenarios.
+
+#### Table-Level Lock Modes
+
+- **ACCESS SHARE (AccessShareLock)**
+
+  - Conflicts with: ACCESS EXCLUSIVE lock mode only.
+  - Usage: Acquired by SELECT commands on referenced tables. Suitable for queries that only read tables without modifying them.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN ACCESS SHARE MODE;
+    SELECT * FROM accounts;
+    COMMIT;
+    ```
+
+- **ROW SHARE (RowShareLock)**
+
+  - Conflicts with: EXCLUSIVE and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by SELECT commands with FOR UPDATE, FOR NO KEY UPDATE, FOR SHARE, or FOR KEY SHARE options.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN ROW SHARE MODE;
+    SELECT * FROM accounts FOR UPDATE;
+    COMMIT;
+    ```
+
+- **ROW EXCLUSIVE (RowExclusiveLock)**
+
+  - Conflicts with: SHARE, SHARE ROW EXCLUSIVE, EXCLUSIVE, and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by UPDATE, DELETE, INSERT, and MERGE commands on the target table.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN ROW EXCLUSIVE MODE;
+    UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 11111;
+    COMMIT;
+    ```
+
+- **SHARE UPDATE EXCLUSIVE (ShareUpdateExclusiveLock)**
+
+  - Conflicts with: SHARE UPDATE EXCLUSIVE, SHARE, SHARE ROW EXCLUSIVE, EXCLUSIVE, and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by VACUUM (without FULL), ANALYZE, CREATE INDEX CONCURRENTLY, CREATE STATISTICS, COMMENT ON, REINDEX CONCURRENTLY, and certain ALTER INDEX and ALTER TABLE variants.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN SHARE UPDATE EXCLUSIVE MODE;
+    VACUUM accounts;
+    COMMIT;
+    ```
+
+- **SHARE (ShareLock)**
+
+  - Conflicts with: ROW EXCLUSIVE, SHARE UPDATE EXCLUSIVE, SHARE ROW EXCLUSIVE, EXCLUSIVE, and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by CREATE INDEX (without CONCURRENTLY).
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN SHARE MODE;
+    CREATE INDEX idx_acctnum ON accounts(acctnum);
+    COMMIT;
+    ```
+
+- **SHARE ROW EXCLUSIVE (ShareRowExclusiveLock)**
+
+  - Conflicts with: ROW EXCLUSIVE, SHARE UPDATE EXCLUSIVE, SHARE, SHARE ROW EXCLUSIVE, EXCLUSIVE, and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by CREATE TRIGGER and some forms of ALTER TABLE.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN SHARE ROW EXCLUSIVE MODE;
+    CREATE TRIGGER trg_update_balance BEFORE UPDATE ON accounts FOR EACH ROW EXECUTE FUNCTION update_balance();
+    COMMIT;
+    ```
+
+- **EXCLUSIVE (ExclusiveLock)**
+
+  - Conflicts with: ROW SHARE, ROW EXCLUSIVE, SHARE UPDATE EXCLUSIVE, SHARE, SHARE ROW EXCLUSIVE, EXCLUSIVE, and ACCESS EXCLUSIVE lock modes.
+  - Usage: Acquired by REFRESH MATERIALIZED VIEW CONCURRENTLY.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN EXCLUSIVE MODE;
+    REFRESH MATERIALIZED VIEW CONCURRENTLY mv_accounts;
+    COMMIT;
+    ```
+
+- **ACCESS EXCLUSIVE (AccessExclusiveLock)**
+  - Conflicts with: All lock modes.
+  - Usage: Acquired by DROP TABLE, TRUNCATE, REINDEX, CLUSTER, VACUUM FULL, and REFRESH MATERIALIZED VIEW (without CONCURRENTLY) commands.
+  - Example:
+    ```sql
+    BEGIN;
+    LOCK TABLE accounts IN ACCESS EXCLUSIVE MODE;
+    TRUNCATE TABLE accounts;
+    COMMIT;
+    ```
+
+### Row-Level Locks
+
+Row-level locks are used to control access to specific rows within a table.
+
+#### Row-Level Lock Modes
+
+- **FOR UPDATE**
+
+  - Usage: Locks rows as though for update, preventing other transactions from modifying or deleting these rows until the current transaction ends.
+  - Example:
+    ```sql
+    BEGIN;
+    SELECT * FROM accounts WHERE acctnum = 11111 FOR UPDATE;
+    UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 11111;
+    COMMIT;
+    ```
+
+- **FOR NO KEY UPDATE**
+
+  - Usage: Similar to FOR UPDATE but allows SELECT FOR KEY SHARE commands to proceed.
+  - Example:
+    ```sql
+    BEGIN;
+    SELECT * FROM accounts WHERE acctnum = 11111 FOR NO KEY UPDATE;
+    UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 11111;
+    COMMIT;
+    ```
+
+- **FOR SHARE**
+
+  - Usage: Acquires a shared lock on each retrieved row, blocking other transactions from performing UPDATE, DELETE, SELECT FOR UPDATE, or SELECT FOR NO KEY UPDATE on these rows.
+  - Example:
+    ```sql
+    BEGIN;
+    SELECT * FROM accounts WHERE acctnum = 11111 FOR SHARE;
+    COMMIT;
+    ```
+
+- **FOR KEY SHARE**
+  - Usage: Similar to FOR SHARE but allows SELECT FOR NO KEY UPDATE commands to proceed.
+  - Example:
+    ```sql
+    BEGIN;
+    SELECT * FROM accounts WHERE acctnum = 11111 FOR KEY SHARE;
+    COMMIT;
+    ```
+
+### Page-Level Locks
+
+Page-level locks are used to control read/write access to table pages in the shared buffer pool. These locks are released immediately after a row is fetched or updated.
+
+### Deadlocks
+
+Deadlocks occur when two or more transactions each hold locks that the other wants. PostgreSQL automatically detects and resolves deadlocks by aborting one of the transactions involved.
+
+- **Example of a Deadlock:**
+
+  ```sql
+  -- Transaction 1
+  BEGIN;
+  UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 11111;
+
+  -- Transaction 2
+  BEGIN;
+  UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 22222;
+  UPDATE accounts SET balance = balance - 100.00 WHERE acctnum = 11111;
+
+  -- Transaction 1 (continued)
+  UPDATE accounts SET balance = balance - 100.00 WHERE acctnum = 22222;
+  ```
+
+### Advisory Locks
+
+Advisory locks are application-defined locks that can be used to implement custom locking strategies.
+
+- **Session-Level Advisory Locks:**
+
+  - Usage: Acquired at session level and held until explicitly released or the session ends.
+  - Example:
+    ```sql
+    SELECT pg_advisory_lock(12345);
+    -- Perform operations
+    SELECT pg_advisory_unlock(12345);
+    ```
+
+- **Transaction-Level Advisory Locks:**
+  - Usage: Acquired at transaction level and automatically released at the

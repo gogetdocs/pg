@@ -1,0 +1,123 @@
+## 13.7 Locking and Indexes
+
+### Overview
+
+PostgreSQL provides nonblocking read/write access to table data, but not all index access methods are nonblocking. This section explains how different index types handle locking and concurrency.
+
+### Index Types and Locking
+
+#### B-tree, GiST, and SP-GiST Indexes
+
+- **Locking Mechanism**: Short-term share/exclusive page-level locks are used for read/write access.
+- **Lock Release**: Locks are released immediately after each index row is fetched or inserted.
+- **Concurrency**: These index types provide the highest concurrency without deadlock conditions.
+
+**Example: Creating a B-tree Index**
+
+```sql
+-- Create a table
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    salary DECIMAL(10, 2)
+);
+
+-- Create a B-tree index on the salary column
+CREATE INDEX idx_salary ON employees (salary);
+
+-- Insert sample data
+INSERT INTO employees (name, salary)
+VALUES ('John Doe', 50000.00),
+       ('Jane Doe', 60000.00),
+       ('Bob Smith', 70000.00);
+
+-- Query the table using the index
+SELECT * FROM employees
+WHERE salary > 55000.00;
+```
+
+#### Hash Indexes
+
+- **Locking Mechanism**: Share/exclusive hash-bucket-level locks are used for read/write access.
+- **Lock Release**: Locks are released after the whole bucket is processed.
+- **Concurrency**: Bucket-level locks provide better concurrency than index-level ones, but deadlock is possible since the locks are held longer than one index operation.
+
+**Example: Creating a Hash Index**
+
+```sql
+-- Create a table
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+-- Create a hash index on the email column
+CREATE INDEX idx_email ON employees USING HASH (email);
+
+-- Insert sample data
+INSERT INTO employees (name, email)
+VALUES ('John Doe', 'john.doe@example.com'),
+       ('Jane Doe', 'jane.doe@example.com'),
+       ('Bob Smith', 'bob.smith@example.com');
+
+-- Query the table using the index
+SELECT * FROM employees
+WHERE email = 'john.doe@example.com';
+```
+
+#### GIN Indexes
+
+- **Locking Mechanism**: Short-term share/exclusive page-level locks are used for read/write access.
+- **Lock Release**: Locks are released immediately after each index row is fetched or inserted.
+- **Concurrency**: Note that insertion of a GIN-indexed value usually produces several index key insertions per row, so GIN might do substantial work for a single value's insertion.
+
+**Example: Creating a GIN Index**
+
+```sql
+-- Create a table
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    content TEXT
+);
+
+-- Create a GIN index on the content column
+CREATE INDEX idx_content ON documents USING GIN (to_tsvector('english', content));
+
+-- Insert sample data
+INSERT INTO documents (content)
+VALUES ('This is a sample document.'),
+       ('Another document with different content.'),
+       ('A document with similar content.');
+
+-- Query the table using the index
+SELECT * FROM documents
+WHERE to_tsvector('english', content) @@ to_tsquery('english', 'sample');
+```
+
+### Choosing the Right Index Type
+
+- **B-tree Indexes**: Recommended for concurrent applications that need to index scalar data. They offer the best performance and have more features than hash indexes.
+- **GiST, SP-GiST, or GIN Indexes**: Suitable for non-scalar data. Choose the appropriate index type based on the specific use case and data type.
+
+**Example: Choosing the Right Index Type**
+
+```sql
+-- Create a table with scalar data (integer)
+CREATE TABLE numbers (
+    id SERIAL PRIMARY KEY,
+    value INTEGER
+);
+
+-- Create a B-tree index on the value column
+CREATE INDEX idx_value ON numbers (value);
+
+-- Create a table with non-scalar data (text)
+CREATE TABLE texts (
+    id SERIAL PRIMARY KEY,
+    content TEXT
+);
+
+-- Create a GIN index on the content column
+CREATE INDEX idx_content ON texts USING GIN (to_tsvector('english', content));
+```

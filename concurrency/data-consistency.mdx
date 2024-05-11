@@ -1,0 +1,90 @@
+## Data Consistency Checks at the Application Level
+
+### Overview
+
+Data consistency checks are crucial for ensuring the accuracy and reliability of data in a database. In PostgreSQL, there are two primary methods for enforcing data consistency at the application level: using Serializable transactions and using explicit blocking locks.
+
+### 13.4.1. Enforcing Consistency with Serializable Transactions
+
+Serializable transactions provide the highest level of isolation and ensure that transactions are executed as if they were running in a serial order. This prevents concurrency anomalies such as dirty reads, non-repeatable reads, and phantom reads.
+
+**Benefits:**
+
+- Ensures data consistency without additional effort.
+- Suitable for applications that require strict data integrity.
+- Automatically retries transactions rolled back due to serialization failures when used with a framework.
+
+**Example:**
+
+```sql
+-- Set default transaction isolation level to Serializable
+ALTER SYSTEM SET default_transaction_isolation TO 'serializable';
+
+-- Start a Serializable transaction
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+-- Perform operations within the transaction
+INSERT INTO accounts (id, balance) VALUES (1, 100);
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;
+
+-- Commit the transaction
+COMMIT;
+```
+
+### 13.4.2. Enforcing Consistency with Explicit Blocking Locks
+
+Explicit blocking locks can be used to ensure data consistency by locking specific rows or tables against concurrent updates.
+
+**Locking Methods:**
+
+- `SELECT FOR UPDATE`: Locks the returned rows against concurrent updates.
+- `SELECT FOR SHARE`: Locks the returned rows against concurrent updates but allows shared locks.
+- `LOCK TABLE`: Locks the entire table against concurrent updates.
+
+**Example:**
+
+```sql
+-- Lock specific rows for update
+BEGIN;
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;
+COMMIT;
+
+-- Lock the entire table for update
+BEGIN;
+LOCK TABLE accounts IN EXCLUSIVE MODE;
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;
+COMMIT;
+```
+
+### Usage
+
+#### Banking System
+
+In a banking system, ensuring that account balances are accurate and consistent is critical. Using Serializable transactions or explicit blocking locks can prevent concurrency anomalies.
+
+```sql
+-- Using Serializable transactions
+BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;
+UPDATE accounts SET balance = balance - 50 WHERE id = 2;
+COMMIT;
+
+-- Using explicit blocking locks
+BEGIN;
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;
+UPDATE accounts SET balance = balance + 50 WHERE id = 1;
+COMMIT;
+```
+
+#### Inventory Management
+
+In an inventory management system, preventing the same item from being sold to multiple customers simultaneously is essential. Using explicit blocking locks can achieve this.
+
+```sql
+-- Lock the item row for update
+BEGIN;
+SELECT * FROM inventory WHERE item_id = 1 FOR UPDATE;
+UPDATE inventory SET quantity = quantity - 1 WHERE item_id = 1;
+COMMIT;
+```

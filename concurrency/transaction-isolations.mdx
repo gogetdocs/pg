@@ -1,0 +1,116 @@
+## Transaction Isolation Levels in PostgreSQL
+
+### Overview
+
+PostgreSQL supports four transaction isolation levels: `Read Uncommitted`, `Read Committed`, `Repeatable Read`, and `Serializable`. Each level provides a different balance between concurrency and consistency.
+
+### 1. Read Committed Isolation Level
+
+#### Description
+
+`Read Committed` is the default isolation level in PostgreSQL. It ensures that a transaction only sees data committed before the query began. However, it does not prevent nonrepeatable reads or phantom reads.
+
+#### Usage
+
+Consider a banking system where multiple transactions are updating account balances concurrently.
+
+```sql
+BEGIN;
+UPDATE accounts SET balance = balance + 100.00 WHERE acctnum = 12345;
+UPDATE accounts SET balance = balance - 100.00 WHERE acctnum = 7534;
+COMMIT;
+```
+
+In `Read Committed` mode, if two such transactions run concurrently, the second transaction will see the updated balance of account 12345. This is acceptable because each command only affects a predetermined row.
+
+However, more complex usage can produce undesirable results:
+
+```sql
+BEGIN;
+UPDATE website SET hits = hits + 1;
+-- Run from another session: DELETE FROM website WHERE hits = 10;
+COMMIT;
+```
+
+The `DELETE` command may not delete the row even if there is a row with `hits = 10` before and after the `UPDATE`. This is because the `DELETE` command sees the updated row value (11), which no longer matches the criteria.
+
+### 2. Repeatable Read Isolation Level
+
+#### Description
+
+`Repeatable Read` isolation level ensures that a transaction sees a snapshot of the database as of the start of the first non-transaction-control statement in the transaction. It prevents dirty reads and nonrepeatable reads but allows phantom reads.
+
+#### Usage
+
+Consider an application that needs to read data consistently throughout a transaction.
+
+```sql
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+SELECT * FROM accounts WHERE balance > 1000;
+-- Run from another session: UPDATE accounts SET balance = balance + 100 WHERE acctnum = 12345;
+SELECT * FROM accounts WHERE balance > 1000;
+COMMIT;
+```
+
+In `Repeatable Read` mode, the second `SELECT` statement will see the same data as the first `SELECT` statement, even if another transaction has updated the data in the meantime.
+
+However, if the transaction tries to update a row that has been updated by another transaction, it will be rolled back with a serialization failure error.
+
+```sql
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+UPDATE accounts SET balance = balance + 100 WHERE acctnum = 12345;
+-- Run from another session: UPDATE accounts SET balance = balance + 100 WHERE acctnum = 12345;
+COMMIT;
+```
+
+The second `UPDATE` command will cause a serialization failure error.
+
+### 3. Serializable Isolation Level
+
+#### Description
+
+`Serializable` isolation level provides the strictest transaction isolation. It ensures that a set of concurrent transactions will have the same effect as if they were run one at a time.
+
+#### Usage
+
+Consider a scenario where multiple transactions are updating a table concurrently.
+
+```sql
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+INSERT INTO mytab (class, value) SELECT 2, SUM(value) FROM mytab WHERE class = 1;
+-- Run from another session: INSERT INTO mytab (class, value) SELECT 1, SUM(value) FROM mytab WHERE class = 2;
+COMMIT;
+```
+
+In `Serializable` mode, if the two transactions try to commit, one will be rolled back with a serialization failure error because there is no serial order of execution that would produce the same effect.
+
+To handle serialization failures, applications should be prepared to retry transactions.
+
+```sql
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+-- Perform operations
+COMMIT;
+EXCEPTION
+    WHEN SQLSTATE '40001' THEN
+        -- Retry the transaction
+        ROLLBACK;
+        BEGIN;
+        SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+        -- Perform operations
+        COMMIT;
+END;
+```
+
+### Best Practices for Serializable Transactions
+
+- Declare transactions as `READ ONLY` when possible.
+- Control the number of active connections using a connection pool.
+- Don't put more into a single transaction than needed for integrity purposes.
+- Don't leave connections dangling “idle in transaction” longer than necessary.
+- Eliminate explicit locks, `SELECT FOR UPDATE`, and `SELECT FOR SHARE` where no longer needed.
+- Increase `max_pred_locks_per_transaction`, `max_pred_locks_per_relation`, and/or `max_pred_locks_per_page` to avoid combining multiple page-level predicate locks into a single relation-level predicate lock.
+- Encourage the use of index scans by reducing `random_page_cost` and/or increasing `cpu_tuple_cost`.

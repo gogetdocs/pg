@@ -1,0 +1,136 @@
+## Transaction Isolation Levels in PostgreSQL
+
+Transaction isolation levels are crucial in ensuring the consistency and reliability of database operations, especially in concurrent environments. This documentation explains the different transaction isolation levels in PostgreSQL, their characteristics, and usage examples.
+
+### Overview of Transaction Isolation Levels
+
+Transaction isolation levels define how concurrent transactions interact with each other. The SQL standard specifies four levels of transaction isolation:
+
+1. **Serializable**: The strictest level, which guarantees that concurrent transactions are executed as if they were run one at a time in some order.
+2. **Repeatable Read**: Extends the Read Committed level by preventing non-repeatable reads, lost updates, and phantoms.
+3. **Read Committed**: The default level in PostgreSQL, which returns the latest view of the database but may result in non-repeatable reads.
+4. **Read Uncommitted**: Not supported in PostgreSQL, as it allows dirty reads, which are reads of uncommitted changes.
+
+### Serializable Isolation Level
+
+The Serializable isolation level is the strictest and provides the highest level of consistency. It ensures that concurrent transactions are executed as if they were run one at a time in some order.
+
+**Example:**
+
+```sql
+-- Create a table for demonstration
+CREATE TABLE accounts (
+    id SERIAL PRIMARY KEY,
+    balance DECIMAL(10, 2)
+);
+
+-- Insert initial data
+INSERT INTO accounts (balance) VALUES (100.00);
+
+-- Start a Serializable transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+-- Read the balance
+SELECT balance FROM accounts WHERE id = 1;
+
+-- Update the balance in another transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+UPDATE accounts SET balance = balance + 50.00 WHERE id = 1;
+COMMIT;
+
+-- Try to update the balance in the first transaction
+UPDATE accounts SET balance = balance - 20.00 WHERE id = 1;
+
+-- This will result in an error due to serialization anomaly
+ERROR:  could not serialize access due to read/write dependencies among transactions
+```
+
+### Repeatable Read Isolation Level
+
+The Repeatable Read isolation level extends the Read Committed level by preventing non-repeatable reads, lost updates, and phantoms.
+
+**Example:**
+
+```sql
+-- Create a table for demonstration
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    total DECIMAL(10, 2)
+);
+
+-- Insert initial data
+INSERT INTO orders (total) VALUES (100.00);
+
+-- Start a Repeatable Read transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+-- Read the orders
+SELECT * FROM orders;
+
+-- Update an order in another transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+UPDATE orders SET total = total + 50.00 WHERE id = 1;
+COMMIT;
+
+-- Try to read the orders again in the first transaction
+SELECT * FROM orders;
+
+-- The result will be the same as the initial read
+```
+
+### Read Committed Isolation Level
+
+The Read Committed isolation level returns the latest view of the database but may result in non-repeatable reads.
+
+**Example:**
+
+```sql
+-- Create a table for demonstration
+CREATE TABLE products (
+    id SERIAL PRIMARY KEY,
+    price DECIMAL(10, 2)
+);
+
+-- Insert initial data
+INSERT INTO products (price) VALUES (100.00);
+
+-- Start a Read Committed transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+-- Read the price
+SELECT price FROM products WHERE id = 1;
+
+-- Update the price in another transaction
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+UPDATE products SET price = price + 50.00 WHERE id = 1;
+COMMIT;
+
+-- Try to read the price again in the first transaction
+SELECT price FROM products WHERE id = 1;
+
+-- The result will be the updated price
+```
+
+### Caveats
+
+Some DDL commands, such as TRUNCATE and the table-rewriting forms of ALTER TABLE, are not MVCC-safe. This means that after the truncation or rewrite commits, the table will appear empty to concurrent transactions, if they are using a snapshot taken before the DDL command committed.
+
+Additionally, support for the Serializable transaction isolation level has not yet been added to hot standby replication targets. The strictest isolation level currently supported in hot standby mode is Repeatable Read.
+
+Internal access to the system catalogs is not done using the isolation level of the current transaction. This means that newly created database objects such as tables are visible to concurrent Repeatable Read and Serializable transactions, even though the rows they contain are not.
+
+### Usage
+
+In applications, the choice of transaction isolation level depends on the specific requirements of the application. For example:
+
+- **Serializable**: Use for critical financial transactions that require the highest level of consistency.
+- **Repeatable Read**: Use for applications that require consistent reads but can tolerate some delay in updates.
+- **Read Committed**: Use for applications that require fast reads but can tolerate some inconsistency.
+
+By understanding the different transaction isolation levels and their characteristics, developers can make informed decisions about which level to use in their applications to ensure consistency and reliability.

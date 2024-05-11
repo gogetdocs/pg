@@ -1,0 +1,108 @@
+## PostgreSQL Concurrency Control
+
+### Introduction
+
+PostgreSQL uses a multiversion model, known as Multiversion Concurrency Control (MVCC), to manage concurrent access to data. This approach ensures that each SQL statement sees a snapshot of data as it was some time ago, preventing statements from viewing inconsistent data produced by concurrent transactions.
+
+### Advantages of MVCC
+
+The main advantage of MVCC is that locks acquired for querying (reading) data do not conflict with locks acquired for writing data. This means that reading never blocks writing and writing never blocks reading.
+
+### Serializable Snapshot Isolation (SSI)
+
+PostgreSQL provides an innovative Serializable Snapshot Isolation (SSI) level, which ensures the strictest level of transaction isolation. This guarantee is maintained even in the presence of concurrent transactions.
+
+### Table- and Row-Level Locking
+
+PostgreSQL also provides table- and row-level locking facilities for applications that don't require full transaction isolation. However, proper use of MVCC generally provides better performance than locks.
+
+### Advisory Locks
+
+Application-defined advisory locks provide a mechanism for acquiring locks that are not tied to a single transaction.
+
+### Usage Examples
+
+#### Example 1: Using MVCC to Prevent Lock Contention
+
+Suppose we have a table `orders` with a column `total` that is updated frequently. We can use MVCC to prevent lock contention between concurrent transactions.
+
+```sql
+-- Create a table with a column that is updated frequently
+CREATE TABLE orders (
+    id SERIAL PRIMARY KEY,
+    total DECIMAL(10, 2)
+);
+
+-- Insert some sample data
+INSERT INTO orders (total) VALUES (100.00), (200.00), (300.00);
+
+-- Start a transaction that updates the total column
+BEGIN;
+UPDATE orders SET total = total + 10.00 WHERE id = 1;
+COMMIT;
+
+-- Start another transaction that reads the total column
+BEGIN;
+SELECT total FROM orders WHERE id = 1;
+COMMIT;
+```
+
+In this example, the first transaction updates the `total` column, while the second transaction reads the `total` column. Because MVCC is used, the second transaction sees a snapshot of the data as it was before the first transaction updated it, preventing lock contention.
+
+#### Example 2: Using Table-Level Locking to Prevent Concurrent Updates
+
+Suppose we have a table `inventory` that is updated by multiple concurrent transactions. We can use table-level locking to prevent concurrent updates.
+
+```sql
+-- Create a table with a column that is updated frequently
+CREATE TABLE inventory (
+    id SERIAL PRIMARY KEY,
+    quantity INTEGER
+);
+
+-- Insert some sample data
+INSERT INTO inventory (quantity) VALUES (100), (200), (300);
+
+-- Start a transaction that updates the quantity column
+BEGIN;
+LOCK TABLE inventory IN EXCLUSIVE MODE;
+UPDATE inventory SET quantity = quantity + 10 WHERE id = 1;
+COMMIT;
+
+-- Start another transaction that tries to update the quantity column
+BEGIN;
+UPDATE inventory SET quantity = quantity + 20 WHERE id = 1;
+-- This transaction will block until the first transaction commits
+COMMIT;
+```
+
+In this example, the first transaction acquires an exclusive lock on the `inventory` table, preventing the second transaction from updating the `quantity` column until the first transaction commits.
+
+#### Example 3: Using Advisory Locks to Coordinate Concurrent Transactions
+
+Suppose we have a table `jobs` that is updated by multiple concurrent transactions. We can use advisory locks to coordinate the transactions and prevent concurrent updates.
+
+```sql
+-- Create a table with a column that is updated frequently
+CREATE TABLE jobs (
+    id SERIAL PRIMARY KEY,
+    status VARCHAR(10)
+);
+
+-- Insert some sample data
+INSERT INTO jobs (status) VALUES ('pending'), ('running'), ('completed');
+
+-- Start a transaction that updates the status column
+BEGIN;
+SELECT pg_advisory_lock(1); -- Acquire an advisory lock
+UPDATE jobs SET status = 'running' WHERE id = 1;
+COMMIT;
+
+-- Start another transaction that tries to update the status column
+BEGIN;
+SELECT pg_advisory_lock(1); -- This transaction will block until the first transaction releases the lock
+UPDATE jobs SET status = 'completed' WHERE id = 1;
+COMMIT;
+```
+
+In this example, the first transaction acquires an advisory lock using the `pg_advisory_lock` function, preventing the second transaction from updating the `status` column until the first transaction releases the lock.

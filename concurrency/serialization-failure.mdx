@@ -1,0 +1,86 @@
+## 13.5 Serialization Failure Handling
+
+### Overview
+
+Serialization failure handling is crucial when working with Repeatable Read and Serializable isolation levels in PostgreSQL. These isolation levels can produce errors that prevent serialization anomalies, and applications must be prepared to retry transactions that fail due to these errors.
+
+### Error Codes
+
+The following error codes are relevant to serialization failure handling:
+
+- `40001` (serialization_failure): indicates a serialization error that requires a transaction retry.
+- `40P01` (deadlock_detected): indicates a deadlock failure that may require a transaction retry.
+- `23505` (unique_violation): indicates a unique-key failure that may require a transaction retry in certain cases.
+- `23P01` (exclusion_violation): indicates an exclusion constraint failure that may require a transaction retry in certain cases.
+
+### Retry Mechanism
+
+To handle serialization failures, applications must implement a retry mechanism that retries the complete transaction, including all logic that decides which SQL to issue and/or which values to use. PostgreSQL does not offer an automatic retry facility, as it cannot guarantee correctness.
+
+### Example Use Case
+
+Suppose we have a table `accounts` with a primary key `id` and a column `balance`. We want to transfer money from one account to another using a Serializable isolation level.
+
+```sql
+-- Create a table for accounts
+CREATE TABLE accounts (
+    id SERIAL PRIMARY KEY,
+    balance DECIMAL(10, 2)
+);
+
+-- Insert some sample data
+INSERT INTO accounts (balance) VALUES (100.00), (200.00);
+
+-- Function to transfer money between accounts
+CREATE OR REPLACE FUNCTION transfer_money(
+    from_account_id INTEGER,
+    to_account_id INTEGER,
+    amount DECIMAL(10, 2)
+) RETURNS VOID AS $$
+DECLARE
+    from_balance DECIMAL(10, 2);
+    to_balance DECIMAL(10, 2);
+BEGIN
+    -- Start a Serializable transaction
+    BEGIN;
+    SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+
+    -- Select the current balances
+    SELECT balance INTO from_balance FROM accounts WHERE id = from_account_id;
+    SELECT balance INTO to_balance FROM accounts WHERE id = to_account_id;
+
+    -- Check if the transfer is valid
+    IF from_balance < amount THEN
+        RAISE EXCEPTION 'Insufficient funds';
+    END IF;
+
+    -- Update the balances
+    UPDATE accounts SET balance = balance - amount WHERE id = from_account_id;
+    UPDATE accounts SET balance = balance + amount WHERE id = to_account_id;
+
+    -- Commit the transaction
+    COMMIT;
+EXCEPTION
+    WHEN SQLSTATE '40001' THEN
+        -- Retry the transaction on serialization failure
+        RAISE NOTICE 'Serialization failure, retrying...';
+        PERFORM transfer_money(from_account_id, to_account_id, amount);
+    WHEN SQLSTATE '40P01' THEN
+        -- Retry the transaction on deadlock failure
+        RAISE NOTICE 'Deadlock failure, retrying...';
+        PERFORM transfer_money(from_account_id, to_account_id, amount);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+In this example, the `transfer_money` function starts a Serializable transaction and attempts to transfer money between two accounts. If a serialization failure occurs (SQLSTATE `40001`), the function retries the transaction. If a deadlock failure occurs (SQLSTATE `40P01`), the function also retries the transaction.
+
+Note that this is a simplified example and may not cover all possible scenarios. In a application, you would need to handle additional error cases and implement a more robust retry mechanism.
+
+### Important Considerations
+
+- Retry the complete transaction, including all logic that decides which SQL to issue and/or which values to use.
+- Be cautious when retrying unique-key failures (SQLSTATE `23505`) and exclusion constraint failures (SQLSTATE `23P01`), as they may represent persistent error conditions rather than transient failures.
+- Transaction retry does not guarantee that the retried transaction will complete; multiple retries may be needed.
+- In cases with very high contention, it is possible that completion of a transaction may take many attempts.
+- In cases involving a conflicting prepared transaction, it may not be possible to make progress until the prepared transaction commits or rolls back.
