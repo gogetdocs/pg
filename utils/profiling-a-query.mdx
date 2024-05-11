@@ -1,0 +1,64 @@
+To time or profile a query in PostgreSQL and return the results in a script format using a dollar-quoted string, you can leverage the built-in timing functionality and some SQL constructs. Below are steps and an example script to achieve this.
+
+### Steps to Time or Profile a Query
+
+1. **Enable Timing**: You can enable timing for the session using `SET timing = on;`. This will allow PostgreSQL to show the execution time for each query.
+
+2. **Run Your Query**: Execute the query you want to time.
+
+3. **Retrieve Execution Time**: You can retrieve the execution time by using the `EXPLAIN` command or by capturing the output from the query directly if you are using `psql`.
+
+4. **Return Result as a Script**: You can format the results in a dollar-quoted string format.
+
+### Example Script
+
+Here's a sample script that times a simple query and formats the output as a dollar-quoted string:
+
+```sql
+DO $$
+DECLARE
+    v_start_time TIMESTAMP;
+    v_end_time TIMESTAMP;
+    v_query_time INTERVAL;
+    v_result TEXT;
+BEGIN
+    -- Start timing
+    v_start_time := clock_timestamp();
+
+    -- Your query here (replace with your actual query)
+    EXECUTE 'SELECT pg_sleep(1)'; -- Simulates a 1-second query
+
+    -- End timing
+    v_end_time := clock_timestamp();
+
+    -- Calculate the duration
+    v_query_time := v_end_time - v_start_time;
+
+    -- Prepare result
+    v_result := format('Query executed in: %s', v_query_time);
+
+    -- Return result as a dollar-quoted string
+    RAISE NOTICE $$ % $$, v_result;
+END $$;
+```
+
+### Explanation of the Script
+
+- **DO Statement**: The script is enclosed within a `DO $$ ... $$` block, allowing for procedural code execution.
+- **Timing**: The `clock_timestamp()` function is used to capture the start and end time of the query.
+
+- **Query Execution**: The `EXECUTE` statement runs your desired query. Replace `SELECT pg_sleep(1)` with your actual query.
+
+- **Result Formatting**: The result is formatted into a text variable (`v_result`) that includes the execution time.
+
+- **RAISE NOTICE**: The result is output as a notice using a dollar-quoted string.
+
+### Important Notes
+
+- If you're running this in an environment where `RAISE NOTICE` output is not visible, you may want to consider using a temporary table or returning the result in a different manner depending on your needs.
+
+- The `pg_sleep` function is just for demonstration; replace it with your actual query to profile.
+
+### Running the Script
+
+To run this script, you can execute it in a PostgreSQL client such as `psql`, PgAdmin, or any other SQL execution tool connected to your PostgreSQL database. Just make sure to replace the placeholder query with your actual SQL statement.

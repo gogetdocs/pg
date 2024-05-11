@@ -1,0 +1,85 @@
+## Docker compose template
+
+```yaml
+version: "3.8" # Specify the Compose file version
+
+services:
+  postgres:
+    build:
+      context: . # Use the current directory for the build
+      dockerfile: Dockerfile # Specify the Dockerfile (if you have a custom one)
+    container_name: postgres_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432" # Expose PostgreSQL port
+    environment:
+      POSTGRES_DB: my_database # Database name
+      POSTGRES_USER: post_user # Database user
+      POSTGRES_PASSWORD: post_pwd # Database user password
+      PGDATA: /var/lib/postgresql/data/pgdata # Optional: Custom data directory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Use named volume for persistent storage
+    networks:
+      - postgres_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com # Admin email for pgAdmin
+      PGADMIN_DEFAULT_PASSWORD: admin_password # Admin password for pgAdmin
+    ports:
+      - "8080:80" # Expose pgAdmin port
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin # Use named volume for persistent storage
+      - ./pgadmin/servers.json:/pgadmin4/servers.json # Mount the servers.json file
+    networks:
+      - postgres_network
+    depends_on:
+      - postgres
+
+# Define named volumes for persistent storage
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# Define networks for container communication
+networks:
+  postgres_network:
+    driver: bridge
+
+  # Optional: Add a health check to ensure PostgreSQL is ready
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U post_user"]
+    interval: 30s
+    timeout: 10s
+    retries: 5
+```
+
+```json
+{
+  "Servers": {
+    "1": {
+      "Name": "PG",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "mydb",
+      "Username": "usr",
+      "Password": "pwd",
+      "SavePassword": true,
+      "SSLMode": "prefer",
+      "SSLCert": "<STORAGE_DIR>/.postgresql/postgresql.crt",
+      "SSLKey": "<STORAGE_DIR>/.postgresql/postgresql.key",
+      "SSLCompression": 0,
+      "Timeout": 10,
+      "UseSSHTunnel": 0,
+      "TunnelPort": "22",
+      "TunnelAuthentication": 0
+    }
+  }
+}
+```
