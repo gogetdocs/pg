@@ -1,0 +1,111 @@
+## PostgreSQL Set Operations: UNION, INTERSECT, and EXCEPT
+
+PostgreSQL provides powerful set operations to combine the results of two queries. These operations include UNION, INTERSECT, and EXCEPT, which can be used to perform various data manipulations. This documentation explains each operation with examples and complete SQL code.
+
+### 1. UNION
+
+The UNION operation combines the results of two queries into a single result set. It removes duplicate rows unless the `ALL` keyword is used.
+
+**Example: Combining Two Tables with UNION**
+
+```sql
+-- Create example tables
+CREATE TABLE table1 (id SERIAL PRIMARY KEY, name TEXT);
+CREATE TABLE table2 (id SERIAL PRIMARY KEY, name TEXT);
+
+-- Insert data into tables
+INSERT INTO table1 (name) VALUES ('Alice'), ('Bob');
+INSERT INTO table2 (name) VALUES ('Chris'), ('Alice');
+
+-- Use UNION to combine results
+SELECT name FROM table1
+UNION
+SELECT name FROM table2;
+```
+
+**Result:**
+
+| name  |
+| ----- |
+| Alice |
+| Bob   |
+| Chris |
+
+### 2. INTERSECT
+
+The INTERSECT operation returns all rows that are common to both queries.
+
+**Example: Finding Common Names with INTERSECT**
+
+```sql
+-- Use INTERSECT to find common names
+SELECT name FROM table1
+INTERSECT
+SELECT name FROM table2;
+```
+
+**Result:**
+
+| name  |
+| ----- |
+| Alice |
+
+### 3. EXCEPT
+
+The EXCEPT operation returns all rows that are in the first query but not in the second query.
+
+**Example: Finding Names in table1 but not in table2 with EXCEPT**
+
+```sql
+-- Use EXCEPT to find names in table1 but not in table2
+SELECT name FROM table1
+EXCEPT
+SELECT name FROM table2;
+```
+
+**Result:**
+
+| name |
+| ---- |
+| Bob  |
+
+### Important Notes
+
+- **Data Type Compatibility**: For UNION, INTERSECT, and EXCEPT operations, the two queries must be "union compatible," meaning they must return the same number of columns and the corresponding columns must have compatible data types[2].
+- **Type Resolution**: When a SELECT is part of a UNION, INTERSECT, or EXCEPT construct, or when it appears within INSERT ... SELECT, the type of an unspecified-type literal can be taken from the other UNION arm or from the destination column[1].
+- **Prior to PostgreSQL 10**: Unspecified-type literals in a SELECT output list were left as type unknown, which had negative consequences. This rule has been changed in PostgreSQL 10 and later versions[1].
+
+### Usage
+
+These set operations are crucial in various data analysis and manipulation scenarios. For example, you might use UNION to combine data from different sources, INTERSECT to find common data points, and EXCEPT to identify unique data points.
+
+### Complete SQL Code
+
+```sql
+-- Create example tables
+CREATE TABLE table1 (id SERIAL PRIMARY KEY, name TEXT);
+CREATE TABLE table2 (id SERIAL PRIMARY KEY, name TEXT);
+
+-- Insert data into tables
+INSERT INTO table1 (name) VALUES ('Alice'), ('Bob');
+INSERT INTO table2 (name) VALUES ('Chris'), ('Alice');
+
+-- Use UNION to combine results
+SELECT name FROM table1
+UNION
+SELECT name FROM table2;
+
+-- Use INTERSECT to find common names
+SELECT name FROM table1
+INTERSECT
+SELECT name FROM table2;
+
+-- Use EXCEPT to find names in table1 but not in table2
+SELECT name FROM table1
+EXCEPT
+SELECT name FROM table2;
+```
+
+### Execution
+
+Running the above SQL code will demonstrate the usage of UNION, INTERSECT, and EXCEPT operations in PostgreSQL. The results will show how these operations can be used to combine and manipulate data from different tables.

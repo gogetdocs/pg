@@ -1,0 +1,105 @@
+## Operator Type Resolution in PostgreSQL
+
+### Overview
+
+Operator type resolution in PostgreSQL is a critical process that determines which specific operator to use when faced with an operator expression. This process is influenced by the precedence of operators and the visibility of operators in the current search path.
+
+### Procedure for Operator Type Resolution
+
+1. **Select Operators to Consider**
+
+   - For non-schema-qualified operator names, consider operators with matching names and argument counts visible in the current search path.
+   - For qualified operator names, only consider operators in the specified schema.
+
+2. **Check for Exact Matches**
+
+   - Look for an operator that accepts exactly the input argument types. If found, use it.
+   - If one argument of a binary operator is of the unknown type, assume it is the same type as the other argument for this check.
+
+3. **Handle Unknown and Domain Types**
+
+   - If one argument is of the unknown type and the other is of a domain type, check for an operator accepting exactly the domain's base type on both sides.
+   - Treat domain types as their base types for subsequent steps.
+
+4. **Find the Best Match**
+
+   - Discard candidate operators for which input types do not match and cannot be converted (using an implicit conversion) to match.
+   - Keep candidates with the most exact matches on input types. If only one candidate remains, use it.
+
+5. **Consider Preferred Types**
+
+   - Keep candidates that accept preferred types (of the input data type's type category) at the most positions where type conversion will be required.
+   - If only one candidate remains, use it.
+
+6. **Resolve Unknown Types**
+
+   - If any input arguments are unknown, check the type categories accepted at those argument positions by the remaining candidates.
+   - Select the string category if any candidate accepts it; otherwise, select the category accepted by all remaining candidates.
+   - Discard candidates that do not accept the selected type category.
+
+7. **Finalize Operator Selection**
+   - If there are both unknown and known-type arguments, and all known-type arguments have the same type, assume unknown arguments are also of that type.
+   - Check which candidates can accept that type at the unknown-argument positions. If exactly one candidate passes this test, use it.
+
+### Examples
+
+#### Example 1: Square Root Operator
+
+The square root operator (`|/`) is defined for `double precision` arguments. When used with an integer, PostgreSQL performs a type conversion.
+
+```sql
+SELECT |/ 40 AS "square root of 40";
+-- Equivalent to:
+SELECT |/ CAST(40 AS double precision) AS "square root of 40";
+```
+
+#### Example 2: String Concatenation
+
+String concatenation operators are resolved based on the types of the operands. If one operand is of unknown type, PostgreSQL assumes it is the same type as the other operand.
+
+```sql
+SELECT text 'abc' || 'def' AS "text and unknown";
+-- PostgreSQL assumes 'def' is of type text
+
+SELECT 'abc' || 'def' AS "unspecified";
+-- PostgreSQL selects the string category and uses text as the specific type
+```
+
+#### Example 3: Absolute-Value and Negation Operators
+
+The absolute-value operator (`@`) and negation operator (`~`) are resolved based on the types of their operands.
+
+```sql
+SELECT @ '-4.5' AS "abs";
+-- PostgreSQL resolves the unknown-type literal as type float8
+
+SELECT ~ '20' AS "negation";
+-- Fails because PostgreSQL cannot decide which operator to use
+-- Solution: Use an explicit cast
+SELECT ~ CAST('20' AS int8) AS "negation";
+```
+
+#### Example 4: Array Inclusion Operator
+
+The array inclusion operator (`<@`) is resolved based on the types of its operands.
+
+```sql
+SELECT array[1,2] <@ '{1,2,3}' as "is subset";
+-- PostgreSQL assumes the unknown-type literal is of the same type as the other input (integer array)
+```
+
+#### Example 5: Custom Operator on a Domain Type
+
+Custom operators on domain types are not used unless explicitly cast.
+
+```sql
+CREATE DOMAIN mytext AS text CHECK(...);
+CREATE FUNCTION mytext_eq_text (mytext, text) RETURNS boolean AS ...;
+CREATE OPERATOR = (procedure=mytext_eq_text, leftarg=mytext, rightarg=text);
+CREATE TABLE mytable (val mytext);
+
+SELECT * FROM mytable WHERE val = 'foo';
+-- Does not use the custom operator
+-- Solution: Use an explicit cast
+SELECT * FROM mytable WHERE val = text 'foo';
+```

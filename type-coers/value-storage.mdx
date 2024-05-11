@@ -1,0 +1,75 @@
+## Value Storage Type Conversion
+
+### Overview
+
+When inserting values into a table, PostgreSQL converts the values to the destination column's data type using the following steps:
+
+1. **Exact Match**: Check for an exact match with the target type.
+2. **Type Conversion**: Try to convert the expression to the target type using an assignment cast registered in the `pg_cast` catalog or by feeding the literal string to the input conversion routine for the target type.
+3. **Sizing Cast**: Check for a sizing cast for the target type and apply it to the expression before storing into the destination column.
+
+### Example: character Storage Type Conversion
+
+Suppose we have a table `vv` with a column `v` declared as `character(20)`:
+
+```sql
+CREATE TABLE vv (v character(20));
+```
+
+When we insert a value into this column using the `||` operator, PostgreSQL performs the following conversions:
+
+```sql
+INSERT INTO vv SELECT 'abc' || 'def';
+```
+
+Here's what happens behind the scenes:
+
+1. The two unknown literals `'abc'` and `'def'` are resolved to `text` by default, allowing the `||` operator to be resolved as text concatenation.
+2. The `text` result of the operator is converted to `bpchar` (the internal name of the `character` data type) to match the target column type. This conversion is binary-coercible, so no real function call is inserted.
+3. The sizing function `bpchar(bpchar, integer, boolean)` is found in the system catalog and applied to the operator's result and the stored column length. This type-specific function performs the required length check and addition of padding spaces.
+
+To verify this, we can query the table and check the stored value and its length:
+
+```sql
+SELECT v, octet_length(v) FROM vv;
+```
+
+This returns:
+
+```
+          v           | octet_length
+----------------------+--------------
+ abcdef               |           20
+(1 row)
+```
+
+As expected, the stored value is sized correctly to 20 bytes, with padding spaces added to fill the declared length.
+
+### Usage
+
+Here's an example of using the `character` data type with a sizing cast to store values of varying lengths:
+
+```sql
+CREATE TABLE customers (
+  name character(50),
+  email character(100)
+);
+
+INSERT INTO customers (name, email) VALUES
+  ('John Doe', 'john.doe@example.com'),
+  ('Jane Smith', 'jane.smith@example.com');
+
+SELECT name, email, octet_length(name), octet_length(email) FROM customers;
+```
+
+This returns:
+
+```
+      name       |         email          | octet_length | octet_length
+-----------------+-------------------------+--------------+--------------
+ John Doe       | john.doe@example.com  |           50 |          100
+ Jane Smith     | jane.smith@example.com |           50 |          100
+(2 rows)
+```
+
+In this example, the `name` and `email` columns are declared with different lengths, and the sizing cast is applied to each column to ensure that the stored values are correctly sized and padded.
