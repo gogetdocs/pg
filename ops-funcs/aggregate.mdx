@@ -1,0 +1,175 @@
+## Aggregate Functions in PostgreSQL
+
+Aggregate functions in PostgreSQL are used to compute a single result from a set of input values. These functions are essential for performing various statistical and analytical operations on data stored in PostgreSQL databases.
+
+### General-Purpose Aggregate Functions
+
+#### Table 9.58: General-Purpose Aggregate Functions
+
+| Function                              | Description                                                             | Partial Mode |
+| ------------------------------------- | ----------------------------------------------------------------------- | ------------ |
+| `array_agg(anyarray)`                 | Concatenates all input arrays into an array of one higher dimension.    | No           |
+| `avg(numeric_type)`                   | Computes the average (arithmetic mean) of all non-null input values.    | Yes          |
+| `bit_and(integer)`                    | Computes the bitwise AND of all non-null input values.                  | Yes          |
+| `bit_or(integer)`                     | Computes the bitwise OR of all non-null input values.                   | Yes          |
+| `bit_xor(integer)`                    | Computes the bitwise exclusive OR of all non-null input values.         | Yes          |
+| `bool_and(boolean)`                   | Returns true if all non-null input values are true, otherwise false.    | Yes          |
+| `bool_or(boolean)`                    | Returns true if any non-null input value is true, otherwise false.      | Yes          |
+| `count(*)`                            | Computes the number of input rows.                                      | Yes          |
+| `count(any)`                          | Computes the number of input rows in which the input value is not null. | Yes          |
+| `every(boolean)`                      | Equivalent to `bool_and`.                                               | Yes          |
+| `json_agg(anyelement)`                | Collects all input values, including nulls, into a JSON array.          | No           |
+| `json_object_agg(key any, value any)` | Collects all key/value pairs into a JSON object.                        | No           |
+| `max(any)`                            | Computes the maximum of the non-null input values.                      | Yes          |
+| `min(any)`                            | Computes the minimum of the non-null input values.                      | Yes          |
+| `range_agg(anyrange)`                 | Computes the union of the non-null input values.                        | No           |
+| `range_intersect_agg(anyrange)`       | Computes the intersection of the non-null input values.                 | No           |
+| `string_agg(text, delimiter text)`    | Concatenates the non-null input values into a string.                   | No           |
+| `sum(numeric_type)`                   | Computes the sum of the non-null input values.                          | Yes          |
+| `xmlagg(xml)`                         | Concatenates the non-null XML input values.                             | No           |
+
+### Usage Examples
+
+#### Example 1: Using `array_agg` to Collect Values
+
+```sql
+SELECT array_agg(name) FROM employees;
+```
+
+This query collects all employee names into an array.
+
+#### Example 2: Using `avg` to Calculate Average Salary
+
+```sql
+SELECT avg(salary) FROM employees;
+```
+
+This query calculates the average salary of all employees.
+
+#### Example 3: Using `bit_and` to Perform Bitwise AND
+
+```sql
+SELECT bit_and(flags) FROM permissions;
+```
+
+This query performs a bitwise AND operation on all permission flags.
+
+#### Example 4: Using `bool_and` to Check Conditions
+
+```sql
+SELECT bool_and(is_active) FROM users;
+```
+
+This query checks if all users are active.
+
+#### Example 5: Using `count` to Count Rows
+
+```sql
+SELECT count(*) FROM orders;
+```
+
+This query counts the number of orders.
+
+#### Example 6: Using `every` to Check Conditions
+
+```sql
+SELECT every(is_active) FROM users;
+```
+
+This query checks if all users are active.
+
+#### Example 7: Using `json_agg` to Collect JSON Values
+
+```sql
+SELECT json_agg(data) FROM json_data;
+```
+
+This query collects all JSON data into a single JSON array.
+
+#### Example 8: Using `json_object_agg` to Collect JSON Key/Value Pairs
+
+```sql
+SELECT json_object_agg(key, value) FROM json_data;
+```
+
+This query collects all JSON key/value pairs into a single JSON object.
+
+#### Example 9: Using `max` to Find Maximum Value
+
+```sql
+SELECT max(price) FROM products;
+```
+
+This query finds the maximum price of all products.
+
+#### Example 10: Using `min` to Find Minimum Value
+
+```sql
+SELECT min(price) FROM products;
+```
+
+This query finds the minimum price of all products.
+
+#### Example 11: Using `range_agg` to Find Union of Ranges
+
+```sql
+SELECT range_agg(range) FROM ranges;
+```
+
+This query finds the union of all ranges.
+
+#### Example 12: Using `range_intersect_agg` to Find Intersection of Ranges
+
+```sql
+SELECT range_intersect_agg(range) FROM ranges;
+```
+
+This query finds the intersection of all ranges.
+
+#### Example 13: Using `string_agg` to Concatenate Strings
+
+```sql
+SELECT string_agg(name, ', ') FROM employees;
+```
+
+This query concatenates all employee names into a single string.
+
+#### Example 14: Using `sum` to Calculate Sum
+
+```sql
+SELECT sum(salary) FROM employees;
+```
+
+This query calculates the sum of all employee salaries.
+
+#### Example 15: Using `xmlagg` to Concatenate XML Values
+
+```sql
+SELECT xmlagg(data) FROM xml_data;
+```
+
+This query concatenates all XML data into a single XML document.
+
+### Statistical Aggregate Functions
+
+#### Table 9.59: Aggregate Functions for Statistics
+
+| Function                                                 | Description                                                              | Partial Mode |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------ |
+| `corr(Y double precision, X double precision)`           | Computes the correlation coefficient.                                    | Yes          |
+| `covar_pop(Y double precision, X double precision)`      | Computes the population covariance.                                      | Yes          |
+| `covar_samp(Y double precision, X double precision)`     | Computes the sample covariance.                                          | Yes          |
+| `regr_avgx(Y double precision, X double precision)`      | Computes the average of the independent variable.                        | Yes          |
+| `regr_avgy(Y double precision, X double precision)`      | Computes the average of the dependent variable.                          | Yes          |
+| `regr_count(Y double precision, X double precision)`     | Computes the number of rows in which both inputs are non-null.           | Yes          |
+| `regr_intercept(Y double precision, X double precision)` | Computes the y-intercept of the least-squares-fit linear equation.       | Yes          |
+| `regr_r2(Y double precision, X double precision)`        | Computes the square of the correlation coefficient.                      | Yes          |
+| `regr_slope(Y double precision, X double precision)`     | Computes the slope of the least-squares-fit linear equation.             | Yes          |
+| `regr_sxx(Y double precision, X double precision)`       | Computes the “sum of squares” of the independent variable.               | Yes          |
+| `regr_sxy(Y double precision, X double precision)`       | Computes the “sum of products” of independent times dependent variables. | Yes          |
+| `regr_syy(Y double precision, X double precision)`       | Computes the “sum of squares” of the dependent variable.                 | Yes          |
+| `stddev(numeric_type)`                                   | Computes the sample standard deviation.                                  | Yes          |
+| `stddev_pop(numeric_type)`                               | Computes the population standard deviation.                              | Yes          |
+| `stddev_samp(numeric_type)`                              | Computes the sample standard deviation.                                  | Yes          |
+
+|

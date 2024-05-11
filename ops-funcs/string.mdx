@@ -1,0 +1,157 @@
+## PostgreSQL String Functions and Operators
+
+PostgreSQL provides a wide range of string functions and operators that can be used to manipulate and analyze string data. This section covers the various string functions and operators available in PostgreSQL, along with examples of their usage.
+
+### 9.4. String Functions and Operators
+
+#### 9.4.1. String Concatenation
+
+- **`text || text → text`**: Concatenates two strings.
+
+  - **Example**: `'Post' || 'greSQL' → 'PostgreSQL'`
+  - **usage**:
+    ```sql
+    SELECT 'Hello, ' || 'World!' AS greeting;
+    -- Result: "Hello, World!"
+    ```
+
+- **`text || anynonarray → text`** and **`anynonarray || text → text`**: Converts non-string input to text and then concatenates.
+  - **Example**: `'Value: ' || 42 → 'Value: 42'`
+  - **usage**:
+    ```sql
+    SELECT 'User ID: ' || 123 AS user_id;
+    -- Result: "User ID: 123"
+    ```
+
+#### 9.4.2. String Length Functions
+
+- **`bit_length(text) → integer`**: Returns the number of bits in the string.
+
+  - **Example**: `bit_length('jose') → 32`
+  - **usage**:
+    ```sql
+    SELECT bit_length('example') AS bit_length;
+    -- Result: 56
+    ```
+
+- **`char_length(text) → integer`** and **`character_length(text) → integer`**: Returns the number of characters in the string.
+
+  - **Example**: `char_length('josé') → 4`
+  - **usage**:
+    ```sql
+    SELECT char_length('example') AS char_length;
+    -- Result: 7
+    ```
+
+- **`octet_length(text) → integer`**: Returns the number of bytes in the string.
+  - **Example**: `octet_length('josé') → 5` (if server encoding is UTF8)
+  - **usage**:
+    ```sql
+    SELECT octet_length('example') AS octet_length;
+    -- Result: 7
+    ```
+
+#### 9.4.3. Case Conversion Functions
+
+- **`lower(text) → text`**: Converts the string to all lower case.
+
+  - **Example**: `lower('TOM') → 'tom'`
+  - **usage**:
+    ```sql
+    SELECT lower('EXAMPLE') AS lower_case;
+    -- Result: "example"
+    ```
+
+- **`upper(text) → text`**: Converts the string to all upper case.
+
+  - **Example**: `upper('tom') → 'TOM'`
+  - **usage**:
+    ```sql
+    SELECT upper('example') AS upper_case;
+    -- Result: "EXAMPLE"
+    ```
+
+- **`initcap(text) → text`**: Converts the first letter of each word to upper case and the rest to lower case.
+  - **Example**: `initcap('hi THOMAS') → 'Hi Thomas'`
+  - **usage**:
+    ```sql
+    SELECT initcap('hello world') AS initcap;
+    -- Result: "Hello World"
+    ```
+
+#### 9.4.4. Trimming Functions
+
+- **`trim([LEADING | TRAILING | BOTH] [characters text] FROM string text) → text`**: Removes the longest string containing only characters in characters from the start, end, or both ends of string.
+
+  - **Example**: `trim(both 'xyz' from 'yxTomxx') → 'Tom'`
+  - **usage**:
+    ```sql
+    SELECT trim(both ' ' from '   Hello World   ') AS trimmed;
+    -- Result: "Hello World"
+    ```
+
+- **`ltrim(string text [, characters text]) → text`**: Removes the longest string containing only characters in characters from the start of string.
+
+  - **Example**: `ltrim('zzzytest', 'xyz') → 'test'`
+  - **usage**:
+    ```sql
+    SELECT ltrim('   Hello World', ' ') AS ltrimmed;
+    -- Result: "Hello World"
+    ```
+
+- **`rtrim(string text [, characters text]) → text`**: Removes the longest string containing only characters in characters from the end of string.
+  - **Example**: `rtrim('testxxzx', 'xyz') → 'test'`
+  - **usage**:
+    ```sql
+    SELECT rtrim('Hello World   ', ' ') AS rtrimmed;
+    -- Result: "Hello World"
+    ```
+
+#### 9.4.5. Padding Functions
+
+- **`lpad(string text, length integer [, fill text]) → text`**: Extends the string to length length by prepending the characters fill.
+
+  - **Example**: `lpad('hi', 5, 'xy') → 'xyxhi'`
+  - **usage**:
+    ```sql
+    SELECT lpad('123', 5, '0') AS padded;
+    -- Result: "00123"
+    ```
+
+- **`rpad(string text, length integer [, fill text]) → text`**: Extends the string to length length by appending the characters fill.
+  - **Example**: `rpad('hi', 5, 'xy') → 'hixyx'`
+  - **usage**:
+    ```sql
+    SELECT rpad('123', 5, '0') AS padded;
+    -- Result: "12300"
+    ```
+
+#### 9.4.6. Substring Functions
+
+- **`substring(string text [FROM start integer] [FOR count integer]) → text`**: Extracts the substring of string starting at the start'th character and stopping after count characters.
+
+  - **Example**: `substring('Thomas' from 2 for 3) → 'hom'`
+  - **usage**:
+    ```sql
+    SELECT substring('example' from 3 for 2) AS substring;
+    -- Result: "am"
+    ```
+
+- **`substr(string text, start integer [, count integer]) → text`**: Same as `substring(string from start for count)`.
+  - **Example**: `substr('alphabet', 3) → 'phabet'`
+  - **usage**:
+    ```sql
+    SELECT substr('example', 3, 2) AS substr;
+    -- Result: "am"
+    ```
+
+#### 9.4.7. Overlay Function
+
+- **`overlay(string text PLACING newsubstring text FROM start integer [FOR count integer]) → text`**: Replaces the substring of string that starts at the start'th character and extends for count characters with newsubstring.
+
+  - **Example**: `overlay('Txxxxas' placing 'hom' from 2 for 4) → 'Thomas'`
+  - **usage**:
+
+    ```
+
+    ```

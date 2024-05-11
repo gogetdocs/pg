@@ -1,0 +1,102 @@
+## PostgreSQL Event Triggers: A Comprehensive Guide
+
+PostgreSQL event triggers are a powerful mechanism that allows you to react to database schema changes, such as table or column addition and deletion, object creation, and more. Unlike regular triggers, which are attached to a single table and capture only DML events, event triggers are global to a particular database and can capture DDL events.
+
+### Supported Events
+
+PostgreSQL supports the following events for event triggers:
+
+- **ddl_command_start**: Occurs just before the execution of a `CREATE`, `ALTER`, `DROP`, etc., command.
+- **ddl_command_end**: Occurs just after the execution of a `CREATE`, `ALTER`, `DROP`, etc., command.
+- **sql_drop**: Occurs just before the `ddl_command_end` event trigger for any operation that drops database objects.
+- **table_rewrite**: Occurs just before a table is rewritten by some actions of the commands `ALTER TABLE` and `ALTER TYPE`.
+
+### Creating Event Triggers
+
+To create an event trigger, you first need to create a trigger function that defines the logic to be executed when the trigger fires. This function must return `event_trigger` and can be written in any procedural language supported by PostgreSQL, such as PL/pgSQL.
+
+Here is an example of creating a trigger function and an event trigger:
+
+```sql
+CREATE OR REPLACE FUNCTION log_ddl()
+RETURNS event_trigger AS $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT * FROM pg_event_trigger_ddl_commands()
+    LOOP
+        INSERT INTO ddl_history (ddl_date, ddl_tag, object_name)
+        VALUES (statement_timestamp(), tg_tag, r.object_identity);
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE EVENT TRIGGER log_ddl_info
+ON ddl_command_end
+EXECUTE FUNCTION log_ddl();
+```
+
+### Helper Functions
+
+PostgreSQL provides several helper functions to retrieve information from event triggers:
+
+- **pg_event_trigger_ddl_commands()**: Returns a list of DDL commands executed by each user action, when invoked in a function attached to a `ddl_command_end` event trigger[2][4].
+- **pg_event_trigger_dropped_objects()**: Returns a list of all objects dropped by the command in whose `sql_drop` event it is called[2][4].
+- **pg_event_trigger_table_rewrite_oid()** and **pg_event_trigger_table_rewrite_reason()**: Provide information about a table for which a `table_rewrite` event has just been called[2][4].
+
+### Usage
+
+Event triggers can be used for various purposes, such as auditing schema changes, enforcing naming conventions, and automating database management tasks.
+
+For example, you can create an event trigger to log all DDL commands:
+
+```sql
+CREATE TABLE ddl_history (
+    id SERIAL PRIMARY KEY,
+    ddl_date TIMESTAMPTZ,
+    ddl_tag TEXT,
+    object_name TEXT
+);
+
+CREATE OR REPLACE FUNCTION log_ddl()
+RETURNS event_trigger AS $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN SELECT * FROM pg_event_trigger_ddl_commands()
+    LOOP
+        INSERT INTO ddl_history (ddl_date, ddl_tag, object_name)
+        VALUES (statement_timestamp(), tg_tag, r.object_identity);
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE EVENT TRIGGER log_ddl_info
+ON ddl_command_end
+EXECUTE FUNCTION log_ddl();
+```
+
+You can also create an event trigger to handle dropped objects:
+
+```sql
+CREATE OR REPLACE FUNCTION log_dropped_objects()
+RETURNS event_trigger AS $$
+DECLARE
+    obj RECORD;
+BEGIN
+    FOR obj IN SELECT * FROM pg_event_trigger_dropped_objects()
+    LOOP
+        RAISE NOTICE '% dropped object: % %.% %',
+                     tg_tag,
+                     obj.object_type,
+                     obj.schema_name,
+                     obj.object_name,
+                     obj.object_identity;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE EVENT TRIGGER log_dropped_objects_info
+ON sql_drop
+EXECUTE FUNCTION log_dropped_objects();
+```

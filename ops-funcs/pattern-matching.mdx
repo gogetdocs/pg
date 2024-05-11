@@ -1,0 +1,152 @@
+## Pattern Matching in PostgreSQL
+
+PostgreSQL provides three primary methods for pattern matching: `LIKE`, `SIMILAR TO`, and POSIX regular expressions. Each method offers unique capabilities and use cases.
+
+### 1. LIKE
+
+The `LIKE` operator is used for simple pattern matching. It supports two wildcard characters: `_` (underscore) matches any single character, and `%` (percent sign) matches any sequence of zero or more characters.
+
+- **Syntax**: `string LIKE pattern [ESCAPE escape-character]`
+- **Example Usage**:
+
+  ```sql
+  SELECT 'abc' LIKE 'abc';  -- Returns true
+  SELECT 'abc' LIKE 'a%';   -- Returns true
+  SELECT 'abc' LIKE '_b_';  -- Returns true
+  SELECT 'abc' LIKE 'c';    -- Returns false
+  ```
+
+  **Usage**:
+
+  ```sql
+  -- Find all names starting with 'A'
+  SELECT name FROM users WHERE name LIKE 'A%';
+
+  -- Find all emails ending with '.com'
+  SELECT email FROM users WHERE email LIKE '%.com';
+  ```
+
+### 2. SIMILAR TO
+
+The `SIMILAR TO` operator provides more complex pattern matching capabilities than `LIKE`, using a syntax similar to regular expressions but with some differences.
+
+- **Syntax**: `string SIMILAR TO pattern [ESCAPE escape-character]`
+- **Example Usage**:
+
+  ```sql
+  SELECT 'abc' SIMILAR TO 'abc';  -- Returns true
+  SELECT 'abc' SIMILAR TO 'a';    -- Returns false
+  SELECT 'abc' SIMILAR TO '%(b|d)%';  -- Returns true
+  SELECT 'abc' SIMILAR TO '(b|c)%';   -- Returns false
+  ```
+
+  **Usage**:
+
+  ```sql
+  -- Find all phone numbers matching a specific pattern
+  SELECT phone FROM contacts WHERE phone SIMILAR TO '\+1-[0-9]{3}-[0-9]{3}-[0-9]{4}';
+
+  -- Find all URLs containing 'example.com'
+  SELECT url FROM websites WHERE url SIMILAR TO '%example\.com%';
+  ```
+
+### 3. POSIX Regular Expressions
+
+POSIX regular expressions offer the most powerful pattern matching capabilities in PostgreSQL.
+
+- **Operators**:
+  - `~` (case-sensitive match)
+  - `~*` (case-insensitive match)
+  - `~` (case-sensitive non-match)
+  - `~*` (case-insensitive non-match)
+- **Example Usage**:
+
+  ```sql
+  SELECT 'abcd' ~ 'bc';  -- Returns true
+  SELECT 'abcd' ~ 'a.c';  -- Returns true
+  SELECT 'abcd' ~ 'a.*d';  -- Returns true
+  SELECT 'abcd' ~ '(b|x)';  -- Returns true
+  SELECT 'abcd' ~ '^a';  -- Returns true
+  ```
+
+  **Usage**:
+
+  ```sql
+  -- Find all emails containing '@example.com'
+  SELECT email FROM users WHERE email ~ '@example\.com';
+
+  -- Find all URLs starting with 'https://'
+  SELECT url FROM websites WHERE url ~ '^https://';
+  ```
+
+### Functions for POSIX Regular Expressions
+
+Several functions are available for working with POSIX regular expressions:
+
+- **`substring(string from pattern)`**: Extracts a substring that matches a pattern.
+
+  ```sql
+  SELECT substring('foobar' from 'o.b');  -- Returns 'oob'
+  ```
+
+- **`regexp_count(string, pattern [, start [, flags ]])`**: Counts the number of matches of a pattern in a string.
+
+  ```sql
+  SELECT regexp_count('ABCABCAXYaxy', 'A.');  -- Returns 3
+  SELECT regexp_count('ABCABCAXYaxy', 'A.', 1, 'i');  -- Returns 4
+  ```
+
+- **`regexp_instr(string, pattern [, start [, N [, endoption [, flags [, subexpr ]]]]]`**: Returns the position of the N'th match of a pattern in a string.
+
+  ```sql
+  SELECT regexp_instr('number of your street, town zip, FR', '[^,]+', 1, 2);  -- Returns 23
+  ```
+
+- **`regexp_like(string, pattern [, flags ])`**: Checks whether a string matches a pattern.
+
+  ```sql
+  SELECT regexp_like('Hello World', 'world');  -- Returns false
+  SELECT regexp_like('Hello World', 'world', 'i');  -- Returns true
+  ```
+
+- **`regexp_match(string, pattern [, flags ])`**: Returns a text array of matching substrings within the first match of a pattern in a string.
+
+  ```sql
+  SELECT regexp_match('foobarbequebaz', 'bar.*que');  -- Returns {barbeque}
+  SELECT regexp_match('foobarbequebaz', '(bar)(beque)');  -- Returns {bar,beque}
+  ```
+
+- **`regexp_matches(string, pattern [, flags ])`**: Returns a set of text arrays of matching substrings within matches of a pattern in a string.
+
+  ```sql
+  SELECT regexp_matches('foo', 'not there');  -- Returns (0 rows)
+  SELECT regexp_matches('foobarbequebazilbarfbonk', '(b[^b]+)(b[^b]+)', 'g');  -- Returns {bar,beque} and {bazil,barf}
+  ```
+
+- **`regexp_replace(string, pattern, replacement [, start [, N ]] [, flags ])`**: Substitutes new text for substrings that match a pattern in a string.
+
+  ```sql
+  SELECT regexp_replace('foobarbaz', 'b..', 'X');  -- Returns 'fooXbaz'
+  SELECT regexp_replace('foobarbaz', 'b..', 'X', 'g');  -- Returns 'fooXX'
+  ```
+
+- **`regexp_split_to_table(string, pattern [, flags ])`**: Splits a string into substrings using a pattern as a delimiter and returns them as a table.
+
+  ```sql
+  SELECT foo FROM regexp_split_to_table('the quick brown fox jumps over the lazy dog', '\s+') AS foo;
+  -- Returns each word as a separate row
+  ```
+
+- **`regexp_split_to_array(string, pattern [, flags ])`**: Splits a string into substrings using a pattern as a delimiter and returns them as an array.
+
+  ```sql
+  SELECT regexp_split_to_array('the quick brown fox jumps over the lazy dog', '\s+');
+  -- Returns {the,quick,brown,fox,jumps,over,the,lazy,dog}
+  ```
+
+- **`regexp_substr(string, pattern [, start [, N [, flags [, subexpr ]]]])`**: Returns the substring that matches a pattern in a string.
+  ```sql
+  SELECT regexp_substr('number of your street, town zip, FR', '[^,]+', 1, 2);  -- Returns 'town zip'
+  ```
+
+### Regular Expression

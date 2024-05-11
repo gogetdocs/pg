@@ -1,0 +1,138 @@
+# **PostgreSQL Conditional Expressions Documentation**
+
+### Overview
+
+PostgreSQL provides several conditional expressions that can be used to select one of multiple values based on a boolean condition. These expressions include `CASE`, `COALESCE`, `NULLIF`, `GREATEST`, and `LEAST`.
+
+### 9.18.1. CASE
+
+The `CASE` expression is a generic conditional expression, similar to if/else statements in other programming languages.
+
+**Syntax:**
+
+```sql
+CASE
+    WHEN condition THEN result
+    [WHEN ...]
+    [ELSE result]
+END
+```
+
+**Example:**
+
+```sql
+SELECT a,
+       CASE WHEN a=1 THEN 'one'
+            WHEN a=2 THEN 'two'
+            ELSE 'other'
+       END
+    FROM test;
+```
+
+Result:
+
+```
+ a | case
+---+-------
+ 1 | one
+ 2 | two
+ 3 | other
+```
+
+**usage:**
+
+Suppose we want to categorize customers based on their total purchases:
+
+```sql
+SELECT customer_name,
+       CASE
+           WHEN total_purchases > 1000 THEN 'VIP'
+           WHEN total_purchases > 500 THEN 'Preferred'
+           ELSE 'Regular'
+       END AS customer_category
+    FROM customers;
+```
+
+### 9.18.2. COALESCE
+
+The `COALESCE` function returns the first of its arguments that is not null.
+
+**Syntax:**
+
+```sql
+COALESCE(value [, ...])
+```
+
+**Example:**
+
+```sql
+SELECT COALESCE(description, short_description, '(none)') ...
+```
+
+This returns `description` if it is not null, otherwise `short_description` if it is not null, otherwise `(none)`.
+
+**usage:**
+
+Suppose we want to display a product's description, but if it is null, display the short description instead:
+
+```sql
+SELECT COALESCE(description, short_description, '(none)') AS product_description
+    FROM products;
+```
+
+### 9.18.3. NULLIF
+
+The `NULLIF` function returns a null value if `value1` equals `value2`; otherwise it returns `value1`.
+
+**Syntax:**
+
+```sql
+NULLIF(value1, value2)
+```
+
+**Example:**
+
+```sql
+SELECT NULLIF(value, '(none)') ...
+```
+
+This returns null if `value` is `(none)`, otherwise it returns `value`.
+
+**usage:**
+
+Suppose we want to replace a specific value with null:
+
+```sql
+SELECT NULLIF(description, '(none)') AS product_description
+    FROM products;
+```
+
+### 9.18.4. GREATEST and LEAST
+
+The `GREATEST` and `LEAST` functions select the largest or smallest value from a list of any number of expressions.
+
+**Syntax:**
+
+```sql
+GREATEST(value [, ...])
+LEAST(value [, ...])
+```
+
+**Example:**
+
+```sql
+SELECT GREATEST(a, b, c) ...
+```
+
+This returns the largest value among `a`, `b`, and `c`.
+
+**usage:**
+
+Suppose we want to find the highest price among several products:
+
+```sql
+SELECT GREATEST(price1, price2, price3) AS highest_price
+    FROM products;
+```
+
+Note that `GREATEST` and `LEAST` are not in the SQL standard, but are a common extension. Some other databases make them return NULL if any argument is NULL, rather than only when all are NULL[5].

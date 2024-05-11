@@ -1,0 +1,82 @@
+## Geometric Functions and Operators in PostgreSQL
+
+PostgreSQL provides a comprehensive set of geometric functions and operators for various geometric types, including point, box, lseg, line, path, polygon, and circle. These functions and operators enable users to perform complex geometric operations efficiently.
+
+### Geometric Operators
+
+The following geometric operators are available in PostgreSQL:
+
+#### 1. Translation
+
+- **`geometric_type + point → geometric_type`**: Adds the coordinates of the second point to those of each point of the first argument, thus performing translation. Available for point, box, path, circle.
+
+  - **Example**: `box '(1,1),(0,0)' + point '(2,0)' → (3,1),(2,0)`
+
+- **`geometric_type - point → geometric_type`**: Subtracts the coordinates of the second point from those of each point of the first argument, thus performing translation. Available for point, box, path, circle.
+  - **Example**: `box '(1,1),(0,0)' - point '(2,0)' → (-1,1),(-2,0)`
+
+#### 2. Scaling and Rotation
+
+- **`geometric_type * point → geometric_type`**: Multiplies each point of the first argument by the second point (treating a point as being a complex number represented by real and imaginary parts, and performing standard complex multiplication). If one interprets the second point as a vector, this is equivalent to scaling the object's size and distance from the origin by the length of the vector, and rotating it counterclockwise around the origin by the vector's angle from the x axis. Available for point, box, path, circle.
+
+  - **Example**: `path '((0,0),(1,0),(1,1))' * point '(3.0,0)' → ((0,0),(3,0),(3,3))`
+
+- **`geometric_type / point → geometric_type`**: Divides each point of the first argument by the second point (treating a point as being a complex number represented by real and imaginary parts, and performing standard complex division). If one interprets the second point as a vector, this is equivalent to scaling the object's size and distance from the origin down by the length of the vector, and rotating it clockwise around the origin by the vector's angle from the x axis. Available for point, box, path, circle.
+  - **Example**: `path '((0,0),(1,0),(1,1))' / point '(2.0,0)' → ((0,0),(0.5,0),(0.5,0.5))`
+
+#### 3. Concatenation
+
+- **`path + path → path`**: Concatenates two open paths (returns NULL if either path is closed).
+  - **Example**: `path '[(0,0),(1,1)]' + path '[(2,2),(3,3),(4,4)]' → [(0,0),(1,1),(2,2),(3,3),(4,4)]`
+
+#### 4. Length
+
+- **`@-@ geometric_type → double precision`**: Computes the total length. Available for lseg, path.
+  - **Example**: `@-@ path '[(0,0),(1,0),(1,1)]' → 2`
+
+#### 5. Center
+
+- **`@@ geometric_type → point`**: Computes the center point. Available for box, lseg, polygon, circle.
+  - **Example**: `@@ box '(2,2),(0,0)' → (1,1)`
+
+#### 6. Number of Points
+
+- **`# geometric_type → integer`**: Returns the number of points. Available for path, polygon.
+  - **Example**: `# path '((1,0),(0,1),(-1,0))' → 3`
+
+#### 7. Intersection
+
+- **`geometric_type # geometric_type → point`**: Computes the point of intersection, or NULL if there is none. Available for lseg, line.
+
+  - **Example**: `lseg '[(0,0),(1,1)]' # lseg '[(1,0),(0,1)]' → (0.5,0.5)`
+
+- **`box # box → box`**: Computes the intersection of two boxes, or NULL if there is none.
+  - **Example**: `box '(2,2),(-1,-1)' # box '(1,1),(-2,-2)' → (1,1),(-1,-1)`
+
+#### 8. Closest Point
+
+- **`geometric_type ## geometric_type → point`**: Computes the closest point to the first object on the second object. Available for these pairs of types: (point, box), (point, lseg), (point, line), (lseg, box), (lseg, lseg), (line, lseg).
+  - **Example**: `point '(0,0)' ## lseg '[(2,0),(0,2)]' → (1,1)`
+
+#### 9. Distance
+
+- **`geometric_type <-> geometric_type → double precision`**: Computes the distance between the objects. Available for all seven geometric types, for all combinations of point with another geometric type, and for these additional pairs of types: (box, lseg), (lseg, line), (polygon, circle) (and the commutator cases).
+  - **Example**: `circle '<(0,0),1>' <-> circle '<(5,0),1>' → 3`
+
+#### 10. Containment
+
+- **`geometric_type @> geometric_type → boolean`**: Does first object contain second? Available for these pairs of types: (box, point), (box, box), (path, point), (polygon, point), (polygon, polygon), (circle, point), (circle, circle).
+
+  - **Example**: `circle '<(0,0),2>' @> point '(1,1)' → t`
+
+- **`geometric_type <@ geometric_type → boolean`**: Is first object contained in or on second? Available for these pairs of types: (point, box), (point, lseg), (point, line), (point, path), (point, polygon), (point, circle), (box, box), (lseg, box), (lseg, line), (polygon, polygon), (circle, circle).
+  - **Example**: `point '(1,1)' <@ circle '<(0,0),2>' → t`
+
+#### 11. Overlap
+
+- **`geometric_type && geometric_type → boolean`**: Do these objects overlap? (One point in common makes this true.) Available for box, polygon, circle.
+  - **Example**: `box '(1,1),(0,0)' && box '(2,2),(0,0)' → t`
+
+#### 12. Horizontal and Vertical Alignment
+
+- **`geometric_type << geometric_type → boolean`**: Is first object strictly left of second? Available for point, box, polygon

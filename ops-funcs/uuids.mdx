@@ -1,0 +1,93 @@
+## Using UUIDs in PostgreSQL
+
+### Introduction
+
+UUIDs (Universally Unique Identifiers) are 128-bit numbers used to identify information in a unique way. PostgreSQL supports the `uuid` data type to store UUIDs and provides functions to generate them.
+
+### Generating UUIDs
+
+PostgreSQL includes the `gen_random_uuid()` function to generate version 4 (random) UUIDs, which are appropriate for most applications[7][3].
+
+```sql
+SELECT gen_random_uuid();
+```
+
+For additional algorithms, you can use the `uuid-ossp` module. To install it, use the `CREATE EXTENSION` statement:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+
+Then, you can use functions like `uuid_generate_v4()` to generate UUIDs[1][2]:
+
+```sql
+SELECT uuid_generate_v4();
+```
+
+### Using UUIDs in Tables
+
+To use UUIDs in a table, define a column with the `uuid` data type and use the `DEFAULT` clause to automatically generate UUIDs when inserting new records:
+
+```sql
+CREATE TABLE system_users (
+    user_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    username VARCHAR(50),
+    first_name VARCHAR(50),
+    last_name VARCHAR(50)
+);
+```
+
+### Usage
+
+#### Example 1: Simple UUID Generation
+
+Generate a UUID and insert it into a table:
+
+```sql
+CREATE TABLE contacts (
+    contact_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+INSERT INTO contacts (first_name, last_name, email)
+VALUES ('John', 'Smith', 'john.smith@example.com');
+
+SELECT * FROM contacts;
+```
+
+#### Example 2: Using UUIDs for Distributed Systems
+
+In distributed systems, UUIDs provide a better uniqueness guarantee than sequence generators. Here’s how to use them:
+
+```sql
+CREATE TABLE distributed_data (
+    data_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    data_content TEXT
+);
+
+INSERT INTO distributed_data (data_content)
+VALUES ('This is distributed data');
+
+SELECT * FROM distributed_data;
+```
+
+#### Example 3: Handling UUIDs in Applications
+
+UUIDs can be generated in applications before inserting data into the database, making them useful for objects that start their existence before the creation of the corresponding row in the database:
+
+```sql
+-- In the application, generate a UUID
+uuid = generate_uuid_in_application();
+
+-- Insert the UUID and data into the database
+INSERT INTO my_table (id, data)
+VALUES (uuid, 'This is application-generated data');
+```
+
+### Considerations
+
+- **Performance**: UUIDs use more storage space than integers, which can affect index size and performance[6].
+- **Security**: Version 1 UUIDs can leak information about the host and timestamp, making version 4 UUIDs a safer choice for most applications[1][2].
+- **Compatibility**: UUIDs are compatible with various standards, including RFC 4122 and ISO/IEC 9834-8:2005[4].

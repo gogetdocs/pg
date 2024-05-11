@@ -1,0 +1,106 @@
+## System Information Functions and Operators
+
+PostgreSQL provides various functions and operators to extract session and system information. These functions are useful for debugging, auditing, and monitoring database activities.
+
+### Session Information Functions
+
+The following functions provide information about the current session:
+
+- **`current_catalog`**: Returns the name of the current database (catalog).
+- **`current_database()`**: Returns the name of the current database.
+- **`current_query()`**: Returns the text of the currently executing query.
+- **`current_role`**: Returns the current role name.
+- **`current_schema`**: Returns the name of the schema that is first in the search path.
+- **`current_schemas(include_implicit boolean)`**: Returns an array of the names of all schemas presently in the effective search path.
+- **`current_user`**: Returns the user name of the current execution context.
+- **`inet_client_addr()`**: Returns the IP address of the current client.
+- **`inet_client_port()`**: Returns the IP port number of the current client.
+- **`inet_server_addr()`**: Returns the IP address on which the server accepted the current connection.
+- **`inet_server_port()`**: Returns the IP port number on which the server accepted the current connection.
+- **`pg_backend_pid()`**: Returns the process ID of the server process attached to the current session.
+- **`pg_blocking_pids(integer)`**: Returns an array of the process ID(s) of the sessions that are blocking the server process with the specified process ID from acquiring a lock.
+- **`pg_conf_load_time()`**: Returns the time when the server configuration files were last loaded.
+- **`pg_current_logfile([text])`**: Returns the path name of the log file currently in use by the logging collector.
+- **`pg_my_temp_schema()`**: Returns the OID of the current session's temporary schema.
+- **`pg_is_other_temp_schema(oid)`**: Returns true if the given OID is the OID of another session's temporary schema.
+- **`pg_jit_available()`**: Returns true if a JIT compiler extension is available and the jit configuration parameter is set to on.
+- **`pg_listening_channels()`**: Returns the set of names of asynchronous notification channels that the current session is listening to.
+- **`pg_notification_queue_usage()`**: Returns the fraction of the asynchronous notification queue's maximum size that is currently occupied by notifications.
+- **`pg_postmaster_start_time()`**: Returns the time when the server started.
+- **`pg_safe_snapshot_blocking_pids(integer)`**: Returns an array of the process ID(s) of the sessions that are blocking the server process with the specified process ID from acquiring a safe snapshot.
+- **`pg_trigger_depth()`**: Returns the current nesting level of PostgreSQL triggers.
+- **`session_user`**: Returns the session user's name.
+- **`user`**: This is equivalent to `current_user`.
+- **`version()`**: Returns a string describing the PostgreSQL server's version.
+
+### Usage Examples
+
+```sql
+-- Get the current database name
+SELECT current_database();
+
+-- Get the current role name
+SELECT current_role;
+
+-- Get the IP address and port of the current client
+SELECT inet_client_addr(), inet_client_port();
+
+-- Get the process ID of the server process attached to the current session
+SELECT pg_backend_pid();
+
+-- Check if JIT compiler is available
+SELECT pg_jit_available();
+
+-- Get the time when the server started
+SELECT pg_postmaster_start_time();
+
+-- Get the current PostgreSQL version
+SELECT version();
+```
+
+### Access Privilege Inquiry Functions
+
+These functions allow querying object access privileges programmatically:
+
+- **`has_any_column_privilege([user name or oid,] table text or oid, privilege text)`**: Does user have privilege for any column of table?
+- **`has_column_privilege([user name or oid,] table text or oid, column text or smallint, privilege text)`**: Does user have privilege for the specified table column?
+- **`has_database_privilege([user name or oid,] database text or oid, privilege text)`**: Does user have privilege for database?
+- **`has_foreign_data_wrapper_privilege([user name or oid,] fdw text or oid, privilege text)`**: Does user have privilege for foreign-data wrapper?
+- **`has_function_privilege([user name or oid,] function text or oid, privilege text)`**: Does user have privilege for function?
+- **`has_language_privilege([user name or oid,] language text or oid, privilege text)`**: Does user have privilege for language?
+- **`has_parameter_privilege([user name or oid,] parameter text, privilege text)`**: Does user have privilege for configuration parameter?
+- **`has_schema_privilege([user name or oid,] schema text or oid, privilege text)`**: Does user have privilege for schema?
+- **`has_sequence_privilege([user name or oid,] sequence text or oid, privilege text)`**: Does user have privilege for sequence?
+- **`has_server_privilege([user name or oid,] server text or oid, privilege text)`**: Does user have privilege for foreign server?
+- **`has_table_privilege([user name or oid,] table text or oid, privilege text)`**: Does user have privilege for table?
+- **`has_tablespace_privilege([user name or oid,] tablespace text or oid, privilege text)`**: Does user have privilege for tablespace?
+- **`has_type_privilege([user name or oid,] type text or oid, privilege text)`**: Does user have privilege for data type?
+- **`pg_has_role([user name or oid,] role text or oid, privilege text)`**: Does user have privilege for role?
+- **`row_security_active(table text or oid)`**: Is row-level security active for the specified table in the context of the current user and current environment?
+
+### Usage Examples
+
+```sql
+-- Check if the current user has SELECT privilege on a table
+SELECT has_table_privilege('mytable', 'SELECT');
+
+-- Check if a user has EXECUTE privilege on a function
+SELECT has_function_privilege('myuser', 'myfunc(int, text)', 'EXECUTE');
+
+-- Check if the current user has CREATE privilege on a schema
+SELECT has_schema_privilege('myschema', 'CREATE');
+
+-- Check if row-level security is active for a table
+SELECT row_security_active('mytable');
+```
+
+### System Catalog Information Functions
+
+These functions extract information from the system catalogs:
+
+- **`format_type(type oid, typemod integer)`**: Returns the SQL name for a data type.
+- **`pg_char_to_encoding(encoding name)`**: Converts the supplied encoding name into an integer representing the internal identifier.
+- **`pg_encoding_to_char(encoding integer)`**: Converts the integer used as the internal identifier of an encoding into a human-readable string.
+- **`pg_get_catalog_foreign_keys()`**: Returns a set of records describing the foreign key relationships that exist within the PostgreSQL system catalogs.
+- **`pg_get_constraintdef(constraint oid [, pretty boolean])`**: Reconstructs the creating command for a constraint.
+- **`pg_get_expr(expr pg_node_tree, relation oid [, pretty boolean])`**: Decompiles the internal

@@ -1,0 +1,78 @@
+## Inspecting MCV Lists in PostgreSQL
+
+### Overview
+
+PostgreSQL provides a function, `pg_mcv_list_items`, to inspect complex statistics defined using the `CREATE STATISTICS` command. This function is particularly useful for analyzing multi-column MCV (Most-Common Values) lists, which store actual values and their frequencies, offering more detailed statistics compared to traditional per-column statistics.
+
+### Function Details
+
+- **Function Name:** `pg_mcv_list_items`
+- **Input Type:** `pg_mcv_list`
+- **Return Type:** `setof record`
+- **Description:** Returns a set of records describing all items stored in a multi-column MCV list.
+
+### Returned Columns
+
+| **Name**         | **Type**           | **Description**                   |
+| ---------------- | ------------------ | --------------------------------- |
+| `index`          | `integer`          | Index of the item in the MCV list |
+| `values`         | `text[]`           | Values stored in the MCV item     |
+| `nulls`          | `boolean[]`        | Flags identifying `NULL` values   |
+| `frequency`      | `double precision` | Frequency of this MCV item        |
+| `base_frequency` | `double precision` | Base frequency of this MCV item   |
+
+### Usage Example
+
+To use `pg_mcv_list_items`, you first need to create statistics on a table and then analyze it. Here’s a step-by-step example:
+
+1. **Create a Table and Populate It:**
+   First, create a table and insert some data. This step is not shown in the provided search results but is necessary for a complete example.
+
+   ```sql
+   CREATE TABLE t (a integer, b integer);
+   INSERT INTO t (a, b) SELECT i, i FROM generate_series(1, 10000) i;
+   ```
+
+2. **Create Statistics:**
+   Create statistics on the table using the `CREATE STATISTICS` command with the `mcv` option.
+
+   ```sql
+   CREATE STATISTICS stts (mcv) ON a, b FROM t;
+   ```
+
+3. **Analyze the Table:**
+   Run `ANALYZE` on the table to gather statistics.
+
+   ```sql
+   ANALYZE t;
+   ```
+
+4. **Inspect MCV List:**
+   Use `pg_mcv_list_items` to inspect the MCV list.
+
+   ```sql
+   SELECT m.*
+   FROM pg_statistic_ext
+   JOIN pg_statistic_ext_data ON (oid = stxoid),
+   pg_mcv_list_items(stxdmcv) m
+   WHERE stxname = 'stts';
+   ```
+
+   This query will return a set of records describing all items stored in the MCV list, including their index, values, null flags, frequency, and base frequency.
+
+### Usage
+
+#### Example 1: Estimating Selectivity
+
+When estimating the selectivity of a query, the planner applies all conditions on items in the MCV list and sums the frequencies of the matching ones. For example, consider a query like `SELECT * FROM t WHERE a = 1 AND b = 1;`. The planner uses the MCV list to estimate how many rows will be returned by this query.
+
+#### Example 2: Handling Range Queries
+
+MCV lists can handle a wider range of clause types, not just equality clauses. For instance, consider a range query like `SELECT * FROM t WHERE a BETWEEN 1 AND 10;`. The MCV list can provide more accurate estimates for such queries by considering the actual values and their frequencies.
+
+### Advantages Over Functional Dependencies
+
+1. **Actual Values:** MCV lists store actual values, making it possible to decide which combinations are compatible.
+2. **Wider Range of Clauses:** MCV lists can handle a wider range of clause types, including range queries, not just equality clauses like functional dependencies.
+
+By using `pg_mcv_list_items` and understanding how MCV lists work, you can leverage more detailed statistics in PostgreSQL to improve query planning and performance.

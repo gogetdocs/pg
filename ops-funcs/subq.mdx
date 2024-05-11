@@ -1,0 +1,127 @@
+## Subquery Expressions in PostgreSQL
+
+Subquery expressions in PostgreSQL are powerful tools for performing complex queries. They allow you to embed one query within another, enabling you to filter, compare, and manipulate data in various ways. This section covers the different types of subquery expressions available in PostgreSQL, along with examples to illustrate their usage.
+
+### 9.23.1. EXISTS
+
+The `EXISTS` subquery expression checks if a subquery returns at least one row. If it does, the result is `true`; otherwise, it is `false`.
+
+**Example:**
+
+Suppose you have two tables, `employees` and `departments`, and you want to find all employees who belong to a department.
+
+```sql
+SELECT *
+FROM employees e
+WHERE EXISTS (
+  SELECT 1
+  FROM departments d
+  WHERE d.department_id = e.department_id
+);
+```
+
+This query returns all employees who have a matching department in the `departments` table.
+
+### 9.23.2. IN
+
+The `IN` subquery expression checks if a value is present in the result set of a subquery. If it is, the result is `true`; otherwise, it is `false`.
+
+**Example:**
+
+Find all employees who earn a salary that is also earned by at least one employee in the `managers` table.
+
+```sql
+SELECT *
+FROM employees
+WHERE salary IN (
+  SELECT salary
+  FROM managers
+);
+```
+
+This query returns all employees whose salary matches a salary found in the `managers` table.
+
+### 9.23.3. NOT IN
+
+The `NOT IN` subquery expression checks if a value is not present in the result set of a subquery. If it is not, the result is `true`; otherwise, it is `false`.
+
+**Example:**
+
+Find all employees who do not earn a salary that is also earned by at least one employee in the `managers` table.
+
+```sql
+SELECT *
+FROM employees
+WHERE salary NOT IN (
+  SELECT salary
+  FROM managers
+);
+```
+
+This query returns all employees whose salary does not match any salary found in the `managers` table.
+
+### 9.23.4. ANY/SOME
+
+The `ANY` (or `SOME`) subquery expression checks if at least one row of a subquery satisfies a condition. If it does, the result is `true`; otherwise, it is `false`.
+
+**Example:**
+
+Find all employees who earn a salary greater than that of at least one manager.
+
+```sql
+SELECT *
+FROM employees
+WHERE salary > ANY (
+  SELECT salary
+  FROM managers
+);
+```
+
+This query returns all employees whose salary is greater than the salary of at least one manager.
+
+### 9.23.5. ALL
+
+The `ALL` subquery expression checks if all rows of a subquery satisfy a condition. If they do, the result is `true`; otherwise, it is `false`.
+
+**Example:**
+
+Find all employees who earn a salary greater than that of all managers.
+
+```sql
+SELECT *
+FROM employees
+WHERE salary > ALL (
+  SELECT salary
+  FROM managers
+);
+```
+
+This query returns all employees whose salary is greater than the salary of all managers.
+
+### 9.23.6. Single-Row Comparison
+
+The single-row comparison subquery expression compares a row constructor with the result of a subquery that returns exactly one row.
+
+**Example:**
+
+Find all employees who have the same name and department as a specific manager.
+
+```sql
+SELECT *
+FROM employees
+WHERE (name, department_id) = (
+  SELECT name, department_id
+  FROM managers
+  WHERE manager_id = 1
+);
+```
+
+This query returns all employees who have the same name and department as the manager with `manager_id` equal to 1.
+
+### Important Considerations
+
+- **Side Effects:** It is unwise to write subqueries with side effects (such as calling sequence functions), as the execution of these side effects might be unpredictable.
+- **Evaluation:** Subqueries are generally executed only long enough to determine the result, not necessarily to completion.
+- **Null Values:** The presence of null values in subqueries can lead to null results in the outer query, following SQL's normal rules for Boolean combinations of null values.
+
+By understanding and applying these subquery expressions, you can perform complex data analysis and filtering in PostgreSQL, enhancing your ability to extract meaningful insights from your database.

@@ -1,0 +1,119 @@
+## PostgreSQL Enum Support Functions
+
+### Overview
+
+PostgreSQL provides several functions to support working with enumerated types (enums). These functions allow for cleaner programming without hard-coding specific enum values. This documentation covers the usage and examples of these functions.
+
+### Enum Support Functions
+
+#### Table 9.35. Enum Support Functions
+
+| Function                       | Description                                                               | Example(s)                                                                |
+| ------------------------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `enum_first(anyenum)`          | Returns the first value of the input enum type.                           | `enum_first(null::rainbow) → red`                                         |
+| `enum_last(anyenum)`           | Returns the last value of the input enum type.                            | `enum_last(null::rainbow) → purple`                                       |
+| `enum_range(anyenum)`          | Returns all values of the input enum type in an ordered array.            | `enum_range(null::rainbow) → {red,orange,yellow,green,blue,purple}`       |
+| `enum_range(anyenum, anyenum)` | Returns the range between the two given enum values, as an ordered array. | `enum_range('orange'::rainbow, 'green'::rainbow) → {orange,yellow,green}` |
+
+### Usage Examples
+
+#### Creating an Enum Type
+
+First, create an enum type using the `CREATE TYPE` command:
+
+```sql
+CREATE TYPE status AS ENUM ('active', 'inactive', 'deleted');
+```
+
+#### Using Enum Support Functions
+
+1. **Getting the First Enum Value**
+   Use `enum_first` to get the first value of the enum type:
+
+   ```sql
+   SELECT enum_first(null::status) AS first_status;
+   ```
+
+   Output:
+
+   ```sql
+   first_status
+   -------------
+   active
+   (1 row)
+   ```
+
+2. **Getting the Last Enum Value**
+   Use `enum_last` to get the last value of the enum type:
+
+   ```sql
+   SELECT enum_last(null::status) AS last_status;
+   ```
+
+   Output:
+
+   ```sql
+   last_status
+   -------------
+   deleted
+   (1 row)
+   ```
+
+3. **Getting All Enum Values**
+   Use `enum_range` to get all values of the enum type:
+
+   ```sql
+   SELECT enum_range(null::status) AS all_statuses;
+   ```
+
+   Output:
+
+   ```sql
+   all_statuses
+   -------------
+   {active,inactive,deleted}
+   (1 row)
+   ```
+
+4. **Getting a Range of Enum Values**
+   Use `enum_range` with two parameters to get a range of enum values:
+
+   ```sql
+   SELECT enum_range('inactive'::status, 'deleted'::status) AS status_range;
+   ```
+
+   Output:
+
+   ```sql
+   status_range
+   -------------
+   {inactive,deleted}
+   (1 row)
+   ```
+
+   You can also use `NULL` as the first or second parameter to start from the first value or end at the last value, respectively:
+
+   ```sql
+   SELECT enum_range(NULL, 'inactive'::status) AS status_range_start;
+   SELECT enum_range('inactive'::status, NULL) AS status_range_end;
+   ```
+
+   Output:
+
+   ```sql
+   status_range_start
+   -------------------
+   {active,inactive}
+
+   status_range_end
+   -----------------
+   {inactive,deleted}
+   (2 rows)
+   ```
+
+### Important Notes
+
+- **Enum Value Storage**: Enum values are stored as integers, with the enumerator names serving as aliases for the integer values[1].
+- **Enum Size**: Enums have a fixed internal storage size, which is the size needed to store the largest enumerator. This means that enums may take up more space than other data types (e.g., varchar) in some cases[1].
+- **Altering Enums**: When altering an enum type, all columns that use this specific enum type will also be affected. It is therefore important to update all relevant code and scripts to avoid any potential issues[1][4].
+- **Enum Functions**: PostgreSQL provides several functions to manipulate enum data, including `enum_first`, `enum_last`, and `enum_range`. These functions can be used to retrieve specific enum values or ranges of values[2][6].

@@ -1,0 +1,84 @@
+## PostgreSQL Comparison Functions and Operators
+
+### Overview
+
+PostgreSQL provides a variety of comparison functions and operators to evaluate and compare different data types. These include standard comparison operators, comparison predicates, and specialized functions for handling null values and boolean expressions.
+
+### Standard Comparison Operators
+
+The standard comparison operators in PostgreSQL are used to compare values of various data types, including numeric, string, and date/time types. The available operators are:
+
+- **Less than** (`<`): `datatype < datatype → boolean`
+- **Greater than** (`>`): `datatype > datatype → boolean`
+- **Less than or equal to** (`<=`): `datatype <= datatype → boolean`
+- **Greater than or equal to** (`>=`): `datatype >= datatype → boolean`
+- **Equal** (`=`): `datatype = datatype → boolean`
+- **Not equal** (`<>` or `!=`): `datatype <> datatype → boolean` or `datatype != datatype → boolean`
+
+**Note**: `!=` is an alias for `<>` and is converted to `<>` at a very early stage of parsing. Therefore, it is not possible to implement `!=` and `<>` operators that do different things.
+
+**Example**:
+
+```sql
+SELECT 5 < 10;  -- Returns true
+SELECT 'apple' > 'banana';  -- Returns false
+SELECT 5 = 5;  -- Returns true
+SELECT 5 != 10;  -- Returns true
+```
+
+### Comparison Predicates
+
+Comparison predicates are used to perform range tests and to handle null values. The available predicates are:
+
+- **BETWEEN**: `datatype BETWEEN datatype AND datatype → boolean`
+  - **Example**: `SELECT 2 BETWEEN 1 AND 3;  -- Returns true`
+- **NOT BETWEEN**: `datatype NOT BETWEEN datatype AND datatype → boolean`
+  - **Example**: `SELECT 2 NOT BETWEEN 1 AND 3;  -- Returns false`
+- **BETWEEN SYMMETRIC**: `datatype BETWEEN SYMMETRIC datatype AND datatype → boolean`
+  - **Example**: `SELECT 2 BETWEEN SYMMETRIC 3 AND 1;  -- Returns true`
+- **NOT BETWEEN SYMMETRIC**: `datatype NOT BETWEEN SYMMETRIC datatype AND datatype → boolean`
+  - **Example**: `SELECT 2 NOT BETWEEN SYMMETRIC 3 AND 1;  -- Returns false`
+- **IS DISTINCT FROM**: `datatype IS DISTINCT FROM datatype → boolean`
+  - **Example**: `SELECT 1 IS DISTINCT FROM NULL;  -- Returns true`
+- **IS NOT DISTINCT FROM**: `datatype IS NOT DISTINCT FROM datatype → boolean`
+  - **Example**: `SELECT 1 IS NOT DISTINCT FROM NULL;  -- Returns false`
+- **IS NULL**: `datatype IS NULL → boolean`
+  - **Example**: `SELECT 1.5 IS NULL;  -- Returns false`
+- **IS NOT NULL**: `datatype IS NOT NULL → boolean`
+  - **Example**: `SELECT 'null' IS NOT NULL;  -- Returns true`
+- **ISNULL**: `datatype ISNULL → boolean` (nonstandard syntax)
+  - **Example**: `SELECT 1.5 ISNULL;  -- Returns false`
+- **NOTNULL**: `datatype NOTNULL → boolean` (nonstandard syntax)
+  - **Example**: `SELECT 'null' NOTNULL;  -- Returns true`
+
+### Boolean Predicates
+
+Boolean predicates are used to test boolean expressions. The available predicates are:
+
+- **IS TRUE**: `boolean IS TRUE → boolean`
+  - **Example**: `SELECT true IS TRUE;  -- Returns true`
+- **IS NOT TRUE**: `boolean IS NOT TRUE → boolean`
+  - **Example**: `SELECT true IS NOT TRUE;  -- Returns false`
+- **IS FALSE**: `boolean IS FALSE → boolean`
+  - **Example**: `SELECT true IS FALSE;  -- Returns false`
+- **IS NOT FALSE**: `boolean IS NOT FALSE → boolean`
+  - **Example**: `SELECT true IS NOT FALSE;  -- Returns true`
+- **IS UNKNOWN**: `boolean IS UNKNOWN → boolean`
+  - **Example**: `SELECT NULL::boolean IS UNKNOWN;  -- Returns true`
+- **IS NOT UNKNOWN**: `boolean IS NOT UNKNOWN → boolean`
+  - **Example**: `SELECT true IS NOT UNKNOWN;  -- Returns true`
+
+### Comparison Functions
+
+Comparison functions are used to count non-null and null values in a list of arguments. The available functions are:
+
+- **num_nonnulls**: `num_nonnulls(VARIADIC "any") → integer`
+  - **Example**: `SELECT num_nonnulls(1, NULL, 2);  -- Returns 2`
+- **num_nulls**: `num_nulls(VARIADIC "any") → integer`
+  - **Example**: `SELECT num_nulls(1, NULL, 2);  -- Returns 1`
+
+### Important Notes
+
+- **Handling Null Values**: Ordinary comparison operators yield null when either input is null. Use `IS [ NOT ] DISTINCT FROM` predicates to treat null as a comparable value.
+- **BETWEEN Syntax**: Use parentheses around sub-expressions in `BETWEEN` clauses to avoid ambiguity with the logical `AND` operator.
+- **Transforming Null Equals**: The `transform_null_equals` configuration variable can be used to convert `x = NULL` clauses to `x IS NULL` for compatibility with non-standard applications. However, it is highly recommended to modify applications to comply with the SQL standard.

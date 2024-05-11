@@ -1,0 +1,108 @@
+## PostgreSQL Sequence Manipulation Functions
+
+### Overview
+
+PostgreSQL sequence objects are special single-row tables created with `CREATE SEQUENCE`. They are commonly used to generate unique identifiers for rows of a table. The sequence functions provide simple, multiuser-safe methods for obtaining successive sequence values from sequence objects.
+
+### Sequence Functions
+
+#### 1. `nextval(regclass) → bigint`
+
+Advances the sequence object to its next value and returns that value. This is done atomically: even if multiple sessions execute `nextval` concurrently, each will safely receive a distinct sequence value.
+
+**Example:**
+
+```sql
+CREATE SEQUENCE myseq;
+SELECT nextval('myseq');  -- Returns 1
+SELECT nextval('myseq');  -- Returns 2
+```
+
+#### 2. `setval(regclass, bigint [, boolean ]) → bigint`
+
+Sets the sequence object's current value, and optionally its `is_called` flag.
+
+- **Two-parameter form:** Sets the sequence's `last_value` field to the specified value and sets its `is_called` field to `true`, meaning that the next `nextval` will advance the sequence before returning a value.
+- **Three-parameter form:** Allows setting `is_called` to `true` or `false`. If `false`, the next `nextval` will return exactly the specified value, and sequence advancement commences with the following `nextval`.
+
+**Examples:**
+
+```sql
+SELECT setval('myseq', 42);           -- Next nextval will return 43
+SELECT setval('myseq', 42, true);     -- Same as above
+SELECT setval('myseq', 42, false);    -- Next nextval will return 42
+```
+
+#### 3. `currval(regclass) → bigint`
+
+Returns the value most recently obtained by `nextval` for this sequence in the current session. An error is reported if `nextval` has never been called for this sequence in this session.
+
+**Example:**
+
+```sql
+SELECT nextval('myseq');  -- Returns 1
+SELECT currval('myseq');  -- Returns 1
+```
+
+#### 4. `lastval() → bigint`
+
+Returns the value most recently returned by `nextval` in the current session. This function is identical to `currval`, except that instead of taking the sequence name as an argument, it refers to whichever sequence `nextval` was most recently applied to in the current session.
+
+**Example:**
+
+```sql
+SELECT nextval('myseq');  -- Returns 1
+SELECT lastval();         -- Returns 1
+```
+
+### Important Considerations
+
+- **Gaps in Sequences:** Transaction aborts or database crashes can result in gaps in the sequence of assigned values. This can happen without a transaction abort, too, such as with an `INSERT` with an `ON CONFLICT` clause.
+- **Sequence State Changes:** Changes made by `setval` are immediately visible to other transactions and are not undone if the calling transaction rolls back.
+- **Database Cluster Crashes:** If the database cluster crashes before committing a transaction containing a `nextval` or `setval` call, the sequence state change might not have made its way to persistent storage, leading to uncertainty about the sequence's state after the cluster restarts.
+
+### Usage
+
+#### Using Sequences with Tables
+
+Sequences can be used to generate values for the `INT` column of a table. Here’s an example of creating a sequence and associating it with a table’s column:
+
+```sql
+CREATE TABLE employee (
+    emp_id INT,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    email VARCHAR(100)
+);
+
+CREATE SEQUENCE employee_seq
+    START 10
+    INCREMENT 5
+    MINVALUE 10
+    OWNED BY employee.emp_id;
+
+INSERT INTO employee (emp_id, first_name, last_name, email)
+VALUES (nextval('employee_seq'), 'John', 'Doe', 'john.doe@example.com');
+```
+
+#### Using `serial` Pseudo-Datatype
+
+The `serial` pseudo-datatype can be used to create a sequence and associate it with a table’s column automatically:
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    age INT4
+);
+
+INSERT INTO users (name, age)
+VALUES ('Mozart', 20);
+```
+
+In this case, the sequence is automatically assigned the name `users_id_seq`, and the `id` column is set to use this sequence for its default value.
+
+### Additional Resources
+
+- **PostgreSQL Documentation:** [Sequence Manipulation Functions](https://www.postgresql.org/docs/current/functions-sequence.html)
+- **Sequence Creation:** [CREATE SEQUENCE](https://www.postgresql.org/docs/current/sql-createsequence.html)

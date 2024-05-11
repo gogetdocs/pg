@@ -1,0 +1,154 @@
+## System Administration Functions
+
+PostgreSQL provides a variety of system administration functions to manage and monitor the database installation. These functions are categorized into several sections, including configuration settings, server signaling, backup control, recovery control, snapshot synchronization, replication management, database object management, index maintenance, generic file access, and advisory lock functions.
+
+### 9.27.1. Configuration Settings Functions
+
+These functions are used to query and alter run-time configuration parameters.
+
+#### Table 9.87. Configuration Settings Functions
+
+| Function                                                                 | Description                                                                                                                                                                                                                                               | Example                                                 |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `current_setting(setting_name text [, missing_ok boolean]) → text`       | Returns the current value of the setting `setting_name`. If there is no such setting, `current_setting` throws an error unless `missing_ok` is supplied and is true (in which case NULL is returned).                                                     | `current_setting('datestyle') → ISO, MDY`               |
+| `set_config(setting_name text, new_value text, is_local boolean) → text` | Sets the parameter `setting_name` to `new_value`, and returns that value. If `is_local` is true, the new value will only apply during the current transaction. If you want the new value to apply for the rest of the current session, use false instead. | `set_config('log_statement_stats', 'off', false) → off` |
+
+**usage:**
+
+To get the current date style setting:
+
+```sql
+SELECT current_setting('datestyle');
+```
+
+To set the log statement stats to off for the current session:
+
+```sql
+SELECT set_config('log_statement_stats', 'off', false);
+```
+
+### 9.27.2. Server Signaling Functions
+
+These functions send control signals to other server processes.
+
+#### Table 9.88. Server Signaling Functions
+
+| Function                                                                | Description                                                                                  | Example                                        |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `pg_cancel_backend(pid integer) → boolean`                              | Cancels the current query of the session whose backend process has the specified process ID. | `SELECT pg_cancel_backend(1234);`              |
+| `pg_log_backend_memory_contexts(pid integer) → boolean`                 | Requests to log the memory contexts of the backend with the specified process ID.            | `SELECT pg_log_backend_memory_contexts(1234);` |
+| `pg_reload_conf() → boolean`                                            | Causes all processes of the PostgreSQL server to reload their configuration files.           | `SELECT pg_reload_conf();`                     |
+| `pg_rotate_logfile() → boolean`                                         | Signals the log-file manager to switch to a new output file immediately.                     | `SELECT pg_rotate_logfile();`                  |
+| `pg_terminate_backend(pid integer, timeout bigint DEFAULT 0) → boolean` | Terminates the session whose backend process has the specified process ID.                   | `SELECT pg_terminate_backend(1234, 10000);`    |
+
+**usage:**
+
+To cancel a query running on a specific backend process:
+
+```sql
+SELECT pg_cancel_backend(1234);
+```
+
+To log the memory contexts of a backend process:
+
+```sql
+SELECT pg_log_backend_memory_contexts(1234);
+```
+
+To reload the configuration files for all processes:
+
+```sql
+SELECT pg_reload_conf();
+```
+
+To rotate the log file:
+
+```sql
+SELECT pg_rotate_logfile();
+```
+
+To terminate a backend process with a timeout:
+
+```sql
+SELECT pg_terminate_backend(1234, 10000);
+```
+
+### 9.27.3. Backup Control Functions
+
+These functions assist in making on-line backups.
+
+#### Table 9.89. Backup Control Functions
+
+| Function                                                | Description                                                                                       | Example                                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `pg_create_restore_point(name text) → pg_lsn`           | Creates a named marker record in the write-ahead log that can later be used as a recovery target. | `SELECT pg_create_restore_point('my_restore_point');`                       |
+| `pg_current_wal_flush_lsn() → pg_lsn`                   | Returns the current write-ahead log flush location.                                               | `SELECT pg_current_wal_flush_lsn();`                                        |
+| `pg_current_wal_insert_lsn() → pg_lsn`                  | Returns the current write-ahead log insert location.                                              | `SELECT pg_current_wal_insert_lsn();`                                       |
+| `pg_current_wal_lsn() → pg_lsn`                         | Returns the current write-ahead log write location.                                               | `SELECT pg_current_wal_lsn();`                                              |
+| `pg_backup_start(label text [, fast boolean]) → pg_lsn` | Prepares the server to begin an on-line backup.                                                   | `SELECT pg_backup_start('my_backup', true);`                                |
+| `pg_backup_stop([wait_for_archive boolean]) → record`   | Finishes performing an on-line backup.                                                            | `SELECT pg_backup_stop(true);`                                              |
+| `pg_switch_wal() → pg_lsn`                              | Forces the server to switch to a new write-ahead log file.                                        | `SELECT pg_switch_wal();`                                                   |
+| `pg_walfile_name(lsn pg_lsn) → text`                    | Converts a write-ahead log location to the name of the WAL file holding that location.            | `SELECT pg_walfile_name(pg_current_wal_lsn());`                             |
+| `pg_walfile_name_offset(lsn pg_lsn) → record`           | Converts a write-ahead log location to a WAL file name and byte offset within that file.          | `SELECT pg_walfile_name_offset(pg_current_wal_lsn());`                      |
+| `pg_wal_lsn_diff(lsn1 pg_lsn, lsn2 pg_lsn) → numeric`   | Calculates the difference in bytes between two write-ahead log locations.                         | `SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), pg_current_wal_flush_lsn());` |
+
+**usage:**
+
+To create a restore point:
+
+```sql
+SELECT pg_create_restore_point('my_restore_point');
+```
+
+To get the current WAL flush location:
+
+```sql
+SELECT pg_current_wal_flush_lsn();
+```
+
+To start an on-line backup:
+
+```sql
+SELECT pg_backup_start('my_backup', true);
+```
+
+To stop an on-line backup:
+
+```sql
+SELECT pg_backup_stop(true);
+```
+
+To switch to a new WAL file:
+
+```sql
+SELECT pg_switch_wal();
+```
+
+To get the WAL file name for the current WAL location:
+
+```sql
+SELECT pg_walfile_name(pg_current_wal_lsn());
+```
+
+To get the WAL file name and offset for the current WAL location:
+
+```sql
+SELECT pg_walfile_name_offset(pg_current_wal_lsn());
+```
+
+To calculate the difference between two WAL locations:
+
+```sql
+SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), pg_current_wal_flush_lsn());
+```
+
+### 9.27.4. Recovery Control Functions
+
+These functions provide information about the current status of a standby server.
+
+#### Table 9.90. Recovery Information Functions
+
+| Function                             | Description                                    | Example                       |
+| ------------------------------------ | ---------------------------------------------- | ----------------------------- |
+| `pg_is_in_recovery() → boolean`      | Returns true if recovery is still in progress. | `SELECT pg_is_in_recovery();` |
+| `pg_last_wal_receive_lsn() → pg_lsn` |

@@ -1,0 +1,185 @@
+## Row and Array Comparisons in PostgreSQL
+
+PostgreSQL provides various constructs for making multiple comparisons between groups of values. These forms are syntactically related to subquery forms but do not involve subqueries. This section describes these specialized constructs, including usage examples.
+
+### 9.24.1. IN
+
+The `IN` construct allows you to compare a value against a list of values.
+
+**Syntax:**
+
+```sql
+expression IN (value [, ...])
+```
+
+**Description:**
+The result is `true` if the left-hand expression's result is equal to any of the right-hand expressions. This is a shorthand notation for:
+
+```sql
+expression = value1
+OR
+expression = value2
+OR
+...
+```
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE department IN ('Sales', 'Marketing', 'IT');
+```
+
+This query selects all employees who work in the Sales, Marketing, or IT departments.
+
+**Note:**
+If the left-hand expression yields null, or if there are no equal right-hand values and at least one right-hand expression yields null, the result of the `IN` construct will be null, not false.
+
+### 9.24.2. NOT IN
+
+The `NOT IN` construct allows you to compare a value against a list of values and returns `true` if the value is not in the list.
+
+**Syntax:**
+
+```sql
+expression NOT IN (value [, ...])
+```
+
+**Description:**
+The result is `true` if the left-hand expression's result is unequal to all of the right-hand expressions. This is a shorthand notation for:
+
+```sql
+expression <> value1
+AND
+expression <> value2
+AND
+...
+```
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE department NOT IN ('Sales', 'Marketing');
+```
+
+This query selects all employees who do not work in the Sales or Marketing departments.
+
+**Tip:**
+`x NOT IN y` is equivalent to `NOT (x IN y)` in all cases. However, null values are more likely to cause issues when working with `NOT IN` than with `IN`. It is best to express your condition positively if possible.
+
+### 9.24.3. ANY/SOME (array)
+
+The `ANY` and `SOME` constructs allow you to compare a value against an array of values.
+
+**Syntax:**
+
+```sql
+expression operator ANY (array expression)
+expression operator SOME (array expression)
+```
+
+**Description:**
+The right-hand side is a parenthesized expression, which must yield an array value. The left-hand expression is evaluated and compared to each element of the array using the given operator, which must yield a Boolean result. The result of `ANY` is `true` if any true result is obtained. The result is `false` if no true result is found (including the case where the array has zero elements).
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE salary > ANY (ARRAY[50000, 60000, 70000]);
+```
+
+This query selects all employees whose salary is greater than any of the values in the array.
+
+**Note:**
+If the array expression yields a null array, the result of `ANY` will be null. If the left-hand expression yields null, the result of `ANY` is ordinarily null (though a non-strict comparison operator could possibly yield a different result).
+
+### 9.24.4. ALL (array)
+
+The `ALL` construct allows you to compare a value against an array of values.
+
+**Syntax:**
+
+```sql
+expression operator ALL (array expression)
+```
+
+**Description:**
+The right-hand side is a parenthesized expression, which must yield an array value. The left-hand expression is evaluated and compared to each element of the array using the given operator, which must yield a Boolean result. The result of `ALL` is `true` if all comparisons yield true (including the case where the array has zero elements). The result is `false` if any false result is found.
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE salary > ALL (ARRAY[50000, 60000, 70000]);
+```
+
+This query selects all employees whose salary is greater than all of the values in the array.
+
+**Note:**
+If the array expression yields a null array, the result of `ALL` will be null. If the left-hand expression yields null, the result of `ALL` is ordinarily null (though a non-strict comparison operator could possibly yield a different result).
+
+### 9.24.5. Row Constructor Comparison
+
+Row constructor comparison allows you to compare two rows.
+
+**Syntax:**
+
+```sql
+row_constructor operator row_constructor
+```
+
+**Description:**
+Each side is a row constructor, as described in Section 4.2.13. The two row constructors must have the same number of fields. The given operator is applied to each pair of corresponding fields. (Since the fields could be of different types, this means that a different specific operator could be selected for each pair.) All the selected operators must be members of some B-tree operator class, or be the negator of an = member of a B-tree operator class.
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE (name, age) = ('John Doe', 30);
+```
+
+This query selects all employees whose name is 'John Doe' and age is 30.
+
+**Note:**
+Two rows are considered equal if all their corresponding members are non-null and equal; the rows are unequal if any corresponding members are non-null and unequal; otherwise the result of the row comparison is unknown (null).
+
+### 9.24.6. Composite Type Comparison
+
+Composite type comparison allows you to compare two composite-type values.
+
+**Syntax:**
+
+```sql
+record operator record
+```
+
+**Description:**
+Each side is evaluated and they are compared row-wise. Composite type comparisons are allowed when the operator is `=, <>, <, <=, > or >=`, or has semantics similar to one of these.
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE (name, age) > ('John Doe', 30);
+```
+
+This query selects all employees whose name is greater than 'John Doe' or age is greater than 30.
+
+**Note:**
+Two NULL field values are considered equal, and a NULL is considered larger than a non-NULL. This is necessary in order to have consistent sorting and indexing behavior for composite types.
+
+### Additional Operators
+
+To support matching of rows which include elements without a default B-tree operator class, the following operators are defined for composite type comparison:
+
+- `*=`
+- `*<>`
+- `*<`
+- `*<=`
+- `*>`
+- `*>=`
+
+These operators compare the internal binary representation of the two rows. Two rows might have a different binary representation even though comparisons of the two rows with the equality operator is true. The ordering of rows under these comparison operators is deterministic but not otherwise meaningful. These operators are used internally for materialized views and might be useful for other specialized purposes such as replication and B-Tree deduplication.
+
+**Example:**
+
+```sql
+SELECT * FROM employees WHERE (name, age) *= ('John Doe', 30);
+```
+
+This query selects all employees whose

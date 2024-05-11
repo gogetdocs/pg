@@ -1,0 +1,109 @@
+## JSON Functions and Operators in PostgreSQL
+
+PostgreSQL provides a comprehensive set of functions and operators for processing and creating JSON data. This documentation covers the various operators and functions available for JSON and JSONB data types, along with usage examples.
+
+### 9.16.1. Processing and Creating JSON Data
+
+#### JSON Operators
+
+The following operators are available for use with JSON data types:
+
+- **`json -> integer`**: Extracts the nth element of a JSON array (array elements are indexed from zero, but negative integers count from the end).
+
+  - **Example**: `'[{"a":"foo"},{"b":"bar"},{"c":"baz"}]'::json -> 2` returns `{"c":"baz"}`[1].
+
+- **`json -> text`**: Extracts a JSON object field with the given key.
+
+  - **Example**: `'{"a": {"b":"foo"}}'::json -> 'a'` returns `{"b":"foo"}`[1].
+
+- **`json ->> integer`**: Extracts the nth element of a JSON array, as text.
+
+  - **Example**: `'[1,2,3]'::json ->> 2` returns `3`[1].
+
+- **`json ->> text`**: Extracts a JSON object field with the given key, as text.
+
+  - **Example**: `'{"a":1,"b":2}'::json ->> 'b'` returns `2`[1].
+
+- **`json #> text[]`**: Extracts a JSON sub-object at the specified path, where path elements can be either field keys or array indexes.
+
+  - **Example**: `'{"a": {"b": ["foo","bar"]}}'::json #> '{a,b,1}'` returns `"bar"`[1].
+
+- **`json #>> text[]`**: Extracts a JSON sub-object at the specified path as text.
+  - **Example**: `'{"a": {"b": ["foo","bar"]}}'::json #>> '{a,b,1}'` returns `bar`[1].
+
+#### Additional JSONB Operators
+
+The following operators are available only for JSONB data type:
+
+- **`jsonb @> jsonb`**: Does the first JSON value contain the second?
+
+  - **Example**: `'{"a":1, "b":2}'::jsonb @> '{"b":2}'::jsonb` returns `t`[1].
+
+- **`jsonb <@ jsonb`**: Is the first JSON value contained in the second?
+
+  - **Example**: `'{"b":2}'::jsonb <@ '{"a":1, "b":2}'::jsonb` returns `t`[1].
+
+- **`jsonb ? text`**: Does the text string exist as a top-level key or array element within the JSON value?
+
+  - **Example**: `'{"a":1, "b":2}'::jsonb ? 'b'` returns `t`[1].
+
+- **`jsonb ?| text[]`**: Do any of the strings in the text array exist as top-level keys or array elements?
+
+  - **Example**: `'{"a":1, "b":2, "c":3}'::jsonb ?| array['b', 'd']` returns `t`[1].
+
+- **`jsonb ?& text[]`**: Do all of the strings in the text array exist as top-level keys or array elements?
+
+  - **Example**: `'["a", "b", "c"]'::jsonb ?& array['a', 'b']` returns `t`[1].
+
+- **`jsonb || jsonb`**: Concatenates two JSONB values.
+
+  - **Example**: `'["a", "b"]'::jsonb || '["a", "d"]'::jsonb` returns `["a", "b", "a", "d"]`[1].
+
+- **`jsonb - text`**: Deletes a key (and its value) from a JSON object, or matching string value(s) from a JSON array.
+
+  - **Example**: `'{"a": "b", "c": "d"}'::jsonb - 'a'` returns `{"c": "d"}`[1].
+
+- **`jsonb - text[]`**: Deletes all matching keys or array elements from the left operand.
+
+  - **Example**: `'{"a": "b", "c": "d"}'::jsonb - '{a,c}'::text[]` returns `{}`[1].
+
+- **`jsonb - integer`**: Deletes the array element with specified index (negative integers count from the end).
+
+  - **Example**: `'["a", "b"]'::jsonb - 1` returns `["a"]`[1].
+
+- **`jsonb #- text[]`**: Deletes the field or array element at the specified path, where path elements can be either field keys or array indexes.
+
+  - **Example**: `'["a", {"b":1}]'::jsonb #- '{1,b}'` returns `["a", {}]`[1].
+
+- **`jsonb @? jsonpath`**: Does JSON path return any item for the specified JSON value?
+
+  - **Example**: `'{"a":[1,2,3,4,5]}'::jsonb @? '$.a[*] ? (@ > 2)'` returns `t`[1].
+
+- **`jsonb @@ jsonpath`**: Returns the result of a JSON path predicate check for the specified JSON value.
+  - **Example**: `'{"a":[1,2,3,4,5]}'::jsonb @@ '$.a[*] > 2'` returns `t`[1].
+
+### 9.16.2. The SQL/JSON Path Language
+
+SQL/JSON path expressions specify the items to be retrieved from the JSON data, similar to XPath expressions used for SQL access to XML.
+
+#### Path Expressions
+
+A path expression consists of a sequence of elements allowed by the jsonpath data type. The path expression is normally evaluated from left to right, but you can use parentheses to change the order of operations.
+
+- **Example**: `$.track.segments` retrieves the available track segments[1].
+- **Example**: `$.track.segments[*].location` retrieves the location coordinates for all the available track segments[1].
+- **Example**: `$.track.segments.location` retrieves the coordinates of the first segment only[1].
+
+#### Filter Expressions
+
+Filter expressions can be used to filter the results based on conditions.
+
+- **Example**: `$.track.segments[*].HR ? (@ > 130)` retrieves all heart rate values higher than 130[1].
+- **Example**: `$.track.segments[*] ? (@.HR > 130)."start time"` retrieves the start times of segments with heart rate values higher than 130[1].
+
+#### SQL/JSON Path Operators and Methods
+
+The following operators and methods are available in jsonpath:
+
+- **`number + number`**: Addition.
+  - **Example**: `jsonb_path_query('', '$ + 3')`

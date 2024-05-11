@@ -1,0 +1,293 @@
+## XML Functions in PostgreSQL
+
+PostgreSQL provides a variety of functions to work with XML data. These functions allow you to produce XML content from SQL data, process XML data, and map relational tables to XML.
+
+### 9.15.1. Producing XML Content
+
+#### 9.15.1.1. Xmlcomment
+
+The `xmlcomment` function creates an XML value containing an XML comment with the specified text as content.
+
+- **Example**:
+  ```sql
+  SELECT xmlcomment('hello');
+  ```
+  **Output**:
+  ```sql
+  xmlcomment
+  --------------
+  <!--hello-->
+  ```
+
+#### 9.15.1.2. Xmlconcat
+
+The `xmlconcat` function concatenates a list of individual XML values to create a single value containing an XML content fragment.
+
+- **Example**:
+
+  ```sql
+  SELECT xmlconcat('', 'foo');
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlconcat
+  ----------------------
+  <foo/>
+  ```
+
+- **Example with XML declarations**:
+  ```sql
+  SELECT xmlconcat('', '');
+  ```
+  **Output**:
+  ```sql
+  xmlconcat
+  -----------------------------------
+  <?xml version="1.0"?>
+  <foo/>
+  <?xml version="1.0"?>
+  <bar/>
+  ```
+
+#### 9.15.1.3. Xmlelement
+
+The `xmlelement` expression produces an XML element with the given name, attributes, and content.
+
+- **Basic Example**:
+
+  ```sql
+  SELECT xmlelement(name foo);
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlelement
+  ------------
+  <foo/>
+  ```
+
+- **Example with attributes**:
+
+  ```sql
+  SELECT xmlelement(name foo, xmlattributes('xyz' as bar));
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlelement
+  ------------------
+  <foo bar="xyz"/>
+  ```
+
+- **Example with content**:
+
+  ```sql
+  SELECT xmlelement(name foo, xmlattributes(current_date as bar), 'cont', 'ent');
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlelement
+  -------------------------------------
+  <foo bar="2023-10-05">content</foo>
+  ```
+
+- **Example with nested elements**:
+  ```sql
+  SELECT xmlelement(name foo, xmlattributes('xyz' as bar),
+                     xmlelement(name abc),
+                     xmlcomment('test'),
+                     xmlelement(name xyz));
+  ```
+  **Output**:
+  ```sql
+  xmlelement
+  ----------------------------------------------
+  <foo bar="xyz">
+    <abc/>
+    <!--test-->
+    <xyz/>
+  </foo>
+  ```
+
+#### 9.15.1.4. Xmlforest
+
+The `xmlforest` expression produces an XML forest (sequence) of elements using the given names and content.
+
+- **Basic Example**:
+
+  ```sql
+  SELECT xmlforest('abc' AS foo, 123 AS bar);
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlforest
+  ------------------------------
+  <foo>abc</foo>
+  <bar>123</bar>
+  ```
+
+- **Example with table data**:
+  ```sql
+  SELECT xmlforest(table_name, column_name)
+  FROM information_schema.columns
+  WHERE table_schema = 'pg_catalog';
+  ```
+  **Output**:
+  ```sql
+  xmlforest
+  -----------------------------------------------------------------------
+  <table_name>pg_authid</table_name>
+  <column_name>rolname</column_name>
+  <table_name>pg_authid</table_name>
+  <column_name>rolsuper</column_name>
+  ...
+  ```
+
+#### 9.15.1.5. Xmlpi
+
+The `xmlpi` expression creates an XML processing instruction.
+
+- **Example**:
+  ```sql
+  SELECT xmlpi(name php, 'echo "hello world";');
+  ```
+  **Output**:
+  ```sql
+  xmlpi
+  -----------------------------
+  <?php echo "hello world";?>
+  ```
+
+#### 9.15.1.6. Xmlroot
+
+The `xmlroot` expression alters the properties of the root node of an XML value.
+
+- **Example**:
+  ```sql
+  SELECT xmlroot(xmlparse(document 'abc'), version '1.0', standalone yes);
+  ```
+  **Output**:
+  ```sql
+  xmlroot
+  ----------------------------------------
+  <?xml version="1.0" standalone="yes"?>
+  <abc/>
+  ```
+
+#### 9.15.1.7. Xmlagg
+
+The `xmlagg` function is an aggregate function that concatenates the input values.
+
+- **Basic Example**:
+
+  ```sql
+  CREATE TABLE test (y int, x xml);
+  INSERT INTO test VALUES (1, 'abc');
+  INSERT INTO test VALUES (2, '');
+  SELECT xmlagg(x) FROM test;
+  ```
+
+  **Output**:
+
+  ```sql
+  xmlagg
+  ----------------------
+  <abc/>
+  <bar/>
+  ```
+
+- **Example with ORDER BY**:
+  ```sql
+  SELECT xmlagg(x ORDER BY y DESC) FROM test;
+  ```
+  **Output**:
+  ```sql
+  xmlagg
+  ----------------------
+  <bar/>
+  <abc/>
+  ```
+
+### 9.15.2. XML Predicates
+
+#### 9.15.2.1. IS DOCUMENT
+
+The `IS DOCUMENT` expression checks if an XML value is a proper XML document.
+
+- **Example**:
+  ```sql
+  SELECT 'abc' IS DOCUMENT;
+  ```
+  **Output**:
+  ```sql
+  ?column?
+  ----------
+  t
+  ```
+
+#### 9.15.2.2. IS NOT DOCUMENT
+
+The `IS NOT DOCUMENT` expression checks if an XML value is not a proper XML document.
+
+- **Example**:
+  ```sql
+  SELECT 'abc' IS NOT DOCUMENT;
+  ```
+  **Output**:
+  ```sql
+  ?column?
+  ----------
+  f
+  ```
+
+#### 9.15.2.3. XMLEXISTS
+
+The `XMLEXISTS` function evaluates an XPath 1.0 expression against an XML value.
+
+- **Example**:
+  ```sql
+  SELECT xmlexists('//town[text() = ''Toronto'']' PASSING BY VALUE 'TorontoOttawa');
+  ```
+  **Output**:
+  ```sql
+  xmlexists
+  ------------
+  t
+  ```
+
+#### 9.15.2.4. Xml_is_well_formed
+
+The `xml_is_well_formed` function checks if a text string represents well-formed XML.
+
+- **Example**:
+
+  ```sql
+  SET xmloption TO DOCUMENT;
+  SELECT xml_is_well_formed('<>');
+  ```
+
+  **Output**:
+
+  ```sql
+  xml_is_well_formed
+  --------------------
+  f
+  ```
+
+- **Example with content**:
+  ```sql
+  SET xmloption TO CONTENT;
+  SELECT xml_is_well_formed('abc');
+  ```
+  **Output**:
+  ```sql
+  xml
+  ```

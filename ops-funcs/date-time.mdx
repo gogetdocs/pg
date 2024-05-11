@@ -1,0 +1,186 @@
+## Date/Time Functions and Operators
+
+PostgreSQL provides a variety of functions and operators for manipulating date and time values. This section describes the available functions and operators, along with examples of their use.
+
+### 9.9.1. EXTRACT, date_part
+
+The `EXTRACT` function retrieves subfields such as year or hour from date/time values. The `date_part` function is similar, but it returns values of type `double precision`.
+
+**Valid field names:**
+
+- `century`
+- `day`
+- `decade`
+- `dow` (day of the week, 0-6)
+- `doy` (day of the year, 1-365/366)
+- `epoch` (number of seconds since 1970-01-01 00:00:00 UTC)
+- `hour`
+- `isodow` (day of the week, 1-7)
+- `isoyear` (ISO 8601 week-numbering year)
+- `julian` (Julian Date)
+- `microseconds`
+- `millennium`
+- `milliseconds`
+- `minute`
+- `month`
+- `quarter`
+- `second`
+- `timezone`
+- `timezone_hour`
+- `timezone_minute`
+- `week` (ISO 8601 week-numbering week)
+- `year`
+
+**Examples:**
+
+```sql
+SELECT EXTRACT(YEAR FROM TIMESTAMP '2001-02-16 20:38:40');
+-- Result: 2001
+
+SELECT EXTRACT(HOUR FROM TIMESTAMP '2001-02-16 20:38:40');
+-- Result: 20
+
+SELECT date_part('day', TIMESTAMP '2001-02-16 20:38:40');
+-- Result: 16
+
+SELECT date_part('hour', INTERVAL '4 hours 3 minutes');
+-- Result: 4
+```
+
+### 9.9.2. date_trunc
+
+The `date_trunc` function truncates a date/time value to a specified precision.
+
+**Valid values for field:**
+
+- `microseconds`
+- `milliseconds`
+- `second`
+- `minute`
+- `hour`
+- `day`
+- `week`
+- `month`
+- `quarter`
+- `year`
+- `decade`
+- `century`
+- `millennium`
+
+**Examples:**
+
+```sql
+SELECT date_trunc('hour', TIMESTAMP '2001-02-16 20:38:40');
+-- Result: 2001-02-16 20:00:00
+
+SELECT date_trunc('year', TIMESTAMP '2001-02-16 20:38:40');
+-- Result: 2001-01-01 00:00:00
+
+SELECT date_trunc('day', TIMESTAMP WITH TIME ZONE '2001-02-16 20:38:40+00');
+-- Result: 2001-02-16 00:00:00-05
+
+SELECT date_trunc('hour', INTERVAL '3 days 02:47:33');
+-- Result: 3 days 02:00:00
+```
+
+### 9.9.3. date_bin
+
+The `date_bin` function "bins" a timestamp into a specified interval (the stride) aligned with a specified origin.
+
+**Examples:**
+
+```sql
+SELECT date_bin('15 minutes', TIMESTAMP '2020-02-11 15:44:17', TIMESTAMP '2001-01-01');
+-- Result: 2020-02-11 15:30:00
+
+SELECT date_bin('15 minutes', TIMESTAMP '2020-02-11 15:44:17', TIMESTAMP '2001-01-01 00:02:30');
+-- Result: 2020-02-11 15:32:30
+```
+
+### 9.9.4. AT TIME ZONE
+
+The `AT TIME ZONE` operator converts a timestamp without time zone to a timestamp with time zone, and vice versa.
+
+**Examples:**
+
+```sql
+SELECT TIMESTAMP '2001-02-16 20:38:40' AT TIME ZONE 'America/Denver';
+-- Result: 2001-02-16 19:38:40-08
+
+SELECT TIMESTAMP WITH TIME ZONE '2001-02-16 20:38:40-05' AT TIME ZONE 'America/Denver';
+-- Result: 2001-02-16 18:38:40
+
+SELECT TIMESTAMP '2001-02-16 20:38:40' AT TIME ZONE 'Asia/Tokyo' AT TIME ZONE 'America/Chicago';
+-- Result: 2001-02-16 05:38:40
+```
+
+### 9.9.5. Current Date/Time
+
+PostgreSQL provides several functions that return the current date and time.
+
+**Examples:**
+
+```sql
+SELECT CURRENT_TIME;
+-- Result: 14:39:53.662522-05
+
+SELECT CURRENT_DATE;
+-- Result: 2019-12-23
+
+SELECT CURRENT_TIMESTAMP;
+-- Result: 2019-12-23 14:39:53.662522-05
+
+SELECT CURRENT_TIMESTAMP(2);
+-- Result: 2019-12-23 14:39:53.66-05
+
+SELECT LOCALTIMESTAMP;
+-- Result: 2019-12-23 14:39:53.662522
+```
+
+### 9.9.6. Delaying Execution
+
+PostgreSQL provides several functions that can delay the execution of a query.
+
+**Examples:**
+
+```sql
+SELECT pg_sleep(1.5);
+
+SELECT pg_sleep_for('5 minutes');
+
+SELECT pg_sleep_until('tomorrow 03:00');
+```
+
+Note: The `pg_sleep` function can cause the current session to hold locks for an extended period, which can slow down the entire system. Use with caution.
+
+### usage examples:
+
+- **Calculating the age of a person:**
+
+```sql
+SELECT age(TIMESTAMP '1990-01-01', CURRENT_TIMESTAMP);
+-- Result: 33 years 10 mons 22 days
+```
+
+- **Converting a timestamp to a different time zone:**
+
+```sql
+SELECT TIMESTAMP '2022-01-01 12:00:00' AT TIME ZONE 'America/New_York';
+-- Result: 2022-01-01 07:00:00-05
+```
+
+- **Truncating a timestamp to a specific precision:**
+
+```sql
+SELECT date_trunc('hour', TIMESTAMP '2022-01-01 12:30:00');
+-- Result: 2022-01-01 12:00:00
+```
+
+- **Binning a timestamp into a specific interval:**
+
+```sql
+SELECT date_bin('15 minutes', TIMESTAMP '2022-01-01 12:30:00', TIMESTAMP '2022-01-01 00:00:00');
+-- Result: 2022-01-01 12:15:00
+```
+
+These are just a few examples of the many ways you can use PostgreSQL's date and time functions to manipulate and analyze date

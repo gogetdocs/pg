@@ -1,0 +1,103 @@
+## Set Returning Functions in PostgreSQL
+
+### Overview
+
+Set returning functions in PostgreSQL are used to generate multiple rows of data. The most commonly used functions in this category are series generating functions and subscript generating functions.
+
+### Series Generating Functions
+
+Series generating functions are used to create a sequence of values. The `generate_series` function is a versatile tool for this purpose.
+
+#### Syntax
+
+The `generate_series` function can be used with integers, big integers, numeric values, timestamps, and timestamps with time zones. The general syntax is as follows:
+
+- **Integer Series**: `generate_series(start integer, stop integer [, step integer])`
+- **Big Integer Series**: `generate_series(start bigint, stop bigint [, step bigint])`
+- **Numeric Series**: `generate_series(start numeric, stop numeric [, step numeric])`
+- **Timestamp Series**: `generate_series(start timestamp, stop timestamp, step interval)`
+- **Timestamp with Time Zone Series**: `generate_series(start timestamp with time zone, stop timestamp with time zone, step interval)`
+
+#### Examples
+
+1. **Generating Integer Series**
+
+   ```sql
+   SELECT * FROM generate_series(2, 4);
+   ```
+
+   This will generate the numbers 2, 3, and 4.
+
+   ```sql
+   SELECT * FROM generate_series(5, 1, -2);
+   ```
+
+   This will generate the numbers 5, 3, and 1.
+
+2. **Generating Numeric Series**
+
+   ```sql
+   SELECT generate_series(1.1, 4, 1.3);
+   ```
+
+   This will generate the numbers 1.1, 2.4, and 3.7.
+
+3. **Generating Timestamp Series**
+
+   ```sql
+   SELECT current_date + s.a AS dates FROM generate_series(0, 14, 7) AS s(a);
+   ```
+
+   This will generate dates starting from the current date, incrementing by 7 days, up to 14 days.
+
+   ```sql
+   SELECT * FROM generate_series('2008-03-01 00:00'::timestamp, '2008-03-04 12:00', '10 hours');
+   ```
+
+   This will generate timestamps starting from '2008-03-01 00:00', incrementing by 10 hours, up to '2008-03-04 12:00'.
+
+### Subscript Generating Functions
+
+Subscript generating functions are used to generate the valid subscripts of an array.
+
+#### Syntax
+
+The `generate_subscripts` function is used to generate subscripts for arrays.
+
+- **Basic Usage**: `generate_subscripts(array anyarray, dim integer)`
+- **With Reverse Option**: `generate_subscripts(array anyarray, dim integer, reverse boolean)`
+
+#### Examples
+
+1. **Basic Usage**
+
+   ```sql
+   SELECT generate_subscripts('{NULL,1,NULL,2}'::int[], 1) AS s;
+   ```
+
+   This will generate the subscripts 1, 2, 3, and 4.
+
+2. **Presenting Array Subscripts and Values**
+
+   ```sql
+   SELECT * FROM arrays;
+   SELECT a AS array, s AS subscript, a[s] AS value FROM (SELECT generate_subscripts(a, 1) AS s, a FROM arrays) foo;
+   ```
+
+   This will display the array, its subscripts, and the corresponding values.
+
+3. **Unnesting a 2D Array**
+   ```sql
+   CREATE OR REPLACE FUNCTION unnest2(anyarray) RETURNS SETOF anyelement AS $$
+   SELECT $1[i][j] FROM generate_subscripts($1,1) g1(i), generate_subscripts($1,2) g2(j);
+   $$ LANGUAGE sql IMMUTABLE;
+   SELECT * FROM unnest2(ARRAY[[1,2],[3,4]]);
+   ```
+   This will unnest the 2D array into individual elements.
+
+### Additional Considerations
+
+- **Zero Rows**: If the start value is greater than the stop value for a positive step, or if the start value is less than the stop value for a negative step, zero rows are returned.
+- **NULL Inputs**: If any input is NULL, zero rows are returned.
+- **Step Size**: The step size cannot be zero; this will result in an error.
+- **WITH ORDINALITY**: When a function in the FROM clause is suffixed by WITH ORDINALITY, a bigint column is appended to the function's output column(s), which starts from 1 and increments by 1 for each row of the function's output[2][4].

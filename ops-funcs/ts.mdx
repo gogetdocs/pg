@@ -1,0 +1,62 @@
+## Text Search Functions and Operators
+
+PostgreSQL provides a variety of functions and operators for full text searching. These are summarized in the tables below, with examples and usage scenarios.
+
+### Text Search Operators
+
+#### Table 9.42. Text Search Operators
+
+| Operator               | Description                                                                        | Example(s)                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------- | -------------------- | ------------- | ---------------------------------------------------- | ---------------------- | ----- | ------ |
+| `tsvector @@ tsquery`  | Does `tsvector` match `tsquery`?                                                   | `to_tsvector('fat cats ate rats') @@ to_tsquery('cat & rat') → t`  |
+| `text @@ tsquery`      | Does `text` string, after implicit invocation of `to_tsvector()`, match `tsquery`? | `'fat cats ate rats' @@ to_tsquery('cat & rat') → t`               |
+| `tsvector @@@ tsquery` | This is a deprecated synonym for `@@`.                                             | `to_tsvector('fat cats ate rats') @@@ to_tsquery('cat & rat') → t` |
+| `tsvector              |                                                                                    | tsvector`                                                          | Concatenates two `tsvectors`.             | `'a:1 b:2'::tsvector |               | 'c:1 d:2 b:3'::tsvector → 'a':1 'b':2,5 'c':3 'd':4` |
+| `tsquery && tsquery`   | ANDs two `tsquerys` together.                                                      | `'fat                                                              | rat'::tsquery && 'cat'::tsquery → ( 'fat' | 'rat' ) & 'cat'`     |
+| `tsquery               |                                                                                    | tsquery`                                                           | ORs two `tsquerys` together.              | `'fat                | rat'::tsquery |                                                      | 'cat'::tsquery → 'fat' | 'rat' | 'cat'` |
+| `!! tsquery`           | Negates a `tsquery`.                                                               | `!! 'cat'::tsquery → !'cat'`                                       |
+| `tsquery <-> tsquery`  | Constructs a phrase query.                                                         | `to_tsquery('fat') <-> to_tsquery('rat') → 'fat' <-> 'rat'`        |
+| `tsquery @> tsquery`   | Does first `tsquery` contain the second?                                           | `'cat'::tsquery @> 'cat & rat'::tsquery → f`                       |
+| `tsquery <@ tsquery`   | Is first `tsquery` contained in the second?                                        | `'cat'::tsquery <@ 'cat & rat'::tsquery → t`                       |
+
+### Usage Examples
+
+1. **Basic Text Search**:
+
+   ```sql
+   SELECT * FROM articles WHERE to_tsvector('english', content) @@ to_tsquery('english', 'cat & rat');
+   ```
+
+2. **Combining Queries**:
+
+   ```sql
+   SELECT * FROM articles WHERE to_tsvector('english', content) @@ ('fat | rat'::tsquery && 'cat'::tsquery);
+   ```
+
+3. **Phrase Queries**:
+   ```sql
+   SELECT * FROM articles WHERE to_tsvector('english', content) @@ (to_tsquery('fat') <-> to_tsquery('rat'));
+   ```
+
+### Text Search Functions
+
+#### Table 9.43. Text Search Functions
+
+| Function                                                | Description                                                                                           | Example(s)                                                                         |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------- |
+| `array_to_tsvector(text[])`                             | Converts an array of text strings to a `tsvector`.                                                    | `array_to_tsvector('{fat,cat,rat}'::text[]) → 'cat' 'fat' 'rat'`                   |
+| `get_current_ts_config()`                               | Returns the OID of the current default text search configuration.                                     | `get_current_ts_config() → english`                                                |
+| `length(tsvector)`                                      | Returns the number of lexemes in the `tsvector`.                                                      | `length('fat:2,4 cat:3 rat:5A'::tsvector) → 3`                                     |
+| `numnode(tsquery)`                                      | Returns the number of lexemes plus operators in the `tsquery`.                                        | `numnode('(fat & rat)                                                              | cat'::tsquery) → 5` |
+| `plainto_tsquery([config regconfig, ] query text)`      | Converts text to a `tsquery`, normalizing words according to the specified or default configuration.  | `plainto_tsquery('english', 'The Fat Rats') → 'fat' & 'rat'`                       |
+| `phraseto_tsquery([config regconfig, ] query text)`     | Converts text to a `tsquery`, normalizing words according to the specified or default configuration.  | `phraseto_tsquery('english', 'The Fat Rats') → 'fat' <-> 'rat'`                    |
+| `websearch_to_tsquery([config regconfig, ] query text)` | Converts text to a `tsquery`, normalizing words according to the specified or default configuration.  | `websearch_to_tsquery('english', '"fat rat" or cat dog') → 'fat' <-> 'rat'         | 'cat' & 'dog'`      |
+| `querytree(tsquery)`                                    | Produces a representation of the indexable portion of a `tsquery`.                                    | `querytree('foo & ! bar'::tsquery) → 'foo'`                                        |
+| `setweight(vector tsvector, weight "char")`             | Assigns the specified weight to each element of the `tsvector`.                                       | `setweight('fat:2,4 cat:3 rat:5B'::tsvector, 'A') → 'cat':3A 'fat':2A,4A 'rat':5A` |
+| `strip(tsvector)`                                       | Removes positions and weights from the `tsvector`.                                                    | `strip('fat:2,4 cat:3 rat:5A'::tsvector) → 'cat' 'fat' 'rat'`                      |
+| `to_tsquery([config regconfig, ] query text)`           | Converts text to a `tsquery`, normalizing words according to the specified or default configuration.  | `to_tsquery('english', 'The & Fat & Rats') → 'fat' & 'rat'`                        |
+| `to_tsvector([config regconfig, ] document text)`       | Converts text to a `tsvector`, normalizing words according to the specified or default configuration. | `to_tsvector('english', 'The Fat Rats') → 'fat':2 'rat':3`                         |
+| `ts_delete(vector tsvector, lexeme text)`               | Removes any occurrence of the given lexeme from the `tsvector`.                                       | `ts_delete('fat:2,4 cat:3 rat:5A'::tsvector, 'fat') → 'cat':3 'rat':5A`            |
+| `ts_filter(vector tsvector, weights "char"[])`          | Selects only elements with the given weights from the `tsvector`.                                     | `ts_filter('fat:2,4 cat:3b,7c rat:5A'::tsvector, '{a,b}') → 'cat':3B 'rat':5A`     |
+
+| `ts_headline([config regconfig, ] document text, query tsquery [, options text

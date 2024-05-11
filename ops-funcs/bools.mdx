@@ -1,0 +1,83 @@
+## Logical Operators in SQL
+
+### Overview
+
+SQL provides three logical operators: `AND`, `OR`, and `NOT`. These operators are used to combine conditions in a query to filter data.
+
+### Truth Tables
+
+The following truth tables illustrate the behavior of these operators in a three-valued logic system, which includes `TRUE`, `FALSE`, and `NULL` (representing "unknown").
+
+#### AND Operator
+
+| a     | b     | a AND b |
+| ----- | ----- | ------- |
+| TRUE  | TRUE  | TRUE    |
+| TRUE  | FALSE | FALSE   |
+| TRUE  | NULL  | NULL    |
+| FALSE | FALSE | FALSE   |
+| FALSE | NULL  | FALSE   |
+| NULL  | NULL  | NULL    |
+
+#### OR Operator
+
+| a     | b     | a OR b |
+| ----- | ----- | ------ |
+| TRUE  | TRUE  | TRUE   |
+| TRUE  | FALSE | TRUE   |
+| TRUE  | NULL  | TRUE   |
+| FALSE | FALSE | FALSE  |
+| FALSE | NULL  | NULL   |
+| NULL  | NULL  | NULL   |
+
+#### NOT Operator
+
+| a     | NOT a |
+| ----- | ----- |
+| TRUE  | FALSE |
+| FALSE | TRUE  |
+| NULL  | NULL  |
+
+### Commutativity
+
+The `AND` and `OR` operators are commutative, meaning that the order of the operands does not affect the result. However, the order of evaluation of subexpressions is not guaranteed (see Section 4.2.14 for more information).
+
+### Usage
+
+#### Example 1: Filtering Data with AND
+
+To find all employees who are over 30 years old and have a salary greater than $50,000:
+
+```sql
+SELECT * FROM employees
+WHERE age > 30 AND salary > 50000;
+```
+
+#### Example 2: Filtering Data with OR
+
+To find all customers who live in either New York or California:
+
+```sql
+SELECT * FROM customers
+WHERE state = 'NY' OR state = 'CA';
+```
+
+#### Example 3: Using NOT to Exclude Data
+
+To find all products that are not discontinued:
+
+```sql
+SELECT * FROM products
+WHERE NOT discontinued;
+```
+
+#### Example 4: Handling NULL Values
+
+To find all orders that have a total value greater than $100, including those with unknown totals:
+
+```sql
+SELECT * FROM orders
+WHERE total > 100 OR total IS NULL;
+```
+
+Note that in the last example, using `OR total IS NULL` ensures that orders with unknown totals are included in the result set.

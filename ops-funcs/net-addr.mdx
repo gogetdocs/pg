@@ -1,0 +1,63 @@
+## PostgreSQL Network Address Functions and Operators
+
+PostgreSQL provides a variety of functions and operators for working with network addresses, including IP addresses and MAC addresses. This documentation covers the key functions and operators available for these data types.
+
+### IP Address Functions and Operators
+
+#### IP Address Operators
+
+The following operators are available for IP addresses:
+
+| Operator | Description                                    | Example                                             |
+| -------- | ---------------------------------------------- | --------------------------------------------------- | ------------------- | --------------------------------- |
+| `<<`     | Is subnet strictly contained by subnet?        | `inet '192.168.1.5' << inet '192.168.1/24' → t`     |
+| `<<=`    | Is subnet contained by or equal to subnet?     | `inet '192.168.1/24' <<= inet '192.168.1/24' → t`   |
+| `>>`     | Does subnet strictly contain subnet?           | `inet '192.168.1/24' >> inet '192.168.1.5' → t`     |
+| `>>=`    | Does subnet contain or equal subnet?           | `inet '192.168.1/24' >>= inet '192.168.1/24' → t`   |
+| `&&`     | Does either subnet contain or equal the other? | `inet '192.168.1/24' && inet '192.168.1.80/28' → t` |
+| `~`      | Computes bitwise NOT.                          | `~ inet '192.168.1.6' → 63.87.254.249`              |
+| `&`      | Computes bitwise AND.                          | `inet '192.168.1.6' & inet '0.0.0.255' → 0.0.0.6`   |
+| `        | `                                              | Computes bitwise OR.                                | `inet '192.168.1.6' | inet '0.0.0.255' → 192.168.1.255` |
+| `+`      | Adds an offset to an address.                  | `inet '192.168.1.6' + 25 → 192.168.1.31`            |
+| `-`      | Subtracts an offset from an address.           | `inet '192.168.1.43' - 36 → 192.168.1.7`            |
+
+#### IP Address Functions
+
+The following functions are available for IP addresses:
+
+| Function                       | Description                                                                                   | Example                                                                     |
+| ------------------------------ | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `abbrev(inet)`                 | Creates an abbreviated display format as text.                                                | `abbrev(inet '10.1.0.0/32') → 10.1.0.0`                                     |
+| `broadcast(inet)`              | Computes the broadcast address for the address's network.                                     | `broadcast(inet '192.168.1.5/24') → 192.168.1.255/24`                       |
+| `family(inet)`                 | Returns the address's family: 4 for IPv4, 6 for IPv6.                                         | `family(inet '::1') → 6`                                                    |
+| `host(inet)`                   | Returns the IP address as text, ignoring the netmask.                                         | `host(inet '192.168.1.0/24') → 192.168.1.0`                                 |
+| `hostmask(inet)`               | Computes the host mask for the address's network.                                             | `hostmask(inet '192.168.23.20/30') → 0.0.0.3`                               |
+| `inet_merge(inet, inet)`       | Computes the smallest network that includes both of the given networks.                       | `inet_merge(inet '192.168.1.5/24', inet '192.168.2.5/24') → 192.168.0.0/22` |
+| `inet_same_family(inet, inet)` | Tests whether the addresses belong to the same IP family.                                     | `inet_same_family(inet '192.168.1.5/24', inet '::1') → f`                   |
+| `masklen(inet)`                | Returns the netmask length in bits.                                                           | `masklen(inet '192.168.1.5/24') → 24`                                       |
+| `netmask(inet)`                | Computes the network mask for the address's network.                                          | `netmask(inet '192.168.1.5/24') → 255.255.255.0`                            |
+| `network(inet)`                | Returns the network part of the address, zeroing out whatever is to the right of the netmask. | `network(inet '192.168.1.5/24') → 192.168.1.0/24`                           |
+| `set_masklen(inet, integer)`   | Sets the netmask length for an inet value.                                                    | `set_masklen(inet '192.168.1.5/24', 16) → 192.168.1.5/16`                   |
+| `text(inet)`                   | Returns the unabbreviated IP address and netmask length as text.                              | `text(inet '192.168.1.5') → 192.168.1.5/32`                                 |
+
+### MAC Address Functions and Operators
+
+#### MAC Address Operators
+
+The following operators are available for MAC addresses:
+
+| Operator | Description           | Example                                                                         |
+| -------- | --------------------- | ------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------ |
+| `~`      | Computes bitwise NOT. | `~ macaddr '12:34:56:78:90:ab' → ff:cb:a9:87:6f:54`                             |
+| `&`      | Computes bitwise AND. | `macaddr '12:34:56:78:90:ab' & macaddr 'ff:ff:ff:00:00:00' → 12:34:56:00:00:00` |
+| `        | `                     | Computes bitwise OR.                                                            | `macaddr '12:34:56:78:90:ab' | macaddr '00:00:00:ff:ff:ff' → 12:34:56:ff:ff:ff` |
+
+#### MAC Address Functions
+
+The following functions are available for MAC addresses:
+
+| Function                     | Description                                                                                                          | Example                                                                    |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `trunc(macaddr)`             | Sets the last 3 bytes of the address to zero.                                                                        | `trunc(macaddr '12:34:56:78:90:ab') → 12:34:56:00:00:00`                   |
+| `trunc(macaddr8)`            | Sets the last 5 bytes of the address to zero.                                                                        | `trunc(macaddr8 '12:34:56:78:90:ab:cd:ef') → 12:34:56:00:00:00:00:00`      |
+| `macaddr8_set7bit(macaddr8)` | Sets the 7th bit of the address to one, creating what is known as modified EUI-64, for inclusion in an IPv6 address. | `macaddr8_set7bit(macaddr8 '00:34:56:ab:cd:ef') → 02:34:56:ff:fe:ab:cd:ef` |

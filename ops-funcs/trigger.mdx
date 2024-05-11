@@ -1,0 +1,104 @@
+## Trigger Functions in PostgreSQL
+
+PostgreSQL provides several built-in trigger functions that can be used directly in user-defined triggers. These functions are designed to perform specific tasks, such as suppressing redundant updates, updating tsvector columns, and more.
+
+### 1. Suppress Redundant Updates Trigger
+
+The `suppress_redundant_updates_trigger` function prevents any update that does not actually change the data in the row from taking place. This can help reduce unnecessary time and space consumption, especially when dealing with large indexes and frequent updates.
+
+**Example Usage:**
+
+```sql
+CREATE TRIGGER z_min_update
+BEFORE UPDATE ON tablename
+FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
+```
+
+**Usage:**
+
+Consider a table `employees` with columns `id`, `name`, and `salary`. You want to prevent unnecessary updates when the data hasn't changed.
+
+```sql
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    salary INTEGER
+);
+
+CREATE TRIGGER prevent_redundant_updates
+BEFORE UPDATE ON employees
+FOR EACH ROW EXECUTE FUNCTION suppress_redundant_updates_trigger();
+
+-- Test the trigger
+INSERT INTO employees (name, salary) VALUES ('John Doe', 50000);
+UPDATE employees SET salary = 50000 WHERE id = 1;  -- This update will be skipped
+```
+
+### 2. Tsvector Update Trigger
+
+The `tsvector_update_trigger` function automatically updates a tsvector column from associated plain-text document column(s). The text search configuration to use is specified by name as a trigger argument.
+
+**Example Usage:**
+
+```sql
+CREATE TRIGGER update_tsvector
+BEFORE INSERT OR UPDATE ON documents
+FOR EACH ROW EXECUTE FUNCTION tsvector_update_trigger(tsvcol, 'pg_catalog.english', title, body);
+```
+
+**Usage:**
+
+Consider a table `articles` with columns `id`, `title`, `body`, and `tsv`. You want to update the `tsv` column whenever the `title` or `body` changes.
+
+```sql
+CREATE TABLE articles (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(100),
+    body TEXT,
+    tsv TSVECTOR
+);
+
+CREATE TRIGGER update_tsvector
+BEFORE INSERT OR UPDATE ON articles
+FOR EACH ROW EXECUTE FUNCTION tsvector_update_trigger(tsv, 'pg_catalog.english', title, body);
+
+-- Test the trigger
+INSERT INTO articles (title, body) VALUES ('Example Article', 'This is an example article.');
+UPDATE articles SET body = 'This is an updated example article.' WHERE id = 1;
+```
+
+### 3. Tsvector Update Trigger Column
+
+The `tsvector_update_trigger_column` function automatically updates a tsvector column from associated plain-text document column(s). The text search configuration to use is taken from a regconfig column of the table.
+
+**Example Usage:**
+
+```sql
+CREATE TRIGGER update_tsvector
+BEFORE INSERT OR UPDATE ON documents
+FOR EACH ROW EXECUTE FUNCTION tsvector_update_trigger_column(tsvcol, tsconfigcol, title, body);
+```
+
+**Usage:**
+
+Consider a table `books` with columns `id`, `title`, `body`, `tsv`, and `tsconfig`. You want to update the `tsv` column whenever the `title` or `body` changes, using the text search configuration specified in the `tsconfig` column.
+
+```sql
+CREATE TABLE books (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(100),
+    body TEXT,
+    tsv TSVECTOR,
+    tsconfig REGCONFIG
+);
+
+CREATE TRIGGER update_tsvector
+BEFORE INSERT OR UPDATE ON books
+FOR EACH ROW EXECUTE FUNCTION tsvector_update_trigger_column(tsv, tsconfig, title, body);
+
+-- Test the trigger
+INSERT INTO books (title, body, tsconfig) VALUES ('Example Book', 'This is an example book.', 'pg_catalog.english');
+UPDATE books SET body = 'This is an updated example book.' WHERE id = 1;
+```
+
+By using these built-in trigger functions, you can simplify your database maintenance tasks and improve performance. Remember to use the `suppress_redundant_updates_trigger` function with care, as it can slow down updates if most records are actually changed[7][13]. The `tsvector_update_trigger` and `tsvector_update_trigger_column` functions can help keep your tsvector columns up-to-date, making full-text searches more efficient[2][4][5].

@@ -1,0 +1,89 @@
+## PostgreSQL Bit String Functions and Operators
+
+PostgreSQL provides various functions and operators for examining and manipulating bit strings, which are values of the types `bit` and `bit varying`. This section describes these functions and operators, along with usage examples.
+
+### Bit String Operators
+
+The following table lists the bit string operators available in PostgreSQL:
+
+| Operator         | Description                                           | Example                                     |
+| ---------------- | ----------------------------------------------------- | ------------------------------------------- | ------------- | ----------------- | --- | ------------------ |
+| `bit             |                                                       | bit`                                        | Concatenation | `B'10001'         |     | B'011' → 10001011` |
+| `bit & bit`      | Bitwise AND (inputs must be of equal length)          | `B'10001' & B'01101' → 00001`               |
+| `bit             | bit`                                                  | Bitwise OR (inputs must be of equal length) | `B'10001'     | B'01101' → 11101` |
+| `bit # bit`      | Bitwise exclusive OR (inputs must be of equal length) | `B'10001' # B'01101' → 11100`               |
+| `~ bit`          | Bitwise NOT                                           | `~ B'10001' → 01110`                        |
+| `bit << integer` | Bitwise shift left (string length is preserved)       | `B'10001' << 3 → 01000`                     |
+| `bit >> integer` | Bitwise shift right (string length is preserved)      | `B'10001' >> 2 → 00100`                     |
+
+### Bit String Functions
+
+The following table lists the bit string functions available in PostgreSQL:
+
+| Function                                                                              | Description                                                                                                                          | Example                                                                             |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `bit_count(bit)`                                                                      | Returns the number of bits set in the bit string (also known as “popcount”)                                                          | `bit_count(B'10111') → 4`                                                           |
+| `bit_length(bit)`                                                                     | Returns the number of bits in the bit string                                                                                         | `bit_length(B'10111') → 5`                                                          |
+| `length(bit)`                                                                         | Returns the number of bits in the bit string                                                                                         | `length(B'10111') → 5`                                                              |
+| `octet_length(bit)`                                                                   | Returns the number of bytes in the bit string                                                                                        | `octet_length(B'1011111011') → 2`                                                   |
+| `overlay(bits bit PLACING newsubstring bit FROM start integer [ FOR count integer ])` | Replaces the substring of bits that starts at the start'th bit and extends for count bits with newsubstring                          | `overlay(B'01010101010101010' placing B'11111' from 2 for 3) → 0111110101010101010` |
+| `position(substring bit IN bits bit)`                                                 | Returns the first starting index of the specified substring within bits, or zero if it's not present                                 | `position(B'010' in B'000001101011') → 8`                                           |
+| `substring(bits bit [ FROM start integer ] [ FOR count integer ])`                    | Extracts the substring of bits starting at the start'th bit if that is specified, and stopping after count bits if that is specified | `substring(B'110010111111' from 3 for 2) → 00`                                      |
+| `get_bit(bits bit, n integer)`                                                        | Extracts the n'th bit from the bit string; the first (leftmost) bit is bit 0                                                         | `get_bit(B'101010101010101010', 6) → 1`                                             |
+| `set_bit(bits bit, n integer, newvalue integer)`                                      | Sets the n'th bit in the bit string to newvalue; the first (leftmost) bit is bit 0                                                   | `set_bit(B'101010101010101010', 6, 0) → 101010001010101010`                         |
+
+### Casting Integral Values to and from Type Bit
+
+It is possible to cast integral values to and from type `bit`. Casting an integer to `bit(n)` copies the rightmost `n` bits. Casting an integer to a bit string width wider than the integer itself will sign-extend on the left. Some examples:
+
+```sql
+44::bit(10)                    0000101100
+44::bit(3)                     100
+cast(-44 as bit(12))           111111010100
+'1110'::bit(4)::integer        14
+```
+
+Note that casting to just “bit” means casting to `bit(1)`, and so will deliver only the least significant bit of the integer.
+
+### Usage Examples
+
+1. **Bitwise Operations**:
+
+   ```sql
+   SELECT B'10001' & B'01101';  -- Bitwise AND
+   SELECT B'10001' | B'01101';  -- Bitwise OR
+   SELECT B'10001' # B'01101';  -- Bitwise XOR
+   SELECT ~ B'10001';           -- Bitwise NOT
+   ```
+
+2. **Bit Shifting**:
+
+   ```sql
+   SELECT B'10001' << 3;       -- Bitwise shift left
+   SELECT B'10001' >> 2;       -- Bitwise shift right
+   ```
+
+3. **Bit String Functions**:
+
+   ```sql
+   SELECT bit_count(B'10111');  -- Count bits set
+   SELECT bit_length(B'10111');  -- Length of bit string
+   SELECT length(B'10111');     -- Length of bit string
+   SELECT octet_length(B'1011111011');  -- Number of bytes
+   ```
+
+4. **Substring Manipulation**:
+
+   ```sql
+   SELECT overlay(B'01010101010101010' placing B'11111' from 2 for 3);  -- Replace substring
+   SELECT position(B'010' in B'000001101011');  -- Find substring position
+   SELECT substring(B'110010111111' from 3 for 2);  -- Extract substring
+   ```
+
+5. **Bit Extraction and Setting**:
+   ```sql
+   SELECT get_bit(B'101010101010101010', 6);  -- Extract bit
+   SELECT set_bit(B'101010101010101010', 6, 0);  -- Set bit
+   ```
+
+These examples demonstrate how to use PostgreSQL's bit string functions and operators to perform various operations on bit strings.

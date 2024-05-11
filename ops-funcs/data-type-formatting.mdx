@@ -1,0 +1,79 @@
+## Data Type Formatting Functions
+
+PostgreSQL provides a set of powerful formatting functions to convert various data types (date/time, integer, floating point, numeric) to formatted strings and vice versa. These functions follow a common calling convention where the first argument is the value to be formatted and the second argument is a template that defines the output or input format.
+
+### Formatting Functions
+
+The following table lists the formatting functions available in PostgreSQL:
+
+| Function                      | Description                                                 | Example                                                                |
+| ----------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `to_char(timestamp, text)`    | Converts timestamp to string according to the given format. | `to_char(timestamp '2002-04-20 17:31:12.66', 'HH12:MI:SS') → 05:31:12` |
+| `to_char(interval, text)`     | Converts interval to string according to the given format.  | `to_char(interval '15h 2m 12s', 'HH24:MI:SS') → 15:02:12`              |
+| `to_char(numeric_type, text)` | Converts number to string according to the given format.    | `to_char(125, '999') → 125`                                            |
+| `to_date(text, text)`         | Converts string to date according to the given format.      | `to_date('05 Dec 2000', 'DD Mon YYYY') → 2000-12-05`                   |
+| `to_number(text, text)`       | Converts string to numeric according to the given format.   | `to_number('12,454.8-', '99G999D9S') → -12454.8`                       |
+| `to_timestamp(text, text)`    | Converts string to timestamp according to the given format. | `to_timestamp('05 Dec 2000', 'DD Mon YYYY') → 2000-12-05 00:00:00-05`  |
+
+### Template Patterns for Date/Time Formatting
+
+The following table lists the template patterns available for formatting date and time values:
+
+| Pattern                        | Description                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `HH`                           | Hour of day (01–12)                                                                              |
+| `HH12`                         | Hour of day (01–12)                                                                              |
+| `HH24`                         | Hour of day (00–23)                                                                              |
+| `MI`                           | Minute (00–59)                                                                                   |
+| `SS`                           | Second (00–59)                                                                                   |
+| `MS`                           | Millisecond (000–999)                                                                            |
+| `US`                           | Microsecond (000000–999999)                                                                      |
+| `FF1`                          | Tenth of second (0–9)                                                                            |
+| `FF2`                          | Hundredth of second (00–99)                                                                      |
+| `FF3`                          | Millisecond (000–999)                                                                            |
+| `FF4`                          | Tenth of a millisecond (0000–9999)                                                               |
+| `FF5`                          | Hundredth of a millisecond (00000–99999)                                                         |
+| `FF6`                          | Microsecond (000000–999999)                                                                      |
+| `SSSS`, `SSSSS`                | Seconds past midnight (0–86399)                                                                  |
+| `AM`, `am`, `PM`, `pm`         | Meridiem indicator (without periods)                                                             |
+| `A.M.`, `a.m.`, `P.M.`, `p.m.` | Meridiem indicator (with periods)                                                                |
+| `Y,YYY`                        | Year (4 or more digits) with comma                                                               |
+| `YYYY`                         | Year (4 or more digits)                                                                          |
+| `YYY`                          | Last 3 digits of year                                                                            |
+| `YY`                           | Last 2 digits of year                                                                            |
+| `Y`                            | Last digit of year                                                                               |
+| `IYYY`                         | ISO 8601 week-numbering year (4 or more digits)                                                  |
+| `IYY`                          | Last 3 digits of ISO 8601 week-numbering year                                                    |
+| `IY`                           | Last 2 digits of ISO 8601 week-numbering year                                                    |
+| `I`                            | Last digit of ISO 8601 week-numbering year                                                       |
+| `BC`, `bc`, `AD`, `ad`         | Era indicator (without periods)                                                                  |
+| `B.C.`, `b.c.`, `A.D.`, `a.d.` | Era indicator (with periods)                                                                     |
+| `MONTH`                        | Full upper case month name (blank-padded to 9 chars)                                             |
+| `Month`                        | Full capitalized month name (blank-padded to 9 chars)                                            |
+| `month`                        | Full lower case month name (blank-padded to 9 chars)                                             |
+| `MON`                          | Abbreviated upper case month name (3 chars in English, localized lengths vary)                   |
+| `Mon`                          | Abbreviated capitalized month name (3 chars in English, localized lengths vary)                  |
+| `mon`                          | Abbreviated lower case month name (3 chars in English, localized lengths vary)                   |
+| `MM`                           | Month number (01–12)                                                                             |
+| `DAY`                          | Full upper case day name (blank-padded to 9 chars)                                               |
+| `Day`                          | Full capitalized day name (blank-padded to 9 chars)                                              |
+| `day`                          | Full lower case day name (blank-padded to 9 chars)                                               |
+| `DY`                           | Abbreviated upper case day name (3 chars in English, localized lengths vary)                     |
+| `Dy`                           | Abbreviated capitalized day name (3 chars in English, localized lengths vary)                    |
+| `dy`                           | Abbreviated lower case day name (3 chars in English, localized lengths vary)                     |
+| `DDD`                          | Day of year (001–366)                                                                            |
+| `IDDD`                         | Day of ISO 8601 week-numbering year (001–371; day 1 of the year is Monday of the first ISO week) |
+| `DD`                           | Day of month (01–31)                                                                             |
+| `D`                            | Day of the week, Sunday (1) to Saturday (7)                                                      |
+| `ID`                           | ISO 8601 day of the week, Monday (1) to Sunday (7)                                               |
+| `W`                            | Week of month (1–5) (the first week starts on the first day of the month)                        |
+| `WW`                           | Week number of year (1–53) (the first week starts on the first day of the year)                  |
+| `IW`                           | Week number of ISO 8601 week-numbering year (01–53; the first Thursday of the year is in week 1) |
+| `CC`                           | Century (2 digits) (the twenty-first century starts on 2001-01-01)                               |
+| `J`                            | Julian Date (integer days since November 24, 4714 BC at local midnight; see Section B.7)         |
+| `Q`                            | Quarter                                                                                          |
+| `RM`                           | Month in upper case Roman numerals (I–XII; I=January)                                            |
+| `rm`                           | Month in lower case Roman numerals (i–xii; i=January)                                            |
+| `TZ`                           | Upper case time-zone abbreviation (only supported in to_char)                                    |
+| `tz`                           | Lower case time-zone abbreviation (only supported in to_char)                                    |
+| `TZH`                          |
