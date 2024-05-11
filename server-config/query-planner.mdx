@@ -1,0 +1,90 @@
+## PostgreSQL Query Planner Configuration
+
+The PostgreSQL query planner is responsible for determining the most efficient execution plan for a given query. This section provides an overview of the configuration parameters that influence the query planner's decisions.
+
+### 20.7.1. Planner Method Configuration
+
+These configuration parameters provide a crude method of influencing the query plans chosen by the query optimizer. If the default plan chosen by the optimizer for a particular query is not optimal, a temporary solution is to use one of these configuration parameters to force the optimizer to choose a different plan.
+
+#### Enable/Disable Planner Methods
+
+The following parameters enable or disable specific planner methods:
+
+- `enable_async_append` (boolean): Enables or disables the query planner's use of async-aware append plan types. The default is on.
+- `enable_bitmapscan` (boolean): Enables or disables the query planner's use of bitmap-scan plan types. The default is on.
+- `enable_gathermerge` (boolean): Enables or disables the query planner's use of gather merge plan types. The default is on.
+- `enable_hashagg` (boolean): Enables or disables the query planner's use of hashed aggregation plan types. The default is on.
+- `enable_hashjoin` (boolean): Enables or disables the query planner's use of hash-join plan types. The default is on.
+- `enable_incremental_sort` (boolean): Enables or disables the query planner's use of incremental sort steps. The default is on.
+- `enable_indexscan` (boolean): Enables or disables the query planner's use of index-scan plan types. The default is on.
+- `enable_indexonlyscan` (boolean): Enables or disables the query planner's use of index-only-scan plan types. The default is on.
+- `enable_material` (boolean): Enables or disables the query planner's use of materialization. The default is on.
+- `enable_memoize` (boolean): Enables or disables the query planner's use of memoize plans for caching results from parameterized scans inside nested-loop joins. The default is on.
+- `enable_mergejoin` (boolean): Enables or disables the query planner's use of merge-join plan types. The default is on.
+- `enable_nestloop` (boolean): Enables or disables the query planner's use of nested-loop join plans. The default is on.
+- `enable_parallel_append` (boolean): Enables or disables the query planner's use of parallel-aware append plan types. The default is on.
+- `enable_parallel_hash` (boolean): Enables or disables the query planner's use of hash-join plan types with parallel hash. The default is on.
+- `enable_partition_pruning` (boolean): Enables or disables the query planner's ability to eliminate a partitioned table's partitions from query plans. The default is on.
+- `enable_partitionwise_join` (boolean): Enables or disables the query planner's use of partitionwise join. The default is off.
+- `enable_partitionwise_aggregate` (boolean): Enables or disables the query planner's use of partitionwise grouping or aggregation. The default is off.
+- `enable_seqscan` (boolean): Enables or disables the query planner's use of sequential scan plan types. The default is on.
+- `enable_sort` (boolean): Enables or disables the query planner's use of explicit sort steps. The default is on.
+- `enable_tidscan` (boolean): Enables or disables the query planner's use of TID scan plan types. The default is on.
+
+**Example Usage:**
+
+```sql
+-- Disable the use of index scans
+SET enable_indexscan = off;
+
+-- Execute a query that would normally use an index scan
+EXPLAIN SELECT * FROM mytable WHERE mycolumn = 'value';
+
+-- Enable the use of index scans again
+SET enable_indexscan = on;
+```
+
+### 20.7.2. Planner Cost Constants
+
+The cost variables described in this section are measured on an arbitrary scale. Only their relative values matter, hence scaling them all up or down by the same factor will result in no change in the planner's choices.
+
+#### Cost Variables
+
+The following parameters set the planner's estimates of the cost of various operations:
+
+- `seq_page_cost` (floating point): Sets the planner's estimate of the cost of a disk page fetch that is part of a series of sequential fetches. The default is 1.0.
+- `random_page_cost` (floating point): Sets the planner's estimate of the cost of a non-sequentially-fetched disk page. The default is 4.0.
+- `cpu_tuple_cost` (floating point): Sets the planner's estimate of the cost of processing each row during a query. The default is 0.01.
+- `cpu_index_tuple_cost` (floating point): Sets the planner's estimate of the cost of processing each index entry during an index scan. The default is 0.005.
+- `cpu_operator_cost` (floating point): Sets the planner's estimate of the cost of processing each operator or function executed during a query. The default is 0.0025.
+- `parallel_setup_cost` (floating point): Sets the planner's estimate of the cost of launching parallel worker processes. The default is 1000.
+- `parallel_tuple_cost` (floating point): Sets the planner's estimate of the cost of transferring one tuple from a parallel worker process to another process. The default is 0.1.
+- `min_parallel_table_scan_size` (integer): Sets the minimum amount of table data that must be scanned in order for a parallel scan to be considered. The default is 8 megabytes (8MB).
+- `min_parallel_index_scan_size` (integer): Sets the minimum amount of index data that must be scanned in order for a parallel scan to be considered. The default is 512 kilobytes (512kB).
+- `effective_cache_size` (integer): Sets the planner's assumption about the effective size of the disk cache that is available to a single query. The default is 4 gigabytes (4GB).
+- `jit_above_cost` (floating point): Sets the query cost above which JIT compilation is activated. The default is 100000.
+- `jit_inline_above_cost` (floating point): Sets the query cost above which JIT compilation attempts to inline functions and operators. The default is 500000.
+- `jit_optimize_above_cost` (floating point): Sets the query cost above which JIT compilation applies expensive optimizations. The default is 500000.
+
+**Example Usage:**
+
+```sql
+-- Set the cost of a disk page fetch to 2.0
+SET seq_page_cost = 2.0;
+
+-- Execute a query that would normally use a sequential scan
+EXPLAIN SELECT * FROM mytable;
+
+-- Set the cost of a disk page fetch back to the default value
+SET seq_page_cost = 1.0;
+```
+
+### 20.7.3. Genetic Query Optimizer
+
+The genetic query optimizer (GEQO) is an algorithm that does query planning using heuristic searching. This reduces planning time for complex queries (those joining many relations), at the cost of producing plans that are sometimes inferior to those found by the normal exhaustive-search algorithm.
+
+#### GEQO Parameters
+
+The following parameters control the behavior of GEQO:
+
+- `

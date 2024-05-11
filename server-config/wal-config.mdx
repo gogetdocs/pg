@@ -1,0 +1,217 @@
+## PostgreSQL Write-Ahead Logging (WAL) Configuration
+
+### Overview
+
+PostgreSQL's Write-Ahead Logging (WAL) mechanism is crucial for ensuring database consistency and recoverability. This documentation covers the various WAL configuration parameters, their implications, and real-world usage examples.
+
+### WAL Settings
+
+#### `wal_level`
+
+Determines how much information is written to the WAL. Possible values are `minimal`, `replica`, and `logical`.
+
+- **`minimal`**: Logs only the information required to recover from a crash or immediate shutdown. This level generates the least WAL volume but does not support point-in-time recovery or streaming replication.
+- **`replica`**: Writes enough data to support WAL archiving and replication, including running read-only queries on a standby server. This is the default value.
+- **`logical`**: Includes all information logged at the `replica` level, plus additional information needed to support logical decoding.
+
+**Example: Setting `wal_level` to `replica`**
+
+```sql
+ALTER SYSTEM SET wal_level = 'replica';
+```
+
+#### `fsync`
+
+If `on`, the PostgreSQL server will ensure that updates are physically written to disk by issuing `fsync()` system calls.
+
+- **`on`**: Ensures database consistency after an operating system or hardware crash.
+- **`off`**: Can result in unrecoverable data corruption in the event of a power failure or system crash.
+
+**Example: Setting `fsync` to `on`**
+
+```sql
+ALTER SYSTEM SET fsync = on;
+```
+
+#### `synchronous_commit`
+
+Specifies how much WAL processing must complete before the database server returns a “success” indication to the client.
+
+- **`remote_apply`**: Waits for replies from the current synchronous standby(s) indicating they have received and applied the commit record.
+- **`on`**: Waits for replies from the current synchronous standby(s) indicating they have received and flushed the commit record to durable storage.
+- **`remote_write`**: Waits for replies from the current synchronous standby(s) indicating they have received the commit record and written it to their file systems.
+- **`local`**: Waits for local flush to disk.
+- **`off`**: Does not wait for any WAL flush.
+
+**Example: Setting `synchronous_commit` to `on`**
+
+```sql
+ALTER SYSTEM SET synchronous_commit = 'on';
+```
+
+#### `wal_sync_method`
+
+Method used for forcing WAL updates out to disk.
+
+- **`open_datasync`**: Writes WAL files with `open()` option `O_DSYNC`.
+- **`fdatasync`**: Calls `fdatasync()` at each commit.
+- **`fsync`**: Calls `fsync()` at each commit.
+- **`fsync_writethrough`**: Calls `fsync()` at each commit, forcing write-through of any disk write cache.
+- **`open_sync`**: Writes WAL files with `open()` option `O_SYNC`.
+
+**Example: Setting `wal_sync_method` to `fsync`**
+
+```sql
+ALTER SYSTEM SET wal_sync_method = 'fsync';
+```
+
+#### `full_page_writes`
+
+When `on`, the PostgreSQL server writes the entire content of each disk page to WAL during the first modification of that page after a checkpoint.
+
+- **`on`**: Ensures that pages can be correctly restored after a crash.
+- **`off`**: Speeds normal operation but might lead to unrecoverable data corruption after a system failure.
+
+**Example: Setting `full_page_writes` to `on`**
+
+```sql
+ALTER SYSTEM SET full_page_writes = on;
+```
+
+#### `wal_log_hints`
+
+When `on`, the PostgreSQL server writes the entire content of each disk page to WAL during the first modification of that page after a checkpoint, even for non-critical modifications of hint bits.
+
+- **`on`**: Useful for testing the impact of enabling data checksums.
+
+**Example: Setting `wal_log_hints` to `on`**
+
+```sql
+ALTER SYSTEM SET wal_log_hints = on;
+```
+
+#### `wal_compression`
+
+Enables compression of WAL using the specified compression method.
+
+- **`pglz`**: PostgreSQL's built-in compression method.
+- **`lz4`**: LZ4 compression method (if compiled with `--with-lz4`).
+- **`zstd`**: Zstandard compression method (if compiled with `--with-zstd`).
+
+**Example: Setting `wal_compression` to `pglz`**
+
+```sql
+ALTER SYSTEM SET wal_compression = 'pglz';
+```
+
+#### `wal_init_zero`
+
+If `on`, new WAL files are filled with zeroes.
+
+- **`on`**: Ensures space is allocated before writing WAL records.
+
+**Example: Setting `wal_init_zero` to `on`**
+
+```sql
+ALTER SYSTEM SET wal_init_zero = on;
+```
+
+#### `wal_recycle`
+
+If `on`, WAL files are recycled by renaming them.
+
+- **`on`**: Avoids the need to create new WAL files.
+
+**Example: Setting `wal_recycle` to `on`**
+
+```sql
+ALTER SYSTEM SET wal_recycle = on;
+```
+
+#### `wal_buffers`
+
+The amount of shared memory used for WAL data that has not yet been written to disk.
+
+- **Default**: 1/32nd of `shared_buffers`, but not less than 64kB nor more than the size of one WAL segment.
+
+**Example: Setting `wal_buffers` to 16MB**
+
+```sql
+ALTER SYSTEM SET wal_buffers = '16MB';
+```
+
+#### `wal_writer_delay`
+
+Specifies how often the WAL writer flushes WAL, in time terms.
+
+- **Default**: 200 milliseconds.
+
+**Example: Setting `wal_writer_delay` to 100 milliseconds**
+
+```sql
+ALTER SYSTEM SET wal_writer_delay = '100ms';
+```
+
+#### `wal_writer_flush_after`
+
+Specifies how often the WAL writer flushes WAL, in volume terms.
+
+- **Default**: 1MB.
+
+**Example: Setting `wal_writer_flush_after` to 512kB**
+
+```sql
+ALTER SYSTEM SET wal_writer_flush_after = '512kB';
+```
+
+#### `wal_skip_threshold`
+
+Determines how to persist new data when `wal_level` is `minimal`.
+
+- **Default**: 2MB.
+
+**Example: Setting `wal_skip_threshold` to 1MB**
+
+```sql
+ALTER SYSTEM SET wal_skip_threshold = '1MB';
+```
+
+#### `commit_delay`
+
+Adds a time delay before a WAL flush is initiated.
+
+- **Default**: 0 (no delay).
+
+**Example: Setting `commit_delay` to 10 microseconds**
+
+```sql
+ALTER SYSTEM SET commit_delay = '10us';
+```
+
+#### `commit_siblings`
+
+Minimum number of concurrent open transactions to require before performing the `commit_delay` delay.
+
+- **Default**: 5 transactions.
+
+**Example: Setting `commit_siblings` to 10**
+
+```sql
+ALTER SYSTEM SET commit_siblings = 10;
+```
+
+### Checkpoint Settings
+
+#### `checkpoint_timeout`
+
+Maximum time between automatic WAL checkpoints.
+
+- **Default**: 5 minutes.
+
+**Example: Setting `checkpoint_timeout` to 10 minutes**
+
+```sql
+ALTER SYSTEM SET checkpoint_timeout = '10min';
+```
+
+#### `

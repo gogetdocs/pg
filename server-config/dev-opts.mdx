@@ -1,0 +1,277 @@
+## Developer Options in PostgreSQL
+
+PostgreSQL provides several developer options that can be used for testing, debugging, and recovery purposes. These options are not intended for use in production environments and should be used with caution.
+
+### 1. allow_in_place_tablespaces
+
+**Description:** Allows tablespaces to be created as directories inside `pg_tblspc` when an empty location string is provided to the `CREATE TABLESPACE` command.
+
+**Usage:**
+
+```sql
+-- Enable allow_in_place_tablespaces
+ALTER SYSTEM SET allow_in_place_tablespaces = on;
+
+-- Create a tablespace as a directory inside pg_tblspc
+CREATE TABLESPACE my_tablespace LOCATION '';
+
+-- Create a table in the new tablespace
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+) TABLESPACE my_tablespace;
+```
+
+### 2. allow_system_table_mods
+
+**Description:** Allows modification of the structure of system tables as well as certain other risky actions on system tables.
+
+**Usage:**
+
+```sql
+-- Enable allow_system_table_mods
+ALTER SYSTEM SET allow_system_table_mods = on;
+
+-- Add a new column to the pg_class system table
+ALTER TABLE pg_class ADD COLUMN my_column INTEGER;
+```
+
+**Warning:** Modifying system tables can cause irretrievable data loss or seriously corrupt the database system.
+
+### 3. backtrace_functions
+
+**Description:** Contains a comma-separated list of C function names. If an error is raised and the name of the internal C function where the error happens matches a value in the list, then a backtrace is written to the server log together with the error message.
+
+**Usage:**
+
+```sql
+-- Set backtrace_functions to include the function 'my_function'
+ALTER SYSTEM SET backtrace_functions = 'my_function';
+
+-- Create a function that will trigger a backtrace
+CREATE OR REPLACE FUNCTION my_function()
+RETURNS INTEGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Test error';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Call the function to trigger a backtrace
+SELECT my_function();
+```
+
+### 4. debug_discard_caches
+
+**Description:** When set to 1, each system catalog cache entry is invalidated at the first possible opportunity, whether or not anything that would render it invalid really occurred.
+
+**Usage:**
+
+```sql
+-- Enable debug_discard_caches
+ALTER SYSTEM SET debug_discard_caches = 1;
+
+-- Create a table to test cache invalidation
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Check the cache invalidation by querying the table
+SELECT * FROM my_table;
+```
+
+### 5. force_parallel_mode
+
+**Description:** Allows the use of parallel queries for testing purposes even in cases where no performance benefit is expected.
+
+**Usage:**
+
+```sql
+-- Enable force_parallel_mode
+ALTER SYSTEM SET force_parallel_mode = on;
+
+-- Create a table to test parallel queries
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Run a parallel query on the table
+SELECT * FROM my_table WHERE name = 'John Doe';
+```
+
+### 6. ignore_system_indexes
+
+**Description:** Ignore system indexes when reading system tables (but still update the indexes when modifying the tables).
+
+**Usage:**
+
+```sql
+-- Enable ignore_system_indexes
+ALTER SYSTEM SET ignore_system_indexes = on;
+
+-- Create a table to test ignoring system indexes
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Check the ignoring of system indexes by querying the table
+SELECT * FROM my_table;
+```
+
+### 7. post_auth_delay
+
+**Description:** The amount of time to delay when a new server process is started, after it conducts the authentication procedure.
+
+**Usage:**
+
+```sql
+-- Set post_auth_delay to 10 seconds
+ALTER SYSTEM SET post_auth_delay = 10;
+
+-- Connect to the database to test the delay
+\c my_database
+```
+
+### 8. pre_auth_delay
+
+**Description:** The amount of time to delay just after a new server process is forked, before it conducts the authentication procedure.
+
+**Usage:**
+
+```sql
+-- Set pre_auth_delay to 10 seconds
+ALTER SYSTEM SET pre_auth_delay = 10;
+
+-- Connect to the database to test the delay
+\c my_database
+```
+
+### 9. trace_notify
+
+**Description:** Generates a great amount of debugging output for the LISTEN and NOTIFY commands.
+
+**Usage:**
+
+```sql
+-- Enable trace_notify
+ALTER SYSTEM SET trace_notify = on;
+
+-- Create a table to test LISTEN and NOTIFY
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- LISTEN for notifications on the table
+LISTEN my_channel;
+
+-- NOTIFY the channel
+NOTIFY my_channel, 'Test notification';
+```
+
+### 10. trace_recovery_messages
+
+**Description:** Enables logging of recovery-related debugging output that otherwise would not be logged.
+
+**Usage:**
+
+```sql
+-- Set trace_recovery_messages to DEBUG1
+ALTER SYSTEM SET trace_recovery_messages = 'DEBUG1';
+
+-- Create a table to test recovery
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Check the recovery log
+SELECT * FROM pg_log;
+```
+
+### 11. trace_sort
+
+**Description:** If on, emit information about resource usage during sort operations.
+
+**Usage:**
+
+```sql
+-- Enable trace_sort
+ALTER SYSTEM SET trace_sort = on;
+
+-- Create a table to test sorting
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Run a query that sorts the table
+SELECT * FROM my_table ORDER BY name;
+```
+
+### 12. trace_locks
+
+**Description:** If on, emit information about lock usage.
+
+**Usage:**
+
+```sql
+-- Enable trace_locks
+ALTER SYSTEM SET trace_locks = on;
+
+-- Create a table to test locking
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Run a query that locks the table
+SELECT * FROM my_table FOR UPDATE;
+```
+
+### 13. trace_lwlocks
+
+**Description:** If on, emit information about lightweight lock usage.
+
+**Usage:**
+
+```sql
+-- Enable trace_lwlocks
+ALTER SYSTEM SET trace_lwlocks = on;
+
+-- Create a table to test lightweight locking
+CREATE TABLE my_table (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+-- Insert data into the table
+INSERT INTO my_table (name) VALUES ('John Doe');
+
+-- Run a query that uses lightweight locking
+SELECT * FROM my_table FOR SHARE;
+```
+
+### 14. trace_userlocks
+
+\*\*

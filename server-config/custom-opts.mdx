@@ -1,0 +1,62 @@
+## Customized Options in PostgreSQL
+
+### Overview
+
+Customized options in PostgreSQL allow parameters not normally known to PostgreSQL to be added by add-on modules, such as procedural languages. This feature enables extension modules to be configured in standard ways.
+
+### Structure of Custom Options
+
+Custom options have two-part names:
+
+- **Extension Name**: The name of the extension.
+- **Parameter Name**: The specific parameter within the extension.
+
+The format is `extension_name.parameter_name`, similar to qualified names in SQL. For example, `plpgsql.variable_conflict`.
+
+### How Custom Options Work
+
+1. **Placeholder Values**: PostgreSQL accepts settings for any two-part parameter name, even if the relevant extension module is not loaded. These are treated as placeholders and have no function until the module is loaded.
+2. **Loading Extensions**: When an extension module is loaded, it adds its variable definitions and converts any placeholder values according to those definitions.
+3. **Handling Unrecognized Placeholders**: If there are unrecognized placeholders that begin with the extension name, warnings are issued, and those placeholders are removed.
+
+### Real-World Usage
+
+#### Example 1: Setting Custom Options for PL/pgSQL
+
+To set a custom option for PL/pgSQL, you can use the following SQL command:
+
+```sql
+SET plpgsql.variable_conflict TO error;
+```
+
+This sets the `variable_conflict` parameter within the `plpgsql` extension to `error`, which means that if a variable name conflicts with a column name, an error will be raised.
+
+#### Example 2: Using Custom Options with PostGIS
+
+PostGIS, a spatial database extender for PostgreSQL, can also utilize custom options. For instance, to set the precision for spatial operations, you might use:
+
+```sql
+SET postgis.gdal_enabled_drivers TO 'GTiff PNG JPEG';
+```
+
+This sets the `gdal_enabled_drivers` parameter within the `postgis` extension to enable specific drivers for spatial data processing.
+
+#### Example 3: Configuring pg_stat_statements
+
+`pg_stat_statements` is an extension that tracks statistics about SQL statements executed in the database. To configure it to track all queries, regardless of their execution time, you can use:
+
+```sql
+SET pg_stat_statements.track TO all;
+```
+
+This sets the `track` parameter within the `pg_stat_statements` extension to `all`, ensuring that all queries are tracked.
+
+### Summary
+
+Customized options in PostgreSQL provide a flexible way to configure extension modules, allowing for tailored behavior that suits specific needs. By understanding how to set and use these options, you can leverage the full potential of PostgreSQL extensions in your database applications.
+
+### Additional Resources
+
+- **PostgreSQL Documentation**: For more information on customized options and extensions, refer to the official PostgreSQL documentation[2].
+- **PostGIS Documentation**: For spatial data processing and configuration options, see the PostGIS documentation[5].
+- **pg_stat_statements Documentation**: For details on tracking SQL statement statistics, consult the `pg_stat_statements` documentation[5].

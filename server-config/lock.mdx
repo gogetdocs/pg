@@ -1,0 +1,110 @@
+## Lock Management in PostgreSQL
+
+Lock management is a critical aspect of database management in PostgreSQL. It ensures that multiple transactions can access shared resources without conflicts. Here, we will discuss the various parameters that control lock management in PostgreSQL, along with their usage and examples.
+
+### deadlock_timeout
+
+The `deadlock_timeout` parameter determines the amount of time to wait on a lock before checking for a deadlock condition. The default value is one second (1s).
+
+**Example:**
+
+```sql
+-- Set deadlock_timeout to 5 seconds
+ALTER SYSTEM SET deadlock_timeout = '5s';
+
+-- Check the current value of deadlock_timeout
+SHOW deadlock_timeout;
+```
+
+In a heavily loaded server, you might want to raise the `deadlock_timeout` value to reduce the number of needless deadlock checks.
+
+### max_locks_per_transaction
+
+The `max_locks_per_transaction` parameter controls the average number of object locks allocated for each transaction. The default value is 64.
+
+**Example:**
+
+```sql
+-- Set max_locks_per_transaction to 128
+ALTER SYSTEM SET max_locks_per_transaction = 128;
+
+-- Check the current value of max_locks_per_transaction
+SHOW max_locks_per_transaction;
+```
+
+You might need to raise this value if you have queries that touch many different tables in a single transaction.
+
+### max_pred_locks_per_transaction
+
+The `max_pred_locks_per_transaction` parameter controls the average number of object locks allocated for each transaction in a serializable transaction. The default value is 64.
+
+**Example:**
+
+```sql
+-- Set max_pred_locks_per_transaction to 128
+ALTER SYSTEM SET max_pred_locks_per_transaction = 128;
+
+-- Check the current value of max_pred_locks_per_transaction
+SHOW max_pred_locks_per_transaction;
+```
+
+You might need to raise this value if you have clients that touch many different tables in a single serializable transaction.
+
+### max_pred_locks_per_relation
+
+The `max_pred_locks_per_relation` parameter controls how many pages or tuples of a single relation can be predicate-locked before the lock is promoted to covering the whole relation. The default value is -2.
+
+**Example:**
+
+```sql
+-- Set max_pred_locks_per_relation to 10
+ALTER SYSTEM SET max_pred_locks_per_relation = 10;
+
+-- Check the current value of max_pred_locks_per_relation
+SHOW max_pred_locks_per_relation;
+```
+
+Values greater than or equal to zero mean an absolute limit, while negative values mean `max_pred_locks_per_transaction` divided by the absolute value of this setting.
+
+### max_pred_locks_per_page
+
+The `max_pred_locks_per_page` parameter controls how many rows on a single page can be predicate-locked before the lock is promoted to covering the whole page. The default value is 2.
+
+**Example:**
+
+```sql
+-- Set max_pred_locks_per_page to 5
+ALTER SYSTEM SET max_pred_locks_per_page = 5;
+
+-- Check the current value of max_pred_locks_per_page
+SHOW max_pred_locks_per_page;
+```
+
+These parameters can only be set in the `postgresql.conf` file or on the server command line.
+
+### Real-World Usage
+
+Suppose we have a database with many concurrent transactions that access multiple tables. We want to optimize the lock management to reduce the number of deadlock checks and improve performance.
+
+**Example:**
+
+```sql
+-- Set deadlock_timeout to 10 seconds
+ALTER SYSTEM SET deadlock_timeout = '10s';
+
+-- Set max_locks_per_transaction to 256
+ALTER SYSTEM SET max_locks_per_transaction = 256;
+
+-- Set max_pred_locks_per_transaction to 256
+ALTER SYSTEM SET max_pred_locks_per_transaction = 256;
+
+-- Set max_pred_locks_per_relation to 20
+ALTER SYSTEM SET max_pred_locks_per_relation = 20;
+
+-- Set max_pred_locks_per_page to 10
+ALTER SYSTEM SET max_pred_locks_per_page = 10;
+```
+
+By adjusting these parameters, we can improve the performance of our database and reduce the number of deadlock checks.
+
+Note: These parameters should be adjusted carefully, as they can affect the performance and stability of the database. It is recommended to test and monitor the database after making changes to these parameters.

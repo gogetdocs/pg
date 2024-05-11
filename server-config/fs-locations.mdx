@@ -1,0 +1,57 @@
+## File Locations in PostgreSQL
+
+PostgreSQL uses several configuration files to control its behavior, including the main server configuration file (`postgresql.conf`), the host-based authentication file (`pg_hba.conf`), and the user name mapping file (`pg_ident.conf`). By default, these files are stored in the database cluster's data directory. However, it is possible to place these files elsewhere using the following parameters:
+
+### Parameters
+
+- `data_directory` (string): Specifies the directory to use for data storage. This parameter can only be set at server start.
+- `config_file` (string): Specifies the main server configuration file (customarily called `postgresql.conf`). This parameter can only be set on the `postgres` command line.
+- `hba_file` (string): Specifies the configuration file for host-based authentication (customarily called `pg_hba.conf`). This parameter can only be set at server start.
+- `ident_file` (string): Specifies the configuration file for user name mapping (customarily called `pg_ident.conf`). This parameter can only be set at server start.
+- `external_pid_file` (string): Specifies the name of an additional process-ID (PID) file that the server should create for use by server administration programs. This parameter can only be set at server start.
+
+### Real-World Usage
+
+Here are some examples of how to use these parameters in a PostgreSQL configuration file (`postgresql.conf`) and on the `postgres` command line:
+
+**Example 1: Setting `data_directory` in `postgresql.conf`**
+
+```sql
+-- postgresql.conf
+data_directory = '/var/lib/postgresql/data'
+```
+
+In this example, the `data_directory` parameter is set to `/var/lib/postgresql/data` in the `postgresql.conf` file.
+
+**Example 2: Setting `config_file` on the `postgres` command line**
+
+```bash
+postgres -D /var/lib/postgresql/data -c config_file=/etc/postgresql/postgresql.conf
+```
+
+In this example, the `config_file` parameter is set to `/etc/postgresql/postgresql.conf` on the `postgres` command line.
+
+**Example 3: Setting `hba_file` and `ident_file` in `postgresql.conf`**
+
+```sql
+-- postgresql.conf
+hba_file = '/etc/postgresql/pg_hba.conf'
+ident_file = '/etc/postgresql/pg_ident.conf'
+```
+
+In this example, the `hba_file` and `ident_file` parameters are set to `/etc/postgresql/pg_hba.conf` and `/etc/postgresql/pg_ident.conf`, respectively, in the `postgresql.conf` file.
+
+**Example 4: Setting `external_pid_file` in `postgresql.conf`**
+
+```sql
+-- postgresql.conf
+external_pid_file = '/var/run/postgresql/postgres.pid'
+```
+
+In this example, the `external_pid_file` parameter is set to `/var/run/postgresql/postgres.pid` in the `postgresql.conf` file.
+
+### Notes
+
+- When setting any of these parameters, a relative path will be interpreted with respect to the directory in which `postgres` is started.
+- If you wish to keep the configuration files elsewhere than the data directory, the `postgres` `-D` command-line option or `PGDATA` environment variable must point to the directory containing the configuration files, and the `data_directory` parameter must be set in `postgresql.conf` (or on the command line) to show where the data directory is actually located.
+- If all three parameters plus `data_directory` are explicitly set, then it is not necessary to specify `-D` or `PGDATA`.

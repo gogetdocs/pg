@@ -1,0 +1,350 @@
+## PostgreSQL Preset Options
+
+The following preset options are read-only and report various aspects of PostgreSQL behavior that might be of interest to certain applications, particularly administrative front-ends.
+
+### Block Size
+
+The `block_size` option reports the size of a disk block. It is determined by the value of `BLCKSZ` when building the server. The default value is 8192 bytes.
+
+**SQL Example:**
+
+```sql
+SHOW block_size;
+```
+
+**Output:**
+
+```sql
+ block_size
+------------
+       8192
+```
+
+### Data Checksums
+
+The `data_checksums` option reports whether data checksums are enabled for this cluster.
+
+**SQL Example:**
+
+```sql
+SHOW data_checksums;
+```
+
+**Output:**
+
+```sql
+ data_checksums
+----------------
+ on
+```
+
+### Data Directory Mode
+
+The `data_directory_mode` option reports the permissions the data directory had at server startup.
+
+**SQL Example:**
+
+```sql
+SHOW data_directory_mode;
+```
+
+**Output:**
+
+```sql
+ data_directory_mode
+---------------------
+               0700
+```
+
+### Debug Assertions
+
+The `debug_assertions` option reports whether PostgreSQL has been built with assertions enabled.
+
+**SQL Example:**
+
+```sql
+SHOW debug_assertions;
+```
+
+**Output:**
+
+```sql
+ debug_assertions
+-------------------
+ off
+```
+
+### Integer Datetimes
+
+The `integer_datetimes` option reports whether PostgreSQL was built with support for 64-bit-integer dates and times.
+
+**SQL Example:**
+
+```sql
+SHOW integer_datetimes;
+```
+
+**Output:**
+
+```sql
+ integer_datetimes
+-------------------
+ on
+```
+
+### In Hot Standby
+
+The `in_hot_standby` option reports whether the server is currently in hot standby mode.
+
+**SQL Example:**
+
+```sql
+SHOW in_hot_standby;
+```
+
+**Output:**
+
+```sql
+ in_hot_standby
+----------------
+ off
+```
+
+### Locale Settings
+
+The `lc_collate` and `lc_ctype` options report the locale in which sorting of textual data is done and the locale that determines character classifications, respectively.
+
+**SQL Example:**
+
+```sql
+SHOW lc_collate;
+SHOW lc_ctype;
+```
+
+**Output:**
+
+```sql
+ lc_collate
+-------------
+ en_US.UTF-8
+
+ lc_ctype
+-----------
+ en_US.UTF-8
+```
+
+### Maximum Function Arguments
+
+The `max_function_args` option reports the maximum number of function arguments.
+
+**SQL Example:**
+
+```sql
+SHOW max_function_args;
+```
+
+**Output:**
+
+```sql
+ max_function_args
+-------------------
+               100
+```
+
+### Maximum Identifier Length
+
+The `max_identifier_length` option reports the maximum identifier length.
+
+**SQL Example:**
+
+```sql
+SHOW max_identifier_length;
+```
+
+**Output:**
+
+```sql
+ max_identifier_length
+------------------------
+                   63
+```
+
+### Maximum Index Keys
+
+The `max_index_keys` option reports the maximum number of index keys.
+
+**SQL Example:**
+
+```sql
+SHOW max_index_keys;
+```
+
+**Output:**
+
+```sql
+ max_index_keys
+----------------
+               32
+```
+
+### Segment Size
+
+The `segment_size` option reports the number of blocks (pages) that can be stored within a file segment.
+
+**SQL Example:**
+
+```sql
+SHOW segment_size;
+```
+
+**Output:**
+
+```sql
+ segment_size
+-------------
+       131072
+```
+
+### Server Encoding
+
+The `server_encoding` option reports the database encoding (character set).
+
+**SQL Example:**
+
+```sql
+SHOW server_encoding;
+```
+
+**Output:**
+
+```sql
+ server_encoding
+-----------------
+ UTF8
+```
+
+### Server Version
+
+The `server_version` option reports the version number of the server.
+
+**SQL Example:**
+
+```sql
+SHOW server_version;
+```
+
+**Output:**
+
+```sql
+ server_version
+----------------
+ 13.4
+```
+
+### Server Version Number
+
+The `server_version_num` option reports the version number of the server as an integer.
+
+**SQL Example:**
+
+```sql
+SHOW server_version_num;
+```
+
+**Output:**
+
+```sql
+ server_version_num
+---------------------
+               130004
+```
+
+### Shared Memory Size
+
+The `shared_memory_size` option reports the size of the main shared memory area, rounded up to the nearest megabyte.
+
+**SQL Example:**
+
+```sql
+SHOW shared_memory_size;
+```
+
+**Output:**
+
+```sql
+ shared_memory_size
+---------------------
+               128MB
+```
+
+### Shared Memory Size in Huge Pages
+
+The `shared_memory_size_in_huge_pages` option reports the number of huge pages that are needed for the main shared memory area based on the specified huge page size.
+
+**SQL Example:**
+
+```sql
+SHOW shared_memory_size_in_huge_pages;
+```
+
+**Output:**
+
+```sql
+ shared_memory_size_in_huge_pages
+---------------------------------
+                                16
+```
+
+### SSL Library
+
+The `ssl_library` option reports the name of the SSL library that this PostgreSQL server was built with.
+
+**SQL Example:**
+
+```sql
+SHOW ssl_library;
+```
+
+**Output:**
+
+```sql
+ ssl_library
+-------------
+ OpenSSL
+```
+
+### WAL Block Size
+
+The `wal_block_size` option reports the size of a WAL disk block.
+
+**SQL Example:**
+
+```sql
+SHOW wal_block_size;
+```
+
+**Output:**
+
+```sql
+ wal_block_size
+-------------
+       8192
+```
+
+### WAL Segment Size
+
+The `wal_segment_size` option reports the size of write ahead log segments.
+
+**SQL Example:**
+
+```sql
+SHOW wal_segment_size;
+```
+
+**Output:**
+
+```sql
+ wal_segment_size
+-----------------
+       16777216
+```

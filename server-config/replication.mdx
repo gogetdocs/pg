@@ -1,0 +1,245 @@
+# **PostgreSQL Replication Configuration**
+
+### Sending Servers
+
+These parameters control the behavior of sending servers in PostgreSQL replication.
+
+#### `max_wal_senders`
+
+Specifies the maximum number of concurrent connections from standby servers or streaming base backup clients.
+
+- Default: 10
+- Can only be set at server start
+- Example:
+
+```sql
+ALTER SYSTEM SET max_wal_senders = 20;
+```
+
+#### `max_replication_slots`
+
+Specifies the maximum number of replication slots that the server can support.
+
+- Default: 10
+- Can only be set at server start
+- Example:
+
+```sql
+ALTER SYSTEM SET max_replication_slots = 20;
+```
+
+#### `wal_keep_size`
+
+Specifies the minimum size of past log file segments kept in the `pg_wal` directory.
+
+- Default: 0 (no extra segments kept)
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_keep_size = '1GB';
+```
+
+#### `max_slot_wal_keep_size`
+
+Specifies the maximum size of WAL files that replication slots are allowed to retain in the `pg_wal` directory at checkpoint time.
+
+- Default: -1 (unlimited)
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET max_slot_wal_keep_size = '1GB';
+```
+
+#### `wal_sender_timeout`
+
+Terminate replication connections that are inactive for longer than this amount of time.
+
+- Default: 60 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_sender_timeout = 30000;  -- 30 seconds
+```
+
+#### `track_commit_timestamp`
+
+Record commit time of transactions.
+
+- Default: off
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET track_commit_timestamp = on;
+```
+
+### Primary Server
+
+These parameters control the behavior of the primary server in PostgreSQL replication.
+
+#### `synchronous_standby_names`
+
+Specifies a list of standby servers that can support synchronous replication.
+
+- Default: empty list (synchronous replication disabled)
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET synchronous_standby_names = 'FIRST 2 (s1, s2, s3)';
+```
+
+#### `vacuum_defer_cleanup_age`
+
+Specifies the number of transactions by which VACUUM and HOT updates will defer cleanup of dead row versions.
+
+- Default: 0
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET vacuum_defer_cleanup_age = 1000;
+```
+
+### Standby Servers
+
+These parameters control the behavior of standby servers in PostgreSQL replication.
+
+#### `primary_conninfo`
+
+Specifies a connection string to be used for the standby server to connect with a sending server.
+
+- Default: empty string
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET primary_conninfo = 'host=primary_server port=5432 user=replication_user password=replication_password';
+```
+
+#### `primary_slot_name`
+
+Optionally specifies an existing replication slot to be used when connecting to the sending server via streaming replication.
+
+- Default: empty string
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET primary_slot_name = 'my_replication_slot';
+```
+
+#### `promote_trigger_file`
+
+Specifies a trigger file whose presence ends recovery in the standby.
+
+- Default: empty string
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET promote_trigger_file = '/path/to/trigger/file';
+```
+
+#### `hot_standby`
+
+Specifies whether or not you can connect and run queries during recovery.
+
+- Default: on
+- Can only be set at server start
+- Example:
+
+```sql
+ALTER SYSTEM SET hot_standby = off;
+```
+
+#### `max_standby_archive_delay`
+
+Determines how long the standby server should wait before canceling standby queries that conflict with about-to-be-applied WAL entries.
+
+- Default: 30 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET max_standby_archive_delay = 60000;  -- 1 minute
+```
+
+#### `max_standby_streaming_delay`
+
+Determines how long the standby server should wait before canceling standby queries that conflict with about-to-be-applied WAL entries.
+
+- Default: 30 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET max_standby_streaming_delay = 60000;  -- 1 minute
+```
+
+#### `wal_receiver_create_temp_slot`
+
+Specifies whether the WAL receiver process should create a temporary replication slot on the remote instance when no permanent replication slot to use has been configured.
+
+- Default: off
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_receiver_create_temp_slot = on;
+```
+
+#### `wal_receiver_status_interval`
+
+Specifies the minimum frequency for the WAL receiver process on the standby to send information about replication progress to the primary or upstream standby.
+
+- Default: 10 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_receiver_status_interval = 5;  -- 5 seconds
+```
+
+#### `hot_standby_feedback`
+
+Specifies whether or not a hot standby will send feedback to the primary or upstream standby about queries currently executing on the standby.
+
+- Default: off
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET hot_standby_feedback = on;
+```
+
+#### `wal_receiver_timeout`
+
+Terminate replication connections that are inactive for longer than this amount of time.
+
+- Default: 60 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_receiver_timeout = 30000;  -- 30 seconds
+```
+
+#### `wal_retrieve_retry_interval`
+
+Specifies how long the standby server should wait when WAL data is not available from any sources before trying again to retrieve WAL data.
+
+- Default: 5 seconds
+- Can only be set in `postgresql.conf` file or on the server command line
+- Example:
+
+```sql
+ALTER SYSTEM SET wal_retrieve_retry_interval = 10000;  -- 10 seconds
+```
+
+#### `recovery_min_apply_delay`
+
+Allows

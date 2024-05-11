@@ -1,0 +1,172 @@
+## Automatic Vacuuming in PostgreSQL
+
+Automatic vacuuming is a crucial feature in PostgreSQL that helps maintain the health and performance of the database. It is controlled by several settings that can be configured to suit the needs of the database.
+
+### autovacuum
+
+The `autovacuum` setting controls whether the autovacuum launcher daemon is enabled. It is enabled by default, but `track_counts` must also be enabled for autovacuum to work.
+
+**Example:**
+
+```sql
+-- Enable autovacuum
+ALTER SYSTEM SET autovacuum = on;
+
+-- Disable autovacuum
+ALTER SYSTEM SET autovacuum = off;
+```
+
+### autovacuum_max_workers
+
+The `autovacuum_max_workers` setting specifies the maximum number of autovacuum processes that can run at any given time. The default is three.
+
+**Example:**
+
+```sql
+-- Set autovacuum_max_workers to 5
+ALTER SYSTEM SET autovacuum_max_workers = 5;
+```
+
+### autovacuum_naptime
+
+The `autovacuum_naptime` setting specifies the minimum delay between autovacuum runs on any given database. The default is one minute.
+
+**Example:**
+
+```sql
+-- Set autovacuum_naptime to 30 seconds
+ALTER SYSTEM SET autovacuum_naptime = 30s;
+```
+
+### autovacuum_vacuum_threshold
+
+The `autovacuum_vacuum_threshold` setting specifies the minimum number of updated or deleted tuples needed to trigger a VACUUM in any one table. The default is 50 tuples.
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_threshold to 100 tuples
+ALTER SYSTEM SET autovacuum_vacuum_threshold = 100;
+```
+
+### autovacuum_vacuum_insert_threshold
+
+The `autovacuum_vacuum_insert_threshold` setting specifies the number of inserted tuples needed to trigger a VACUUM in any one table. The default is 1000 tuples.
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_insert_threshold to 500 tuples
+ALTER SYSTEM SET autovacuum_vacuum_insert_threshold = 500;
+```
+
+### autovacuum_analyze_threshold
+
+The `autovacuum_analyze_threshold` setting specifies the minimum number of inserted, updated or deleted tuples needed to trigger an ANALYZE in any one table. The default is 50 tuples.
+
+**Example:**
+
+```sql
+-- Set autovacuum_analyze_threshold to 100 tuples
+ALTER SYSTEM SET autovacuum_analyze_threshold = 100;
+```
+
+### autovacuum_vacuum_scale_factor
+
+The `autovacuum_vacuum_scale_factor` setting specifies a fraction of the table size to add to `autovacuum_vacuum_threshold` when deciding whether to trigger a VACUUM. The default is 0.2 (20% of table size).
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_scale_factor to 0.5 (50% of table size)
+ALTER SYSTEM SET autovacuum_vacuum_scale_factor = 0.5;
+```
+
+### autovacuum_vacuum_insert_scale_factor
+
+The `autovacuum_vacuum_insert_scale_factor` setting specifies a fraction of the table size to add to `autovacuum_vacuum_insert_threshold` when deciding whether to trigger a VACUUM. The default is 0.2 (20% of table size).
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_insert_scale_factor to 0.5 (50% of table size)
+ALTER SYSTEM SET autovacuum_vacuum_insert_scale_factor = 0.5;
+```
+
+### autovacuum_analyze_scale_factor
+
+The `autovacuum_analyze_scale_factor` setting specifies a fraction of the table size to add to `autovacuum_analyze_threshold` when deciding whether to trigger an ANALYZE. The default is 0.1 (10% of table size).
+
+**Example:**
+
+```sql
+-- Set autovacuum_analyze_scale_factor to 0.5 (50% of table size)
+ALTER SYSTEM SET autovacuum_analyze_scale_factor = 0.5;
+```
+
+### autovacuum_freeze_max_age
+
+The `autovacuum_freeze_max_age` setting specifies the maximum age (in transactions) that a table's `pg_class.relfrozenxid` field can attain before a VACUUM operation is forced to prevent transaction ID wraparound within the table. The default is 200 million transactions.
+
+**Example:**
+
+```sql
+-- Set autovacuum_freeze_max_age to 100 million transactions
+ALTER SYSTEM SET autovacuum_freeze_max_age = 100000000;
+```
+
+### autovacuum_multixact_freeze_max_age
+
+The `autovacuum_multixact_freeze_max_age` setting specifies the maximum age (in multixacts) that a table's `pg_class.relminmxid` field can attain before a VACUUM operation is forced to prevent multixact ID wraparound within the table. The default is 400 million multixacts.
+
+**Example:**
+
+```sql
+-- Set autovacuum_multixact_freeze_max_age to 200 million multixacts
+ALTER SYSTEM SET autovacuum_multixact_freeze_max_age = 200000000;
+```
+
+### autovacuum_vacuum_cost_delay
+
+The `autovacuum_vacuum_cost_delay` setting specifies the cost delay value that will be used in automatic VACUUM operations. The default is 2 milliseconds.
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_cost_delay to 5 milliseconds
+ALTER SYSTEM SET autovacuum_vacuum_cost_delay = 5ms;
+```
+
+### autovacuum_vacuum_cost_limit
+
+The `autovacuum_vacuum_cost_limit` setting specifies the cost limit value that will be used in automatic VACUUM operations. The default is -1, which means the regular `vacuum_cost_limit` value will be used.
+
+**Example:**
+
+```sql
+-- Set autovacuum_vacuum_cost_limit to 1000
+ALTER SYSTEM SET autovacuum_vacuum_cost_limit = 1000;
+```
+
+Note that these settings can be overridden on a per-table basis by changing table storage parameters.
+
+### Real-world usage
+
+To demonstrate the usage of these settings, let's create a table and insert some data:
+
+```sql
+CREATE TABLE mytable (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50)
+);
+
+INSERT INTO mytable (name) VALUES ('John'), ('Jane'), ('Bob');
+```
+
+Now, let's set some autovacuum settings:
+
+```sql
+ALTER SYSTEM SET autovacuum_vacuum_threshold = 10;
+ALTER SYSTEM SET autovacuum_vacuum_insert_threshold = 5;
+ALTER SYSTEM SET autovacuum_analyze_threshold = 10;
+```

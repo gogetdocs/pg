@@ -1,0 +1,281 @@
+## PostgreSQL Client Connection Defaults
+
+### Statement Behavior
+
+#### `client_min_messages`
+
+Controls which message levels are sent to the client. Valid values are `DEBUG5`, `DEBUG4`, `DEBUG3`, `DEBUG2`, `DEBUG1`, `LOG`, `NOTICE`, `WARNING`, and `ERROR`. Each level includes all the levels that follow it. The later the level, the fewer messages are sent. The default is `NOTICE`.
+
+**Example:**
+
+```sql
+SET client_min_messages TO WARNING;
+```
+
+This sets the client to receive only `WARNING` and `ERROR` messages.
+
+#### `search_path`
+
+Specifies the order in which schemas are searched when an object (table, data type, function, etc.) is referenced by a simple name with no schema specified.
+
+**Example:**
+
+```sql
+SET search_path TO public, my_schema;
+```
+
+This sets the search path to first look in the `public` schema, then in the `my_schema` schema.
+
+#### `row_security`
+
+Controls whether to raise an error in lieu of applying a row security policy. When set to `on`, policies apply normally. When set to `off`, queries fail which would otherwise apply at least one policy.
+
+**Example:**
+
+```sql
+SET row_security TO off;
+```
+
+This disables row security policies for the current session.
+
+### Locale and Formatting
+
+#### `DateStyle`
+
+Sets the display format for date and time values, as well as the rules for interpreting ambiguous date input values.
+
+**Example:**
+
+```sql
+SET DateStyle TO 'ISO, DMY';
+```
+
+This sets the date style to use the ISO format with day-month-year ordering.
+
+#### `IntervalStyle`
+
+Sets the display format for interval values.
+
+**Example:**
+
+```sql
+SET IntervalStyle TO 'sql_standard';
+```
+
+This sets the interval style to use the SQL standard format.
+
+#### `TimeZone`
+
+Sets the time zone for displaying and interpreting time stamps.
+
+**Example:**
+
+```sql
+SET TimeZone TO 'America/New_York';
+```
+
+This sets the time zone to America/New_York.
+
+### Shared Library Preloading
+
+#### `local_preload_libraries`
+
+Specifies one or more shared libraries that are to be preloaded at connection start.
+
+**Example:**
+
+```sql
+SET local_preload_libraries TO 'mylib';
+```
+
+This sets the local preload library to `mylib`.
+
+#### `session_preload_libraries`
+
+Specifies one or more shared libraries that are to be preloaded at connection start.
+
+**Example:**
+
+```sql
+SET session_preload_libraries TO 'mylib';
+```
+
+This sets the session preload library to `mylib`.
+
+#### `shared_preload_libraries`
+
+Specifies one or more shared libraries to be preloaded at server start.
+
+**Example:**
+
+```sql
+SET shared_preload_libraries TO 'mylib';
+```
+
+This sets the shared preload library to `mylib`. Note that this parameter can only be set at server start.
+
+### Other Defaults
+
+#### `dynamic_library_path`
+
+Specifies the path to search for dynamically loadable modules.
+
+**Example:**
+
+```sql
+SET dynamic_library_path TO '/usr/local/lib/postgresql:$libdir';
+```
+
+This sets the dynamic library path to search in `/usr/local/lib/postgresql` and the compiled-in PostgreSQL package library directory.
+
+#### `gin_fuzzy_search_limit`
+
+Sets the soft upper limit of the size of the set returned by GIN index scans.
+
+**Example:**
+
+```sql
+SET gin_fuzzy_search_limit TO 1000;
+```
+
+This sets the GIN fuzzy search limit to 1000.
+
+### Transaction Settings
+
+#### `default_transaction_isolation`
+
+Controls the default isolation level of each new transaction.
+
+**Example:**
+
+```sql
+SET default_transaction_isolation TO 'serializable';
+```
+
+This sets the default transaction isolation level to `serializable`.
+
+#### `default_transaction_read_only`
+
+Controls the default read-only status of each new transaction.
+
+**Example:**
+
+```sql
+SET default_transaction_read_only TO on;
+```
+
+This sets the default transaction read-only status to `on`.
+
+#### `default_transaction_deferrable`
+
+Controls the default deferrable status of each new transaction.
+
+**Example:**
+
+```sql
+SET default_transaction_deferrable TO on;
+```
+
+This sets the default transaction deferrable status to `on`.
+
+### Vacuum Settings
+
+#### `vacuum_freeze_table_age`
+
+Specifies the age at which VACUUM should perform an aggressive scan.
+
+**Example:**
+
+```sql
+SET vacuum_freeze_table_age TO 100000000;
+```
+
+This sets the vacuum freeze table age to 100 million transactions.
+
+#### `vacuum_freeze_min_age`
+
+Specifies the minimum age at which VACUUM should freeze row versions.
+
+**Example:**
+
+```sql
+SET vacuum_freeze_min_age TO 50000000;
+```
+
+This sets the vacuum freeze minimum age to 50 million transactions.
+
+#### `vacuum_failsafe_age`
+
+Specifies the maximum age at which VACUUM should take extraordinary measures to avoid system-wide transaction ID wraparound failure.
+
+**Example:**
+
+```sql
+SET vacuum_failsafe_age TO 1600000000;
+```
+
+This sets the vacuum failsafe age to 1.6 billion transactions.
+
+### Other Settings
+
+#### `bytea_output`
+
+Sets the output format for values of type `bytea`.
+
+**Example:**
+
+```sql
+SET bytea_output TO 'hex';
+```
+
+This sets the bytea output format to `hex`.
+
+#### `xmlbinary`
+
+Sets how binary values are to be encoded in XML.
+
+**Example:**
+
+```sql
+SET xmlbinary TO 'base64';
+```
+
+This sets the XML binary encoding to `base64`.
+
+#### `xmloption`
+
+Sets whether `DOCUMENT` or `CONTENT` is implicit when converting between XML and character string values.
+
+**Example:**
+
+```sql
+SET xmloption TO 'DOCUMENT';
+```
+
+This sets the XML option to `DOCUMENT`.
+
+#### `gin_pending_list_limit`
+
+Sets the maximum size of a GIN index's pending list.
+
+**Example:**
+
+```sql
+SET gin_pending_list_limit TO 4MB;
+```
+
+This sets the GIN pending list limit to 4MB.
+
+#### `restrict_nonsystem_relation_kind`
+
+Specifies relation kind to which access is restricted.
+
+**Example:**
+
+```sql
+SET restrict_nonsystem_relation_kind TO 'view, foreign-table';
+```
+
+This sets the restrict non-system relation kind to `view` and `foreign-table`.
+
+Note: These examples are just a few of the many possible configurations and are meant to illustrate the usage of each parameter. The actual values used will depend on the specific needs of your PostgreSQL installation.

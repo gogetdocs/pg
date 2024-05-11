@@ -1,0 +1,83 @@
+## Error Handling in PostgreSQL
+
+PostgreSQL provides several parameters and mechanisms for handling errors and ensuring database reliability. Here are some key parameters and their usage:
+
+### 1. `exit_on_error` (boolean)
+
+- **Description**: If set to `on`, any error will terminate the current session. By default, it is set to `off`, so only FATAL errors will terminate the session.
+- **Usage**: This parameter is useful in environments where any error should lead to immediate termination for safety or consistency reasons.
+
+**Example**:
+To set `exit_on_error` to `on` in the `postgresql.conf` file:
+
+```sql
+ALTER SYSTEM SET exit_on_error = on;
+```
+
+Then, restart the PostgreSQL server for the changes to take effect.
+
+### 2. `restart_after_crash` (boolean)
+
+- **Description**: When set to `on`, which is the default, PostgreSQL will automatically reinitialize after a backend crash. This maximizes database availability but may need to be disabled in certain scenarios, such as when PostgreSQL is managed by clusterware.
+- **Usage**: This parameter ensures that the database server attempts to recover automatically after a crash, which is crucial for high availability.
+
+**Example**:
+To set `restart_after_crash` to `off` in the `postgresql.conf` file:
+
+```sql
+ALTER SYSTEM SET restart_after_crash = off;
+```
+
+Then, restart the PostgreSQL server for the changes to take effect.
+
+### 3. `data_sync_retry` (boolean)
+
+- **Description**: When set to `off`, which is the default, PostgreSQL will raise a PANIC-level error on failure to flush modified data files to the file system, causing the database server to crash. Setting it to `on` allows PostgreSQL to report an error but continue running, retrying the data flushing operation in a later checkpoint.
+- **Usage**: This parameter is critical in environments where data integrity is paramount, and the operating system's handling of buffered data in case of write-back failure is well understood.
+
+**Example**:
+To set `data_sync_retry` to `on` in the `postgresql.conf` file:
+
+```sql
+ALTER SYSTEM SET data_sync_retry = on;
+```
+
+Then, restart the PostgreSQL server for the changes to take effect.
+
+### 4. `recovery_init_sync_method` (enum)
+
+- **Description**: This parameter determines how PostgreSQL synchronizes files before crash recovery. The default is `fsync`, which recursively opens and synchronizes all files in the data directory. On Linux, `syncfs` can be used instead, which synchronizes whole file systems and may be faster.
+- **Usage**: This parameter is essential for ensuring that all WAL and data files are durably stored on disk before replaying changes, especially in scenarios involving crash recovery.
+
+**Example**:
+To set `recovery_init_sync_method` to `syncfs` in the `postgresql.conf` file on a Linux system:
+
+```sql
+ALTER SYSTEM SET recovery_init_sync_method = 'syncfs';
+```
+
+Then, restart the PostgreSQL server for the changes to take effect.
+
+### Additional Error Handling Mechanisms
+
+#### `RAISE` Statement
+
+The `RAISE` statement is used in PL/pgSQL to report messages and raise errors. It allows specifying the error severity level, message format, and additional information such as error details and hints.
+
+**Example**:
+To raise an exception with a custom message and hint:
+
+```sql
+RAISE EXCEPTION 'Nonexistent ID --> %', user_id USING HINT = 'Please check your user ID';
+```
+
+#### `ASSERT` Statement
+
+The `ASSERT` statement is a shorthand for inserting debugging checks into PL/pgSQL functions. It raises an `ASSERT_FAILURE` exception if the specified condition is false or null.
+
+**Example**:
+To assert that a condition is true:
+
+```sql
+ASSERT my_condition, 'Assertion failed';
+```

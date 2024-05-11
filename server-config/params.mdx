@@ -1,0 +1,167 @@
+## PostgreSQL Configuration and Parameter Settings
+
+### 1. Parameter Names and Values
+
+PostgreSQL parameters can be categorized into five types: boolean, string, integer, floating point, and enumerated (enum). Each type has specific syntax rules for setting values.
+
+- **Boolean**: Values can be written as `on`, `off`, `true`, `false`, `yes`, `no`, `1`, or `0` (all case-insensitive) or any unambiguous prefix of these.
+- **String**: Enclose the value in single quotes, doubling any single quotes within the value. Simple numbers or identifiers can usually omit quotes.
+- **Numeric (integer and floating point)**: Use customary integer and floating-point formats. Fractional values are rounded to the nearest integer for integer parameters. Integer parameters also accept hexadecimal input (starting with `0x`) and octal input (starting with `0`), but these formats cannot have a fraction.
+- **Numeric with Unit**: Some parameters describe quantities of memory or time and have implicit units. Units can be specified explicitly, e.g., `'120 ms'`, and will be converted to the parameter's actual unit. Valid memory units are `B` (bytes), `kB` (kilobytes), `MB` (megabytes), `GB` (gigabytes), and `TB` (terabytes). Valid time units are `us` (microseconds), `ms` (milliseconds), `s` (seconds), `min` (minutes), `h` (hours), and `d` (days).
+- **Enumerated**: Enumerated-type parameters are written like string parameters but are restricted to a limited set of values, which can be found in `pg_settings.enumvals`. Enum parameter values are case-insensitive.
+
+### 2. Parameter Interaction via the Configuration File
+
+The primary way to set parameters is by editing the `postgresql.conf` file, typically located in the data directory.
+
+#### Example `postgresql.conf` File:
+
+```sql
+# This is a comment
+
+log_connections = yes
+
+log_destination = 'syslog'
+
+search_path = '"$user", public'
+
+shared_buffers = 128MB
+```
+
+- **Key Points**:
+  - One parameter per line.
+  - The equal sign between name and value is optional.
+  - Whitespace is insignificant (except within quoted parameter values).
+  - Blank lines are ignored.
+  - Hash marks (`#`) designate the remainder of the line as a comment.
+  - Parameter values that are not simple identifiers or numbers must be single-quoted.
+  - To embed a single quote in a parameter value, write either two quotes (preferred) or backslash-quote.
+  - If the file contains multiple entries for the same parameter, all but the last one are ignored.
+
+### 3. Parameter Interaction via SQL
+
+PostgreSQL provides three SQL commands to establish configuration defaults:
+
+- **ALTER SYSTEM**: Changes global defaults, functionally equivalent to editing `postgresql.conf`.
+- **ALTER DATABASE**: Overrides global settings on a per-database basis.
+- **ALTER ROLE**: Overrides global and per-database settings with user-specific values.
+
+#### SQL Examples:
+
+```sql
+-- Set a global default
+ALTER SYSTEM SET log_connections = on;
+
+-- Override a global setting for a specific database
+ALTER DATABASE mydatabase SET log_destination = 'syslog';
+
+-- Override settings for a specific role
+ALTER ROLE myuser SET search_path = '"$user", public';
+```
+
+- **SHOW and SET Commands**:
+  - **SHOW**: Inspects the current value of any parameter.
+  - **SET**: Modifies the current value of parameters that can be set locally to a session.
+
+#### SQL Examples:
+
+```sql
+-- Inspect the current value of a parameter
+SHOW log_connections;
+
+-- Modify the current value of a parameter
+SET log_destination = 'syslog';
+```
+
+### 4. Parameter Interaction via the Shell
+
+- **Server Startup**:
+  - Parameter settings can be passed to the `postgres` command via the `-c` command-line parameter.
+
+#### Example:
+
+```sh
+postgres -c log_connections=yes -c log_destination='syslog'
+```
+
+- **Client Session**:
+  - Parameter settings can be specified using the `PGOPTIONS` environment variable.
+
+#### Example:
+
+```sh
+env PGOPTIONS="-c geqo=off -c statement_timeout=5min" psql
+```
+
+### 5. Managing Configuration File Contents
+
+- **Include Directives**:
+  - The `postgresql.conf` file can contain include directives to read and process other files.
+
+#### Example:
+
+```sql
+include 'shared.conf'
+
+include 'memory.conf'
+
+include 'server.conf'
+```
+
+- **Include Directory**:
+  - The `include_dir` directive specifies an entire directory of configuration files to include.
+
+#### Example:
+
+```sql
+include_dir 'conf.d'
+```
+
+- **File Naming Convention**:
+  - Use a naming convention to establish a clear order in which files will be loaded.
+
+#### Example Directory Structure:
+
+```
+conf.d/
+00shared.conf
+01memory-8GB.conf
+02server-foo.conf
+```
+
+### Real-World Usage Example
+
+Consider a company with two database servers, each with different memory configurations. You can manage this situation by breaking the custom configuration changes into three files:
+
+1. **`shared.conf`**: Contains shared configuration settings for logging.
+2. **`memory.conf`**: Contains memory-related parameters specific to each server.
+3. **`server.conf`**: Contains server-specific customizations.
+
+#### `postgresql.conf` File:
+
+```sql
+include 'shared.conf'
+
+include 'memory.conf'
+
+include 'server.conf'
+```
+
+For the `conf.d` directory approach:
+
+#### `postgresql.conf` File:
+
+```sql
+include_dir 'conf.d'
+```
+
+#### `conf.d` Directory:
+
+```
+conf.d/
+00shared.conf
+01memory-8GB.conf
+02server-foo.conf
+```
+
+This setup allows for easy management of different configurations across multiple servers.

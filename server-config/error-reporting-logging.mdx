@@ -1,0 +1,229 @@
+## PostgreSQL Error Reporting and Logging
+
+PostgreSQL provides a robust logging system that allows database administrators to track and analyze various events occurring within the database. This documentation covers the configuration and usage of PostgreSQL logging, including real-world examples and SQL code.
+
+### 20.8.1. Where to Log
+
+PostgreSQL supports several logging destinations, including `stderr`, `csvlog`, `jsonlog`, and `syslog`. The logging destination can be specified using the `log_destination` parameter in the `postgresql.conf` file or on the server command line.
+
+**Example: Setting log_destination**
+
+```sql
+ALTER SYSTEM SET log_destination = 'stderr, csvlog';
+```
+
+This sets the logging destination to both `stderr` and `csvlog`.
+
+### 20.8.2. When to Log
+
+PostgreSQL provides several parameters to control when logging occurs. These include:
+
+- `log_min_messages`: controls which message levels are written to the server log.
+- `log_min_error_statement`: controls which SQL statements that cause an error condition are recorded in the server log.
+- `log_min_duration_statement`: causes the duration of each completed statement to be logged if the statement ran for at least the specified amount of time.
+
+**Example: Setting log_min_messages**
+
+```sql
+ALTER SYSTEM SET log_min_messages = 'WARNING';
+```
+
+This sets the minimum message level to `WARNING`, which means that only messages with severity `WARNING` or higher will be logged.
+
+**Example: Setting log_min_error_statement**
+
+```sql
+ALTER SYSTEM SET log_min_error_statement = 'ERROR';
+```
+
+This sets the minimum error statement level to `ERROR`, which means that only SQL statements that cause an error condition will be logged.
+
+**Example: Setting log_min_duration_statement**
+
+```sql
+ALTER SYSTEM SET log_min_duration_statement = '250ms';
+```
+
+This sets the minimum duration statement level to `250ms`, which means that only statements that run for at least 250 milliseconds will be logged.
+
+### 20.8.3. What to Log
+
+PostgreSQL provides several parameters to control what information is logged. These include:
+
+- `log_connections`: causes each attempted connection to the server to be logged.
+- `log_disconnections`: causes session terminations to be logged.
+- `log_duration`: causes the duration of every completed statement to be logged.
+- `log_error_verbosity`: controls the amount of detail written in the server log for each message that is logged.
+- `log_hostname`: causes logging of the host name as well as the IP address of the connecting host.
+- `log_line_prefix`: sets the prefix for each log line.
+- `log_lock_waits`: controls whether a log message is produced when a session waits longer than `deadlock_timeout` to acquire a lock.
+- `log_recovery_conflict_waits`: controls whether a log message is produced when the startup process waits longer than `deadlock_timeout` for recovery conflicts.
+- `log_statement`: controls which SQL statements are logged.
+
+**Example: Setting log_connections**
+
+```sql
+ALTER SYSTEM SET log_connections = 'on';
+```
+
+This enables logging of attempted connections to the server.
+
+**Example: Setting log_disconnections**
+
+```sql
+ALTER SYSTEM SET log_disconnections = 'on';
+```
+
+This enables logging of session terminations.
+
+**Example: Setting log_duration**
+
+```sql
+ALTER SYSTEM SET log_duration = 'on';
+```
+
+This enables logging of the duration of every completed statement.
+
+**Example: Setting log_error_verbosity**
+
+```sql
+ALTER SYSTEM SET log_error_verbosity = 'VERBOSE';
+```
+
+This sets the error verbosity to `VERBOSE`, which includes the SQLSTATE error code and the source code file name, function name, and line number that generated the error.
+
+**Example: Setting log_hostname**
+
+```sql
+ALTER SYSTEM SET log_hostname = 'on';
+```
+
+This enables logging of the host name as well as the IP address of the connecting host.
+
+**Example: Setting log_line_prefix**
+
+```sql
+ALTER SYSTEM SET log_line_prefix = '%m [%p] ';
+```
+
+This sets the log line prefix to include the time stamp and process ID.
+
+**Example: Setting log_lock_waits**
+
+```sql
+ALTER SYSTEM SET log_lock_waits = 'on';
+```
+
+This enables logging of lock waits.
+
+**Example: Setting log_recovery_conflict_waits**
+
+```sql
+ALTER SYSTEM SET log_recovery_conflict_waits = 'on';
+```
+
+This enables logging of recovery conflict waits.
+
+**Example: Setting log_statement**
+
+```sql
+ALTER SYSTEM SET log_statement = 'all';
+```
+
+This enables logging of all SQL statements.
+
+### 20.8.4. Using CSV-Format Log Output
+
+Including `csvlog` in the `log_destination` list provides a convenient way to import log files into a database table. This option emits log lines in comma-separated-values (CSV) format.
+
+**Example: Creating a table to store CSV-format log output**
+
+```sql
+CREATE TABLE postgres_log (
+    log_time timestamp(3) with time zone,
+    user_name text,
+    database_name text,
+    process_id integer,
+    connection_from text,
+    session_id text,
+    session_line_num bigint,
+    command_tag text,
+    session_start_time timestamp with time zone,
+    virtual_transaction_id text,
+    transaction_id bigint,
+    error_severity text,
+    sql_state_code text,
+    message text,
+    detail text,
+    hint text,
+    internal_query text,
+    internal_query_pos integer,
+    context text,
+    query text,
+    query_pos integer,
+    location text,
+    application_name text,
+    backend_type text,
+    leader_pid integer,
+    query_id bigint,
+    PRIMARY KEY (session_id, session_line_num)
+);
+```
+
+**Example: Importing a log file into the table**
+
+```sql
+COPY postgres_log FROM '/full/path/to/logfile.csv' WITH csv;
+```
+
+### 20.8.5. Using JSON-Format Log Output
+
+Including `jsonlog` in the `log_destination` list provides a convenient way to import log files into many different programs. This option emits log lines in JSON format.
+
+**Example: Creating a table to store JSON-format log output**
+
+```sql
+CREATE TABLE postgres_log (
+    timestamp text,
+    user text,
+    dbname text,
+    pid integer,
+    remote_host text,
+    remote_port integer,
+    session_id text,
+    line_num integer,
+    ps text,
+    session_start text,
+    vxid text,
+    txid text,
+    error_severity text,
+    state_code text,
+    message text,
+    detail text,
+    hint text,
+    internal_query text,
+    internal_position integer,
+    context text,
+    statement text,
+    cursor_position integer,
+    func_name text,
+    file_name text,
+    file_line_num integer,
+    application_name text,
+    backend_type text,
+    leader_pid integer,
+    query_id integer
+);
+```
+
+**Example: Importing a log file into the table**
+
+```sql
+COPY postgres_log FROM '/full/path/to/logfile.json' WITH json;
+```
+
+Note: The `json` format is not supported by the `COPY` command. Instead, you can use a JSON parser to import the log file into the table.
+
+### 20.8.6. Process Title
+
+These settings control how process titles of server processes are modified. Process titles

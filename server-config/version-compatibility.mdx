@@ -1,0 +1,162 @@
+## Version and Platform Compatibility
+
+### 20.13.1. Previous PostgreSQL Versions
+
+#### array_nulls (boolean)
+
+This parameter controls whether the array input parser recognizes unquoted `NULL` as specifying a null array element. By default, this is `on`, allowing array values containing null values to be entered. However, PostgreSQL versions before 8.2 did not support null values in arrays, and therefore would treat `NULL` as specifying a normal array element with the string value “NULL”. For backward compatibility with applications that require the old behavior, this variable can be turned `off`.
+
+**Example Usage:**
+
+```sql
+-- Enable array_nulls
+SET array_nulls = on;
+
+-- Create an array with a null value
+SELECT ARRAY['1', NULL, '3'];
+
+-- Disable array_nulls
+SET array_nulls = off;
+
+-- Attempt to create an array with a null value (will be treated as a string 'NULL')
+SELECT ARRAY['1', NULL, '3'];
+```
+
+#### backslash_quote (enum)
+
+This parameter controls whether a quote mark can be represented by `\'` in a string literal. The preferred, SQL-standard way to represent a quote mark is by doubling it (`''`) but PostgreSQL has historically also accepted `\'`. However, use of `\'` creates security risks because in some client character set encodings, there are multibyte characters in which the last byte is numerically equivalent to ASCII `\`. If client-side code does escaping incorrectly then an SQL-injection attack is possible. This risk can be prevented by making the server reject queries in which a quote mark appears to be escaped by a backslash. The allowed values of `backslash_quote` are `on` (allow `\'` always), `off` (reject always), and `safe_encoding` (allow only if client encoding does not allow ASCII `\` within a multibyte character). `safe_encoding` is the default setting.
+
+**Example Usage:**
+
+```sql
+-- Set backslash_quote to safe_encoding
+SET backslash_quote = safe_encoding;
+
+-- Attempt to use \' in a string literal (will be allowed if client encoding is safe)
+SELECT 'Hello \' World';
+
+-- Set backslash_quote to off
+SET backslash_quote = off;
+
+-- Attempt to use \' in a string literal (will be rejected)
+SELECT 'Hello \' World';
+```
+
+#### escape_string_warning (boolean)
+
+When `on`, a warning is issued if a backslash (`\`) appears in an ordinary string literal (`'...'` syntax) and `standard_conforming_strings` is `off`. The default is `on`.
+
+**Example Usage:**
+
+```sql
+-- Enable escape_string_warning
+SET escape_string_warning = on;
+
+-- Use a backslash in an ordinary string literal (will issue a warning)
+SELECT 'Hello \ World';
+
+-- Disable escape_string_warning
+SET escape_string_warning = off;
+
+-- Use a backslash in an ordinary string literal (will not issue a warning)
+SELECT 'Hello \ World';
+```
+
+#### lo_compat_privileges (boolean)
+
+In PostgreSQL releases prior to 9.0, large objects did not have access privileges and were, therefore, always readable and writable by all users. Setting this variable to `on` disables the new privilege checks, for compatibility with prior releases. The default is `off`. Only superusers and users with the appropriate `SET` privilege can change this setting.
+
+**Example Usage:**
+
+```sql
+-- Enable lo_compat_privileges
+SET lo_compat_privileges = on;
+
+-- Create a large object without access privileges
+SELECT lo_create(0);
+
+-- Disable lo_compat_privileges
+SET lo_compat_privileges = off;
+
+-- Attempt to create a large object without access privileges (will fail)
+SELECT lo_create(0);
+```
+
+#### quote_all_identifiers (boolean)
+
+When the database generates SQL, force all identifiers to be quoted, even if they are not (currently) keywords. This will affect the output of `EXPLAIN` as well as the results of functions like `pg_get_viewdef`. See also the `--quote-all-identifiers` option of `pg_dump` and `pg_dumpall`.
+
+**Example Usage:**
+
+```sql
+-- Enable quote_all_identifiers
+SET quote_all_identifiers = on;
+
+-- Create a table with a keyword as a column name
+CREATE TABLE mytable ("select" integer);
+
+-- Use EXPLAIN to see the quoted identifier
+EXPLAIN SELECT "select" FROM mytable;
+
+-- Disable quote_all_identifiers
+SET quote_all_identifiers = off;
+
+-- Use EXPLAIN to see the unquoted identifier
+EXPLAIN SELECT select FROM mytable;
+```
+
+#### standard_conforming_strings (boolean)
+
+This parameter controls whether ordinary string literals (`'...'`) treat backslashes literally, as specified in the SQL standard. Beginning in PostgreSQL 9.1, the default is `on` (prior releases defaulted to `off`). Applications can check this parameter to determine how string literals will be processed. The presence of this parameter can also be taken as an indication that the escape string syntax (`E'...'`) is supported. Escape string syntax (Section 4.1.2.2) should be used if an application desires backslashes to be treated as escape characters.
+
+**Example Usage:**
+
+```sql
+-- Enable standard_conforming_strings
+SET standard_conforming_strings = on;
+
+-- Use a backslash in an ordinary string literal (will be treated literally)
+SELECT 'Hello \ World';
+
+-- Disable standard_conforming_strings
+SET standard_conforming_strings = off;
+
+-- Use a backslash in an ordinary string literal (will be treated as an escape character)
+SELECT 'Hello \ World';
+```
+
+#### synchronize_seqscans (boolean)
+
+This allows sequential scans of large tables to synchronize with each other, so that concurrent scans read the same block at about the same time and hence share the I/O workload. When this is enabled, a scan might start in the middle of the table and then “wrap around” the end to cover all rows, so as to synchronize with the activity of scans already in progress. This can result in unpredictable changes in the row ordering returned by queries that have no `ORDER BY` clause. Setting this parameter to `off` ensures the pre-8.3 behavior in which a sequential scan always starts from the beginning of the table. The default is `on`.
+
+**Example Usage:**
+
+```sql
+-- Enable synchronize_seqscans
+SET synchronize_seqscans = on;
+
+-- Perform a sequential scan on a large table
+SELECT * FROM mytable;
+
+-- Disable synchronize_seqscans
+SET synchronize_seqscans = off;
+
+-- Perform a sequential scan on a large table (will start from the beginning)
+SELECT * FROM mytable;
+```
+
+### 20.13.2. Platform and Client Compatibility
+
+#### transform_null_equals (boolean)
+
+When `on`, expressions of the form `expr = NULL` (or `NULL = expr`) are treated as `expr IS NULL`, that is, they return true if `expr` evaluates to the null value, and false otherwise. The correct SQL-spec-compliant behavior of `expr = NULL` is to always return null (unknown). Therefore this parameter defaults to `off`.
+
+**Example Usage:**
+
+```sql
+-- Enable transform_null_equals
+SET transform_null_equals = on;
+
+-- Use the = operator to
+
+```

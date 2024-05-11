@@ -1,0 +1,93 @@
+## PostgreSQL Short Options
+
+### Overview
+
+PostgreSQL provides single-letter command-line option switches for convenience. These options are described in the table below and include examples of real-world usage.
+
+### Table 20.4. Short Option Key
+
+| Short Option                             | Equivalent                                                                                                                                                                                      | Description                                                         |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `-B x`                                   | `shared_buffers = x`                                                                                                                                                                            | Sets the number of shared buffers for use by the server processes.  |
+| `-d x`                                   | `log_min_messages = DEBUGx`                                                                                                                                                                     | Sets the minimum message level for logging.                         |
+| `-e`                                     | `datestyle = euro`                                                                                                                                                                              | Sets the date style to European format.                             |
+| `-fb, -fh, -fi, -fm, -fn, -fo, -fs, -ft` | `enable_bitmapscan = off, enable_hashjoin = off, enable_indexscan = off, enable_mergejoin = off, enable_nestloop = off, enable_indexonlyscan = off, enable_seqscan = off, enable_tidscan = off` | Disables specific scan and join methods.                            |
+| `-F`                                     | `fsync = off`                                                                                                                                                                                   | Disables synchronous disk writes.                                   |
+| `-h x`                                   | `listen_addresses = x`                                                                                                                                                                          | Specifies the IP address(es) to listen on.                          |
+| `-i`                                     | `listen_addresses = '*'`                                                                                                                                                                        | Listens on all available IP addresses.                              |
+| `-k x`                                   | `unix_socket_directories = x`                                                                                                                                                                   | Specifies the directory for Unix-domain sockets.                    |
+| `-l`                                     | `ssl = on`                                                                                                                                                                                      | Enables SSL/TLS encryption.                                         |
+| `-N x`                                   | `max_connections = x`                                                                                                                                                                           | Sets the maximum number of concurrent connections.                  |
+| `-O`                                     | `allow_system_table_mods = on`                                                                                                                                                                  | Allows modifications to system tables.                              |
+| `-p x`                                   | `port = x`                                                                                                                                                                                      | Specifies the TCP/IP port number to listen on.                      |
+| `-P`                                     | `ignore_system_indexes = on`                                                                                                                                                                    | Ignores system indexes.                                             |
+| `-s`                                     | `log_statement_stats = on`                                                                                                                                                                      | Enables logging of statement statistics.                            |
+| `-S x`                                   | `work_mem = x`                                                                                                                                                                                  | Sets the base amount of memory to be used by sorts and hash tables. |
+| `-tpa, -tpl, -te`                        | `log_parser_stats = on, log_planner_stats = on, log_executor_stats = on`                                                                                                                        | Enables logging of parser, planner, and executor statistics.        |
+| `-W x`                                   | `post_auth_delay = x`                                                                                                                                                                           | Sets the delay after authentication.                                |
+
+### Real-World Usage Examples
+
+#### 1. Setting Shared Buffers
+
+To set the number of shared buffers to 2048, use the following command:
+
+```sql
+pg_ctl start -o "-B 2048"
+```
+
+This sets the `shared_buffers` configuration parameter to 2048.
+
+#### 2. Enabling SSL/TLS Encryption
+
+To enable SSL/TLS encryption, use the following command:
+
+```sql
+pg_ctl start -o "-l"
+```
+
+This sets the `ssl` configuration parameter to `on`.
+
+#### 3. Setting the TCP/IP Port Number
+
+To set the TCP/IP port number to 5433, use the following command:
+
+```sql
+pg_ctl start -o "-p 5433"
+```
+
+This sets the `port` configuration parameter to 5433.
+
+#### 4. Disabling Synchronous Disk Writes
+
+To disable synchronous disk writes, use the following command:
+
+```sql
+pg_ctl start -o "-F"
+```
+
+This sets the `fsync` configuration parameter to `off`.
+
+#### 5. Setting the Work Memory
+
+To set the base amount of memory to be used by sorts and hash tables to 16MB, use the following command:
+
+```sql
+pg_ctl start -o "-S 16MB"
+```
+
+This sets the `work_mem` configuration parameter to 16MB.
+
+#### 6. Enabling Logging of Statement Statistics
+
+To enable logging of statement statistics, use the following command:
+
+```sql
+pg_ctl start -o "-s"
+```
+
+This sets the `log_statement_stats` configuration parameter to `on`.
+
+### Note
+
+These examples demonstrate how to use the short options with `pg_ctl`. The same options can be used with the `postgres` command directly, but using `pg_ctl` is recommended for managing PostgreSQL servers[1][3].

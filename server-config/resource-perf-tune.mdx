@@ -1,0 +1,193 @@
+## PostgreSQL Resource Consumption and Performance Tuning
+
+### 20.4.1. Memory
+
+#### Shared Buffers
+
+- **shared_buffers (integer)**: Sets the amount of memory the database server uses for shared memory buffers. The default is typically 128 megabytes (128MB), but might be less if your kernel settings will not support it. For a dedicated database server with 1GB or more of RAM, a reasonable starting value is 25% of the memory in your system. Larger settings usually require a corresponding increase in `max_wal_size`.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET shared_buffers TO '256MB';
+  ```
+
+#### Huge Pages
+
+- **huge_pages (enum)**: Controls whether huge pages are requested for the main shared memory area. Valid values are `try` (the default), `on`, and `off`. Huge pages can increase performance by reducing CPU time spent on memory management.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET huge_pages TO 'on';
+  ```
+
+#### Huge Page Size
+
+- **huge_page_size (integer)**: Controls the size of huge pages when they are enabled with `huge_pages`. The default is zero (0), which uses the default huge page size on the system.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET huge_page_size TO '2MB';
+  ```
+
+#### Temporary Buffers
+
+- **temp_buffers (integer)**: Sets the maximum amount of memory used for temporary buffers within each database session. The default is eight megabytes (8MB).
+
+  **Example**:
+
+  ```sql
+  SET temp_buffers TO '16MB';
+  ```
+
+#### Prepared Transactions
+
+- **max_prepared_transactions (integer)**: Sets the maximum number of transactions that can be in the “prepared” state simultaneously. The default is zero, which disables the prepared-transaction feature.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET max_prepared_transactions TO 10;
+  ```
+
+#### Work Memory
+
+- **work_mem (integer)**: Sets the base maximum amount of memory to be used by a query operation (such as a sort or hash table) before writing to temporary disk files. The default value is four megabytes (4MB).
+
+  **Example**:
+
+  ```sql
+  SET work_mem TO '8MB';
+  ```
+
+#### Hash Memory Multiplier
+
+- **hash_mem_multiplier (floating point)**: Used to compute the maximum amount of memory that hash-based operations can use. The final limit is determined by multiplying `work_mem` by `hash_mem_multiplier`. The default value is 2.0.
+
+  **Example**:
+
+  ```sql
+  SET hash_mem_multiplier TO 4.0;
+  ```
+
+#### Maintenance Work Memory
+
+- **maintenance_work_mem (integer)**: Specifies the maximum amount of memory to be used by maintenance operations, such as `VACUUM`, `CREATE INDEX`, and `ALTER TABLE ADD FOREIGN KEY`. The default is 64 megabytes (64MB).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET maintenance_work_mem TO '128MB';
+  ```
+
+#### Autovacuum Work Memory
+
+- **autovacuum_work_mem (integer)**: Specifies the maximum amount of memory to be used by each autovacuum worker process. The default is -1, indicating that the value of `maintenance_work_mem` should be used instead.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET autovacuum_work_mem TO '64MB';
+  ```
+
+#### Logical Decoding Work Memory
+
+- **logical_decoding_work_mem (integer)**: Specifies the maximum amount of memory to be used by logical decoding, before some of the decoded changes are written to local disk. The default is 64 megabytes (64MB).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET logical_decoding_work_mem TO '128MB';
+  ```
+
+#### Max Stack Depth
+
+- **max_stack_depth (integer)**: Specifies the maximum safe depth of the server's execution stack. The ideal setting for this parameter is the actual stack size limit enforced by the kernel, less a safety margin of a megabyte or so. The default setting is two megabytes (2MB).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET max_stack_depth TO '4MB';
+  ```
+
+#### Shared Memory Type
+
+- **shared_memory_type (enum)**: Specifies the shared memory implementation that the server should use for the main shared memory region. Possible values are `mmap` (for anonymous shared memory allocated using `mmap`), `sysv` (for System V shared memory allocated via `shmget`), and `windows` (for Windows shared memory).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET shared_memory_type TO 'mmap';
+  ```
+
+#### Dynamic Shared Memory Type
+
+- **dynamic_shared_memory_type (enum)**: Specifies the dynamic shared memory implementation that the server should use. Possible values are `posix` (for POSIX shared memory allocated using `shm_open`), `sysv` (for System V shared memory allocated via `shmget`), `windows` (for Windows shared memory), and `mmap` (to simulate shared memory using memory-mapped files stored in the data directory).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET dynamic_shared_memory_type TO 'posix';
+  ```
+
+#### Min Dynamic Shared Memory
+
+- **min_dynamic_shared_memory (integer)**: Specifies the amount of memory that should be allocated at server startup for use by parallel queries. The default value is 0 (none).
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET min_dynamic_shared_memory TO '64MB';
+  ```
+
+### 20.4.2. Disk
+
+#### Temp File Limit
+
+- **temp_file_limit (integer)**: Specifies the maximum amount of disk space that a process can use for temporary files. The default is -1, which means no limit.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET temp_file_limit TO '1GB';
+  ```
+
+### 20.4.3. Kernel Resource Usage
+
+#### Max Files Per Process
+
+- **max_files_per_process (integer)**: Sets the maximum number of simultaneously open files allowed to each server subprocess. The default is one thousand files.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET max_files_per_process TO 500;
+  ```
+
+### 20.4.4. Cost-based Vacuum Delay
+
+#### Vacuum Cost Delay
+
+- **vacuum_cost_delay (floating point)**: The amount of time that the process will sleep when the cost limit has been exceeded. The default value is zero, which disables the cost-based vacuum delay feature.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET vacuum_cost_delay TO 1;
+  ```
+
+#### Vacuum Cost Page Hit
+
+- **vacuum_cost_page_hit (integer)**: The estimated cost for vacuuming a buffer found in the shared buffer cache. The default value is one.
+
+  **Example**:
+
+  ```sql
+  ALTER SYSTEM SET vacuum_cost_page_hit TO 2;
+  ```
+
+#### Vacuum Cost Page Miss
+
+- **vacuum_cost_page_miss (integer)**
