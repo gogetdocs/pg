@@ -1,0 +1,136 @@
+## Object Identifier Types in PostgreSQL
+
+Object identifiers (OIDs) are used internally by PostgreSQL as primary keys for various system tables. The `oid` type represents an object identifier, and there are several alias types for `oid`, each named `regsomething`. These alias types allow simplified lookup of OID values for objects.
+
+### OID Type
+
+The `oid` type is currently implemented as an unsigned four-byte integer. It has few operations beyond comparison, but it can be cast to `integer` and then manipulated using standard integer operators.
+
+### OID Alias Types
+
+The OID alias types have no operations of their own except for specialized input and output routines. These routines can accept and display symbolic names for system objects, rather than the raw numeric value that type `oid` would use.
+
+#### regclass
+
+The `regclass` type is used for relation names. It can be used to simplify lookup of OID values for tables.
+
+```sql
+SELECT * FROM pg_attribute WHERE attrelid = 'mytable'::regclass;
+```
+
+This is equivalent to:
+
+```sql
+SELECT * FROM pg_attribute
+  WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = 'mytable');
+```
+
+#### regcollation
+
+The `regcollation` type is used for collation names.
+
+```sql
+SELECT * FROM pg_collation WHERE oid = 'POSIX'::regcollation;
+```
+
+#### regconfig
+
+The `regconfig` type is used for text search configuration names.
+
+```sql
+SELECT * FROM pg_ts_config WHERE oid = 'english'::regconfig;
+```
+
+#### regdictionary
+
+The `regdictionary` type is used for text search dictionary names.
+
+```sql
+SELECT * FROM pg_ts_dict WHERE oid = 'simple'::regdictionary;
+```
+
+#### regnamespace
+
+The `regnamespace` type is used for namespace names.
+
+```sql
+SELECT * FROM pg_namespace WHERE oid = 'pg_catalog'::regnamespace;
+```
+
+#### regoper
+
+The `regoper` type is used for operator names.
+
+```sql
+SELECT * FROM pg_operator WHERE oid = '+'::regoper;
+```
+
+#### regoperator
+
+The `regoperator` type is used for operator names with argument types.
+
+```sql
+SELECT * FROM pg_operator WHERE oid = '*(integer, integer)'::regoperator;
+```
+
+#### regproc
+
+The `regproc` type is used for function names.
+
+```sql
+SELECT * FROM pg_proc WHERE oid = 'sum'::regproc;
+```
+
+#### regprocedure
+
+The `regprocedure` type is used for function names with argument types.
+
+```sql
+SELECT * FROM pg_proc WHERE oid = 'sum(int4)'::regprocedure;
+```
+
+#### regrole
+
+The `regrole` type is used for role names.
+
+```sql
+SELECT * FROM pg_authid WHERE oid = 'smithee'::regrole;
+```
+
+#### regtype
+
+The `regtype` type is used for data type names.
+
+```sql
+SELECT * FROM pg_type WHERE oid = 'integer'::regtype;
+```
+
+### Using OID Alias Types
+
+The OID alias types can be used to simplify lookup of OID values for objects. For example, to examine the `pg_attribute` rows related to a table `mytable`, one could write:
+
+```sql
+SELECT * FROM pg_attribute WHERE attrelid = 'mytable'::regclass;
+```
+
+This is equivalent to:
+
+```sql
+SELECT * FROM pg_attribute
+  WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = 'mytable');
+```
+
+### Dependencies
+
+Constants of OID alias types can create dependencies on the referenced object. For example, if a column has a default expression `nextval('my_seq'::regclass)`, PostgreSQL understands that the default expression depends on the sequence `my_seq`, so the system will not let the sequence be dropped without first removing the default expression.
+
+### Other Identifier Types
+
+There are several other identifier types used by the system:
+
+- `xid`: transaction identifier (32-bit)
+- `xid8`: 64-bit variant of `xid` (strictly monotonically increasing)
+- `cid`: command identifier (32-bit)
+- `tid`: tuple identifier (row identifier, a pair of block number and tuple index within block)
+
+These identifier types are used in system columns such as `xmin`, `xmax`, `cmin`, `cmax`, and `ctid`.

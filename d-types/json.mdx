@@ -1,0 +1,124 @@
+## JSON Data Types in PostgreSQL
+
+PostgreSQL provides two data types for storing JSON data: `json` and `jsonb`. The main difference between them is efficiency. The `json` data type stores an exact copy of the input text, which must be reparsed on each execution, while `jsonb` stores data in a decomposed binary format that is slower to input but faster to process.
+
+### Key Differences
+
+- **Storage and Performance**: `json` stores data as text, requiring reparsing for each execution, while `jsonb` uses a binary format that is faster to process but slower to input.
+- **Indexing**: `jsonb` supports indexing, which can significantly improve query performance.
+- **Data Integrity**: `jsonb` enforces stricter validation, rejecting invalid JSON data and duplicate object keys.
+- **Whitespace and Key Order**: `json` preserves whitespace and key order, while `jsonb` does not.
+
+### JSON Input and Output Syntax
+
+JSON data types follow the syntax specified in RFC 7159. Here are examples of valid JSON expressions:
+
+```sql
+-- Simple scalar/primitive value
+SELECT '5'::json;
+
+-- Array of zero or more elements
+SELECT '[1, 2, "foo", null]'::json;
+
+-- Object containing pairs of keys and values
+SELECT '{"bar": "baz", "balance": 7.77, "active": false}'::json;
+
+-- Arrays and objects can be nested arbitrarily
+SELECT '{"foo": [true, "bar"], "tags": {"a": 1, "b": null}}'::json;
+```
+
+### JSONB Containment and Existence
+
+`jsonb` supports containment and existence operators, which are useful for querying JSON data.
+
+- **Containment Operator (@>)**: Tests whether one `jsonb` document contains another.
+- **Existence Operator (?)**: Tests whether a string appears as an object key or array element at the top level of the `jsonb` value.
+
+```sql
+-- Containment examples
+SELECT '"foo"'::jsonb @> '"foo"'::jsonb;
+SELECT '[1, 2, 3]'::jsonb @> '[1, 3]'::jsonb;
+SELECT '{"product": "PostgreSQL", "version": 9.4, "jsonb": true}'::jsonb @> '{"version": 9.4}'::jsonb;
+
+-- Existence examples
+SELECT '["foo", "bar", "baz"]'::jsonb ? 'bar';
+SELECT '{"foo": "bar"}'::jsonb ? 'foo';
+SELECT '"foo"'::jsonb ? 'foo';
+```
+
+### JSONB Indexing
+
+GIN indexes can be used to efficiently search for keys or key/value pairs within a large number of `jsonb` documents.
+
+```sql
+-- Create a GIN index on a jsonb column
+CREATE INDEX idxgin ON api USING GIN (jdoc);
+
+-- Create a GIN index with the jsonb_path_ops operator class
+CREATE INDEX idxginp ON api USING GIN (jdoc jsonb_path_ops);
+
+-- Example queries that can use the index
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @> '{"company": "Magnafone"}';
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @? '$.tags[*] ? (@ == "qui")';
+```
+
+### JSONB Subscripting
+
+`jsonb` supports array-style subscripting expressions to extract and modify elements.
+
+```sql
+-- Extract object value by key
+SELECT ('{"a": 1}'::jsonb)['a'];
+
+-- Extract nested object value by key path
+SELECT ('{"a": {"b": {"c": 1}}}'::jsonb)['a']['b']['c'];
+
+-- Extract array element by index
+SELECT ('[1, "2", null]'::jsonb)[1];
+
+-- Update object value by key
+UPDATE table_name SET jsonb_field['key'] = '1';
+
+-- Update nested object value by key path
+UPDATE table_name SET jsonb_field['a']['b']['c'] = '1';
+```
+
+### JSONPath Type
+
+The `jsonpath` type implements support for the SQL/JSON path language in PostgreSQL.
+
+```sql
+-- Example jsonpath expression
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @? '$.tags[*] ? (@ == "qui")';
+
+-- Using jsonpath variables
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @? '$.tags[*] ? (@ == $varname)';
+```
+
+### Usage
+
+Consider a table `api` with a `jsonb` column `jdoc` containing JSON documents retrieved from a third-party web service.
+
+```sql
+-- Create the table
+CREATE TABLE api (
+    id SERIAL PRIMARY KEY,
+    jdoc jsonb
+);
+
+-- Insert some data
+INSERT INTO api (jdoc) VALUES ('{"guid": "9c36adc1-7fb5-4d5b-83b4-90356a46061a", "name": "Angela Barton", "is_active": true, "company": "Magnafone", "address": "178 Howard Place, Gulf, Washington, 702", "registered": "2009-11-07T08:53:22 +08:00", "latitude": 19.793713, "longitude": 86.513373, "tags": ["enim", "aliquip", "qui"]}');
+
+-- Query the data using containment and existence operators
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @> '{"company": "Magnafone"}';
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc ? 'qui';
+
+-- Use a GIN index to improve query performance
+CREATE INDEX idxgin ON api USING GIN (jdoc);
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @> '{"company": "Magnafone"}';
+
+-- Use jsonpath expressions to query the data
+SELECT jdoc->'guid', jdoc->'name' FROM api WHERE jdoc @? '$.tags[*] ? (@ == "qui")';
+```
+
+This example demonstrates how to store and query JSON data in PostgreSQL using the `jsonb` data type, GIN indexes, and jsonpath expressions.

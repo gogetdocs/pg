@@ -1,0 +1,195 @@
+## Range Types in PostgreSQL
+
+Range types in PostgreSQL represent a range of values of some element type (called the range's subtype). They are useful for representing many element values in a single range value and for expressing concepts such as overlapping ranges clearly.
+
+### Built-in Range and Multirange Types
+
+PostgreSQL comes with several built-in range types:
+
+- **int4range**: Range of integer
+- **int8range**: Range of bigint
+- **numrange**: Range of numeric
+- **tsrange**: Range of timestamp without time zone
+- **tstzrange**: Range of timestamp with time zone
+- **daterange**: Range of date
+
+Each range type has a corresponding multirange type (e.g., **int4multirange**, **int8multirange**, etc.)[1].
+
+### Examples
+
+#### Creating a Table with a Range Type
+
+```sql
+CREATE TABLE reservation (
+    room int,
+    during tsrange
+);
+
+INSERT INTO reservation VALUES
+(1108, '[2010-01-01 14:30, 2010-01-01 15:30)');
+```
+
+#### Range Operations
+
+```sql
+-- Containment
+SELECT int4range(10, 20) @> 3;
+
+-- Overlaps
+SELECT numrange(11.1, 22.2) && numrange(20.0, 30.0);
+
+-- Extract the upper bound
+SELECT upper(int8range(15, 25));
+
+-- Compute the intersection
+SELECT int4range(10, 20) * int4range(15, 25);
+
+-- Is the range empty?
+SELECT isempty(numrange(1, 5));
+```
+
+### Inclusive and Exclusive Bounds
+
+Every non-empty range has two bounds, the lower bound and the upper bound. An inclusive bound includes the boundary point in the range, while an exclusive bound does not.
+
+- **Inclusive lower bound**: Represented by `[`
+- **Exclusive lower bound**: Represented by `(`
+- **Inclusive upper bound**: Represented by `]`
+- **Exclusive upper bound**: Represented by `)`
+
+```sql
+-- Includes 3, does not include 7, and includes all points in between
+SELECT '[3,7)'::int4range;
+
+-- Does not include either 3 or 7, but includes all points in between
+SELECT '(3,7)'::int4range;
+
+-- Includes only the single point 4
+SELECT '[4,4]'::int4range;
+
+-- Includes no points (and will be normalized to 'empty')
+SELECT '[4,4)'::int4range;
+```
+
+### Infinite (Unbounded) Ranges
+
+The lower or upper bound of a range can be omitted to represent infinite ranges.
+
+```sql
+-- All values less than the upper bound
+SELECT '(,3]'::int4range;
+
+-- All values greater than the lower bound
+SELECT '[3,)'::int4range;
+
+-- All values of the element type
+SELECT '(,)'::int4range;
+```
+
+### Range Input/Output
+
+The input for a range value must follow specific patterns:
+
+- **(lower-bound,upper-bound)**
+- **(lower-bound,upper-bound]**
+- **[lower-bound,upper-bound)**
+- **[lower-bound,upper-bound]**
+- **empty**
+
+Each bound value can be quoted using double quotes (`"`) to include special characters.
+
+```sql
+SELECT '[3,7)'::int4range;
+SELECT '(3,7)'::int4range;
+SELECT '[4,4]'::int4range;
+SELECT '[4,4)'::int4range;
+```
+
+### Constructing Ranges and Multiranges
+
+Each range type has a constructor function that accepts two or three arguments. The two-argument form constructs a range in standard form (lower bound inclusive, upper bound exclusive), while the three-argument form allows specifying the inclusivity/exclusivity of the bounds.
+
+```sql
+-- Full form with inclusivity/exclusivity
+SELECT numrange(1.0, 14.0, '(]');
+
+-- Standard form assumed if third argument is omitted
+SELECT numrange(1.0, 14.0);
+
+-- Using NULL for unbounded sides
+SELECT numrange(NULL, 2.2);
+```
+
+### Discrete Range Types
+
+A discrete range type has a well-defined “step” between element values, such as integer or date. These types allow for canonicalization to ensure consistent representation of equivalent ranges.
+
+```sql
+-- Discrete range type example
+SELECT int8range(1, 14, '(]');
+
+-- Canonical form used for display
+SELECT int8range(1, 14);
+```
+
+### Defining New Range Types
+
+Users can define their own range types using the `CREATE TYPE` command.
+
+```sql
+-- Define a new range type for float8
+CREATE TYPE floatrange AS RANGE (
+    subtype = float8,
+    subtype_diff = float8mi
+);
+
+SELECT '[1.234, 5.678]'::floatrange;
+```
+
+### Indexing
+
+GiST and SP-GiST indexes can be created for table columns of range types to accelerate queries involving range operators.
+
+```sql
+-- Create a GiST index on a range column
+CREATE INDEX reservation_idx ON reservation USING GIST (during);
+```
+
+### Constraints on Ranges
+
+Exclusion constraints can be used to enforce non-overlapping ranges in a table.
+
+```sql
+-- Create a table with an exclusion constraint
+CREATE TABLE reservation (
+    during tsrange,
+    EXCLUDE USING GIST (during WITH &&)
+);
+
+-- Attempt to insert overlapping ranges
+INSERT INTO reservation VALUES
+('[2010-01-01 11:30, 2010-01-01 15:00)');
+INSERT INTO reservation VALUES
+('[2010-01-01 14:45, 2010-01-01 15:45)');
+```
+
+### Usage
+
+#### Scheduling Meetings
+
+```sql
+-- Create a table for meeting reservations
+CREATE TABLE meeting_reservation (
+    room text,
+    during tsrange,
+    EXCLUDE USING GIST (room WITH =, during WITH &&)
+);
+
+-- Insert meeting reservations
+INSERT INTO meeting_reservation VALUES
+('123A', '[2010-01-01 14:00, 2010-01-01 15:00)');
+INSERT INTO meeting_reservation VALUES
+('123A', '[2010-01-01 14:30, 2010-01-01 15:30)'); -- This will fail due to overlap
+INSERT INTO meeting_reservation VALUES
+('123B', '[2010-01-01 14:30, 2010-01-01 15:30)'); -- This will succeed
+```

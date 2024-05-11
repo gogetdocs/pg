@@ -1,0 +1,105 @@
+## Pseudo-Types in PostgreSQL
+
+Pseudo-types in PostgreSQL are special-purpose data type entries that can be used to declare a function's argument or result type but cannot be used as a column data type. Each pseudo-type is useful in situations where a function's behavior does not correspond to simply taking or returning a value of a specific SQL data type.
+
+### Table of Pseudo-Types
+
+| **Name**                  | **Description**                                                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `any`                     | Indicates that a function accepts any input data type.                                                                                                                  |
+| `anyelement`              | Indicates that a function accepts any data type (see Section 38.2.5).                                                                                                   |
+| `anyarray`                | Indicates that a function accepts any array data type (see Section 38.2.5).                                                                                             |
+| `anynonarray`             | Indicates that a function accepts any non-array data type (see Section 38.2.5).                                                                                         |
+| `anyenum`                 | Indicates that a function accepts any enum data type (see Section 38.2.5 and Section 8.7).                                                                              |
+| `anyrange`                | Indicates that a function accepts any range data type (see Section 38.2.5 and Section 8.17).                                                                            |
+| `anymultirange`           | Indicates that a function accepts any multirange data type (see Section 38.2.5 and Section 8.17).                                                                       |
+| `anycompatible`           | Indicates that a function accepts any data type, with automatic promotion of multiple arguments to a common data type (see Section 38.2.5).                             |
+| `anycompatiblearray`      | Indicates that a function accepts any array data type, with automatic promotion of multiple arguments to a common data type (see Section 38.2.5).                       |
+| `anycompatiblenonarray`   | Indicates that a function accepts any non-array data type, with automatic promotion of multiple arguments to a common data type (see Section 38.2.5).                   |
+| `anycompatiblerange`      | Indicates that a function accepts any range data type, with automatic promotion of multiple arguments to a common data type (see Section 38.2.5 and Section 8.17).      |
+| `anycompatiblemultirange` | Indicates that a function accepts any multirange data type, with automatic promotion of multiple arguments to a common data type (see Section 38.2.5 and Section 8.17). |
+| `cstring`                 | Indicates that a function accepts or returns a null-terminated C string.                                                                                                |
+| `internal`                | Indicates that a function accepts or returns a server-internal data type.                                                                                               |
+| `language_handler`        | A procedural language call handler is declared to return `language_handler`.                                                                                            |
+| `fdw_handler`             | A foreign-data wrapper handler is declared to return `fdw_handler`.                                                                                                     |
+| `table_am_handler`        | A table access method handler is declared to return `table_am_handler`.                                                                                                 |
+| `index_am_handler`        | An index access method handler is declared to return `index_am_handler`.                                                                                                |
+| `tsm_handler`             | A tablesample method handler is declared to return `tsm_handler`.                                                                                                       |
+| `record`                  | Identifies a function taking or returning an unspecified row type.                                                                                                      |
+| `trigger`                 | A trigger function is declared to return `trigger`.                                                                                                                     |
+| `event_trigger`           | An event trigger function is declared to return `event_trigger`.                                                                                                        |
+| `pg_ddl_command`          | Identifies a representation of DDL commands that is available to event triggers.                                                                                        |
+| `void`                    | Indicates that a function returns no value.                                                                                                                             |
+| `unknown`                 | Identifies a not-yet-resolved type, e.g., of an undecorated string literal.                                                                                             |
+
+### Usage Examples
+
+#### Polymorphic Functions
+
+Polymorphic functions can operate on many different data types, with the specific data types being determined by the data types actually passed to it at runtime.
+
+```sql
+CREATE OR REPLACE FUNCTION my_function(anyelement)
+RETURNS anyelement AS $$
+BEGIN
+    RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT my_function(1);  -- Returns 1 (integer)
+SELECT my_function('a');  -- Returns 'a' (text)
+```
+
+#### Array Functions
+
+Functions that accept any array data type can be used to process arrays of different types.
+
+```sql
+CREATE OR REPLACE FUNCTION my_array_function(anyarray)
+RETURNS anyarray AS $$
+BEGIN
+    RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT my_array_function(ARRAY[1, 2, 3]);  -- Returns ARRAY[1, 2, 3] (integer[])
+SELECT my_array_function(ARRAY['a', 'b', 'c']);  -- Returns ARRAY['a', 'b', 'c'] (text[])
+```
+
+#### Range Functions
+
+Functions that accept any range data type can be used to process ranges of different types.
+
+```sql
+CREATE OR REPLACE FUNCTION my_range_function(anyrange)
+RETURNS anyrange AS $$
+BEGIN
+    RETURN $1;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT my_range_function(numrange(1, 10));  -- Returns numrange(1, 10) (numrange)
+SELECT my_range_function(tsrange('2022-01-01', '2022-01-31'));  -- Returns tsrange('2022-01-01', '2022-01-31') (tsrange)
+```
+
+#### Internal Functions
+
+Functions that are meant only to be called internally by the database system can be declared with the `internal` pseudo-type.
+
+```sql
+CREATE OR REPLACE FUNCTION my_internal_function(internal)
+RETURNS internal AS $$
+BEGIN
+    -- Internal logic here
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+Note: The `internal` pseudo-type is used to declare functions that are meant only to be called internally by the database system, and not by direct invocation in an SQL query. If a function has at least one `internal`-type argument, then it cannot be called from SQL.
+
+### Important Considerations
+
+- **Type Safety**: When using pseudo-types, it is crucial to ensure that the function behaves safely with the actual data types passed to it at runtime.
+- **Procedural Languages**: Functions coded in procedural languages can use pseudo-types only as allowed by their implementation languages. Most procedural languages forbid the use of pseudo-types as argument types and allow only `void` and `record` as result types (plus `trigger` or `event_trigger` when the function is used as a trigger or event trigger).
+- **Polymorphic Functions**: Polymorphic functions can operate on many different data types. The specific data types are determined by the data types actually passed to it at runtime. Examples include `anyelement`, `anyarray`, `anynonarray`, `anyenum`, and `anyrange`.

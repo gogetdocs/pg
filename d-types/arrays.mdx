@@ -1,0 +1,201 @@
+## PostgreSQL Arrays
+
+### Overview
+
+PostgreSQL supports variable-length multidimensional arrays as columns in tables. These arrays can be of any built-in or user-defined base type, enum type, composite type, range type, or domain.
+
+### Declaration of Array Types
+
+Array types are declared by appending square brackets `[]` to the data type name of the array elements. For example:
+
+```sql
+CREATE TABLE sal_emp (
+    name text,
+    pay_by_quarter integer[],
+    schedule text[][]
+);
+```
+
+This creates a table `sal_emp` with a column of type `text` (name), a one-dimensional array of type `integer` (pay_by_quarter), and a two-dimensional array of `text` (schedule).
+
+### Array Value Input
+
+Array values are input by enclosing the element values within curly braces `{}` and separating them by commas. For example:
+
+```sql
+INSERT INTO sal_emp
+VALUES ('Bill',
+        '{10000, 10000, 10000, 10000}',
+        '{{"meeting", "lunch"}, {"training", "presentation"}}');
+```
+
+### Accessing Arrays
+
+Array elements can be accessed using square brackets `[]`. For example:
+
+```sql
+SELECT name FROM sal_emp WHERE pay_by_quarter[1] <> pay_by_quarter[2];
+```
+
+This query retrieves the names of employees whose pay changed in the second quarter.
+
+### Array Slices
+
+Array slices can be accessed using the syntax `array[lower-bound:upper-bound]`. For example:
+
+```sql
+SELECT schedule[1:2][1:1] FROM sal_emp WHERE name = 'Bill';
+```
+
+This query retrieves the first item on Bill's schedule for the first two days of the week.
+
+### Modifying Arrays
+
+Array values can be replaced completely or updated at a single element or slice. For example:
+
+```sql
+UPDATE sal_emp SET pay_by_quarter = '{25000,25000,27000,27000}'
+WHERE name = 'Carol';
+
+UPDATE sal_emp SET pay_by_quarter[4] = 15000
+WHERE name = 'Bill';
+
+UPDATE sal_emp SET pay_by_quarter[1:2] = '{27000,27000}'
+WHERE name = 'Carol';
+```
+
+### Searching in Arrays
+
+Arrays can be searched using various methods:
+
+1. **Manual Search**: Each value must be checked manually.
+
+   ```sql
+   SELECT * FROM sal_emp
+   WHERE pay_by_quarter[1] = 10000 OR
+         pay_by_quarter[2] = 10000 OR
+         pay_by_quarter[3] = 10000 OR
+         pay_by_quarter[4] = 10000;
+   ```
+
+2. **ANY**: Find rows where the array contains a specific value.
+
+   ```sql
+   SELECT * FROM sal_emp WHERE 10000 = ANY (pay_by_quarter);
+   ```
+
+3. **ALL**: Find rows where all elements of the array are equal to a specific value.
+
+   ```sql
+   SELECT * FROM sal_emp WHERE 10000 = ALL (pay_by_quarter);
+   ```
+
+4. **generate_subscripts**: Use this function to generate subscripts for each element of the array.
+
+   ```sql
+   SELECT * FROM
+   (SELECT pay_by_quarter,
+           generate_subscripts(pay_by_quarter, 1) AS s
+    FROM sal_emp) AS foo
+   WHERE pay_by_quarter[s] = 10000;
+   ```
+
+5. **&& Operator**: Check if the left operand overlaps with the right operand.
+
+   ```sql
+   SELECT * FROM sal_emp WHERE pay_by_quarter && ARRAY[10000];
+   ```
+
+6. **array_position and array_positions**: Find the subscript of the first occurrence or all occurrences of a value in an array.
+   ```sql
+   SELECT array_position(ARRAY['sun','mon','tue','wed','thu','fri','sat'], 'mon');
+   SELECT array_positions(ARRAY[1, 4, 3, 1, 3, 4, 2, 1], 1);
+   ```
+
+### Array Input and Output Syntax
+
+The external text representation of an array value includes curly braces `{}` around the array value and delimiter characters between adjacent items. For example:
+
+```sql
+SELECT ARRAY[1,2] || ARRAY[3,4];
+```
+
+This query concatenates two arrays.
+
+### Array Functions
+
+Arrays can be constructed and manipulated using various functions:
+
+1. **array_prepend**: Add an element to the beginning of an array.
+
+   ```sql
+   SELECT array_prepend(1, ARRAY[2,3]);
+   ```
+
+2. **array_append**: Add an element to the end of an array.
+
+   ```sql
+   SELECT array_append(ARRAY[1,2], 3);
+   ```
+
+3. **array_cat**: Concatenate two arrays.
+
+   ```sql
+   SELECT array_cat(ARRAY[1,2], ARRAY[3,4]);
+   ```
+
+4. **array_dims**: Retrieve the dimensions of an array.
+
+   ```sql
+   SELECT array_dims(schedule) FROM sal_emp WHERE name = 'Carol';
+   ```
+
+5. **array_upper and array_lower**: Retrieve the upper and lower bounds of a specified array dimension.
+
+   ```sql
+   SELECT array_upper(schedule, 1) FROM sal_emp WHERE name = 'Carol';
+   SELECT array_lower(schedule, 1) FROM sal_emp WHERE name = 'Carol';
+   ```
+
+6. **array_length**: Retrieve the length of a specified array dimension.
+
+   ```sql
+   SELECT array_length(schedule, 1) FROM sal_emp WHERE name = 'Carol';
+   ```
+
+7. **cardinality**: Retrieve the total number of elements in an array across all dimensions.
+   ```sql
+   SELECT cardinality(schedule) FROM sal_emp WHERE name = 'Carol';
+   ```
+
+### Usage
+
+Arrays can be used in various scenarios, such as storing a list of items associated with a single record. However, it's often recommended to use separate tables with rows for each item instead of arrays for better scalability and searchability.
+
+For example, instead of storing employee schedules in an array:
+
+```sql
+CREATE TABLE sal_emp (
+    name text,
+    schedule text[][]
+);
+```
+
+Consider using a separate table for schedules:
+
+```sql
+CREATE TABLE schedules (
+    id serial PRIMARY KEY,
+    employee_name text,
+    day text,
+    activity text
+);
+
+INSERT INTO schedules (employee_name, day, activity)
+VALUES ('Bill', 'Monday', 'meeting'),
+       ('Bill', 'Monday', 'lunch'),
+       ('Bill', 'Tuesday', 'training'),
+       ('Bill', 'Tuesday', 'presentation');
+```
+
+This approach allows for easier querying and manipulation of schedule data.

@@ -1,0 +1,181 @@
+## PostgreSQL Date/Time Types Documentation
+
+PostgreSQL supports a full set of SQL date and time types, which are crucial for managing temporal data in databases. This documentation covers the various date/time types, their input and output formats, time zones, and interval types, along with practical examples to illustrate their usage.
+
+### 1. Date/Time Types
+
+PostgreSQL provides several date/time types, each with its own storage size and description:
+
+- **timestamp [ (p) ] [ without time zone ]**: 8 bytes, both date and time (no time zone), 4713 BC to 294276 AD, 1 microsecond resolution.
+- **timestamp [ (p) ] with time zone**: 8 bytes, both date and time, with time zone, 4713 BC to 294276 AD, 1 microsecond resolution.
+- **date**: 4 bytes, date (no time of day), 4713 BC to 5874897 AD, 1 day resolution.
+- **time [ (p) ] [ without time zone ]**: 8 bytes, time of day (no date), 00:00:00 to 24:00:00, 1 microsecond resolution.
+- **time [ (p) ] with time zone**: 12 bytes, time of day (no date), with time zone, 00:00:00+1559 to 24:00:00-1559, 1 microsecond resolution.
+- **interval [ fields ] [ (p) ]**: 16 bytes, time interval, -178000000 years to 178000000 years, 1 microsecond resolution.
+
+### 2. Date/Time Input
+
+#### 2.1. Dates
+
+Dates can be input in various formats, including ISO 8601 and traditional formats. Here are some examples:
+
+```sql
+-- ISO 8601 format
+SELECT '1999-01-08'::date;
+
+-- Traditional format
+SELECT 'January 8, 1999'::date;
+
+-- MDY format
+SELECT '1/8/1999'::date;
+
+-- YMD format
+SELECT '1999-Jan-08'::date;
+```
+
+#### 2.2. Times
+
+Times can be input with or without time zones. Here are some examples:
+
+```sql
+-- Time without time zone
+SELECT '04:05:06.789'::time;
+
+-- Time with time zone
+SELECT '04:05:06.789-8'::time with time zone;
+
+-- Time with time zone abbreviation
+SELECT '04:05:06 PST'::time with time zone;
+```
+
+#### 2.3. Time Stamps
+
+Time stamps combine dates and times and can include time zones. Here are some examples:
+
+```sql
+-- Time stamp without time zone
+SELECT '1999-01-08 04:05:06'::timestamp;
+
+-- Time stamp with time zone
+SELECT '1999-01-08 04:05:06-8'::timestamp with time zone;
+
+-- Time stamp with time zone abbreviation
+SELECT 'January 8 04:05:06 1999 PST'::timestamp with time zone;
+```
+
+### 3. Time Zones
+
+PostgreSQL uses the IANA time zone database and supports full time zone names, abbreviations, and POSIX-style specifications.
+
+```sql
+-- Setting time zone using full name
+SET TIME ZONE 'America/New_York';
+
+-- Setting time zone using abbreviation
+SELECT '04:05:06 PST'::time with time zone;
+
+-- Setting time zone using POSIX-style specification
+SELECT '04:05:06 PST8PDT'::time with time zone;
+```
+
+### 4. Interval Input
+
+Intervals can be input using verbose syntax or ISO 8601 formats.
+
+```sql
+-- Verbose syntax
+SELECT '1 year 2 months 3 days 4 hours 5 minutes 6 seconds'::interval;
+
+-- ISO 8601 format with designators
+SELECT 'P1Y2M3DT4H5M6S'::interval;
+
+-- ISO 8601 alternative format
+SELECT 'P0001-02-03T04:05:06'::interval;
+```
+
+### 5. Interval Output
+
+The output format of intervals can be set using the `SET intervalstyle` command.
+
+```sql
+-- Setting interval style to sql_standard
+SET intervalstyle TO sql_standard;
+
+-- Setting interval style to postgres
+SET intervalstyle TO postgres;
+
+-- Setting interval style to postgres_verbose
+SET intervalstyle TO postgres_verbose;
+
+-- Setting interval style to iso_8601
+SET intervalstyle TO iso_8601;
+```
+
+### 6. Special Values
+
+PostgreSQL supports several special date/time input values for convenience.
+
+```sql
+-- Using epoch
+SELECT 'epoch'::timestamp;
+
+-- Using infinity
+SELECT 'infinity'::timestamp;
+
+-- Using now
+SELECT 'now'::timestamp;
+
+-- Using today
+SELECT 'today'::date;
+
+-- Using tomorrow
+SELECT 'tomorrow'::date;
+
+-- Using yesterday
+SELECT 'yesterday'::date;
+
+-- Using allballs
+SELECT 'allballs'::time;
+```
+
+### 7. Date/Time Output
+
+The output format of date/time types can be set using the `SET datestyle` command.
+
+```sql
+-- Setting date style to ISO
+SET datestyle TO 'ISO';
+
+-- Setting date style to SQL
+SET datestyle TO 'SQL';
+
+-- Setting date style to Postgres
+SET datestyle TO 'Postgres';
+
+-- Setting date style to German
+SET datestyle TO 'German';
+```
+
+### 8. Time Zone Handling
+
+PostgreSQL stores all timezone-aware dates and times internally in UTC and converts them to local time in the zone specified by the `TimeZone` configuration parameter before displaying them to the client.
+
+```sql
+-- Setting time zone configuration parameter
+SET TIME ZONE 'America/New_York';
+
+-- Using AT TIME ZONE construct
+SELECT '1999-01-08 04:05:06' AT TIME ZONE 'America/New_York';
+```
+
+### 9. Interval Arithmetic
+
+PostgreSQL allows for interval arithmetic, which can be used to perform calculations involving dates and times.
+
+```sql
+-- Adding an interval to a timestamp
+SELECT '1999-01-08 04:05:06'::timestamp + '1 year 2 months 3 days 4 hours 5 minutes 6 seconds'::interval;
+
+-- Subtracting an interval from a timestamp
+SELECT '1999-01-08 04:05:06'::timestamp - '1 year 2 months 3 days 4 hours 5 minutes 6 seconds'::interval;
+```

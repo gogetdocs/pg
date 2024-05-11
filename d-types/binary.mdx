@@ -1,0 +1,95 @@
+## Binary Data Types in PostgreSQL
+
+### Overview
+
+PostgreSQL provides the `bytea` data type to store binary strings. Binary strings are sequences of octets (or bytes) and are distinguished from character strings in two ways:
+
+1. **Zero and Non-Printable Octets**: Binary strings allow storing octets of value zero and other "non-printable" octets (usually, octets outside the decimal range 32 to 126). Character strings disallow zero octets and also disallow any other octet values and sequences of octet values that are invalid according to the database's selected character set encoding.
+2. **Locale Independence**: Operations on binary strings process the actual bytes, whereas the processing of character strings depends on locale settings.
+
+### bytea Data Type
+
+The `bytea` data type supports two formats for input and output: "hex" format and PostgreSQL's historical "escape" format.
+
+#### bytea Hex Format
+
+The "hex" format encodes binary data as 2 hexadecimal digits per byte, most significant nibble first. The entire string is preceded by the sequence `\x` (to distinguish it from the escape format).
+
+**Example:**
+
+```sql
+SET bytea_output = 'hex';
+
+SELECT '\xDEADBEEF'::bytea;
+   bytea
+------------
+ \xdeadbeef
+```
+
+#### bytea Escape Format
+
+The "escape" format is the traditional PostgreSQL format for the `bytea` type. It takes the approach of representing a binary string as a sequence of ASCII characters, while converting those bytes that cannot be represented as an ASCII character into special escape sequences.
+
+**Example:**
+
+```sql
+SET bytea_output = 'escape';
+
+SELECT 'abc \153\154\155 \052\251\124'::bytea;
+     bytea
+----------------
+ abc klm *\251T
+```
+
+### Escaping and Unescaping bytea Strings
+
+When entering `bytea` values in escape format, octets of certain values must be escaped, while all octet values can be escaped. In general, to escape an octet, convert it into its three-digit octal value and precede it by a backslash.
+
+**Table: Escaped Octets**
+
+| Decimal Octet Value    | Description            | Escaped Input Representation | Example       | Hex Representation |
+| ---------------------- | ---------------------- | ---------------------------- | ------------- | ------------------ |
+| 0                      | zero octet             | '\000'                       | '\000'::bytea | \x00               |
+| 39                     | single quote           | '''' or '\047'               | ''''::bytea   | \x27               |
+| 92                     | backslash              | '\\' or '\134'               | '\\'::bytea   | \x5c               |
+| 0 to 31 and 127 to 255 | “non-printable” octets | '\xxx' (octal value)         | '\001'::bytea | \x01               |
+
+### Usage
+
+Here are some examples of using `bytea` in scenarios:
+
+**Example 1: Storing an Image**
+
+```sql
+CREATE TABLE images (
+    id SERIAL PRIMARY KEY,
+    image bytea NOT NULL
+);
+
+INSERT INTO images (image)
+VALUES ('\x89504e470d0a1a0a0000000d49484452'::bytea);
+
+SELECT image FROM images WHERE id = 1;
+   image
+------------
+ \x89504e470d0a1a0a0000000d49484452
+```
+
+**Example 2: Storing a Binary File**
+
+```sql
+CREATE TABLE files (
+    id SERIAL PRIMARY KEY,
+    file bytea NOT NULL
+);
+
+INSERT INTO files (file)
+VALUES ('\x504b0304140006000000000000000000'::bytea);
+
+SELECT file FROM files WHERE id = 1;
+   file
+------------
+ \x504b0304140006000000000000000000
+```
+
+Note: In these examples, the `bytea` values are represented in hex format. The actual binary data is stored in the database, and the hex format is used for input and output.

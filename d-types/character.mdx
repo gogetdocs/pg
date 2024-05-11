@@ -1,0 +1,79 @@
+## Character Types in PostgreSQL
+
+### Overview
+
+PostgreSQL provides several character types to store strings of varying lengths. The main types are `character varying(n)`, `character(n)`, and `text`. Each type has its own characteristics and use cases.
+
+### Character Types
+
+#### 1. `character varying(n)` / `varchar(n)`
+
+- Variable-length with a limit of `n` characters.
+- Stores strings up to `n` characters (not bytes) in length.
+- Attempting to store a longer string will result in an error, unless the excess characters are all spaces.
+- Trailing spaces are treated as semantically insignificant and disregarded when comparing values.
+- Can be used without a length specifier to accept strings of any size (PostgreSQL extension).
+
+**Example:**
+
+```sql
+CREATE TABLE test2 (b varchar(5));
+INSERT INTO test2 VALUES ('ok');
+INSERT INTO test2 VALUES ('good      ');
+INSERT INTO test2 VALUES ('too long'::varchar(5)); -- explicit truncation
+SELECT b, char_length(b) FROM test2;
+```
+
+#### 2. `character(n)` / `char(n)`
+
+- Fixed-length, blank-padded with spaces to the specified width `n`.
+- Stores strings up to `n` characters (not bytes) in length.
+- Attempting to store a longer string will result in an error, unless the excess characters are all spaces.
+- Trailing spaces are treated as semantically insignificant and disregarded when comparing values.
+- If used without a length specifier, it is equivalent to `character(1)`.
+
+**Example:**
+
+```sql
+CREATE TABLE test1 (a character(4));
+INSERT INTO test1 VALUES ('ok');
+SELECT a, char_length(a) FROM test1;
+```
+
+#### 3. `text`
+
+- Variable unlimited length.
+- Stores strings of any length.
+- Not part of the SQL standard, but supported by several other SQL database management systems.
+
+**Example:**
+
+```sql
+CREATE TABLE test3 (c text);
+INSERT INTO test3 VALUES ('This is a long string');
+SELECT c, char_length(c) FROM test3;
+```
+
+### Special Character Types
+
+PostgreSQL also provides two special character types for internal use:
+
+#### 1. `"char"`
+
+- Single-byte internal type.
+- Stores only a single ASCII character.
+- Used in system catalogs as a simplistic enumeration type.
+
+#### 2. `name`
+
+- Internal type for object names.
+- Length is currently defined as 64 bytes (63 usable characters plus terminator).
+- Should be referenced using the constant `NAMEDATALEN` in C source code.
+
+### Performance Considerations
+
+There is no performance difference among the three main character types, apart from increased storage space when using the blank-padded type, and a few extra CPU cycles to check the length when storing into a length-constrained column. In most situations, `text` or `character varying` should be used instead of `character(n)`.
+
+### Storage Requirements
+
+The storage requirement for a short string (up to 126 bytes) is 1 byte plus the actual string, which includes the space padding in the case of `character`. Longer strings have 4 bytes of overhead instead of 1. Long strings are compressed by the system automatically, so the physical requirement on disk might be less. The longest possible character string that can be stored is about 1 GB.

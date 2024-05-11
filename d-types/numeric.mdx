@@ -1,0 +1,99 @@
+## Numeric Types in PostgreSQL
+
+PostgreSQL provides a variety of numeric types to handle different kinds of numerical data. These types include integers, arbitrary precision numbers, floating-point numbers, and serial types.
+
+### Integer Types
+
+Integer types are used to store whole numbers without fractional components. There are three main integer types:
+
+- **smallint**: 2 bytes, range from -32768 to +32767.
+- **integer**: 4 bytes, range from -2147483648 to +2147483647. This is the most commonly used integer type due to its balance between range, storage size, and performance.
+- **bigint**: 8 bytes, range from -9223372036854775808 to +9223372036854775807. This type is used when the range of the integer type is insufficient.
+
+**Example Usage:**
+
+```sql
+CREATE TABLE employees (
+    id integer PRIMARY KEY,
+    age smallint,
+    salary bigint
+);
+
+INSERT INTO employees (id, age, salary) VALUES (1, 30, 100000);
+```
+
+### Arbitrary Precision Numbers
+
+The **numeric** type can store numbers with a very large number of digits and is particularly useful for storing monetary amounts and other quantities where exactness is required.
+
+- **numeric(precision, scale)**: The precision is the total count of significant digits, and the scale is the count of decimal digits. For example, `numeric(3, 1)` can store values between -99.9 and 99.9.
+
+**Example Usage:**
+
+```sql
+CREATE TABLE invoices (
+    id integer PRIMARY KEY,
+    amount numeric(10, 2)
+);
+
+INSERT INTO invoices (id, amount) VALUES (1, 123.45);
+```
+
+### Floating-Point Types
+
+Floating-point types are inexact, variable-precision numeric types.
+
+- **real**: 4 bytes, variable-precision, inexact, with a precision of at least 6 decimal digits.
+- **double precision**: 8 bytes, variable-precision, inexact, with a precision of at least 15 decimal digits.
+
+**Example Usage:**
+
+```sql
+CREATE TABLE measurements (
+    id integer PRIMARY KEY,
+    temperature real,
+    weight double precision
+);
+
+INSERT INTO measurements (id, temperature, weight) VALUES (1, 23.5, 100.123456789);
+```
+
+### Serial Types
+
+Serial types are not true types but a notational convenience for creating unique identifier columns.
+
+- **smallserial**: 2 bytes, small autoincrementing integer, range from 1 to 32767.
+- **serial**: 4 bytes, autoincrementing integer, range from 1 to 2147483647.
+- **bigserial**: 8 bytes, large autoincrementing integer, range from 1 to 9223372036854775807.
+
+**Example Usage:**
+
+```sql
+CREATE TABLE orders (
+    id serial PRIMARY KEY,
+    customer_id integer
+);
+
+INSERT INTO orders (customer_id) VALUES (1);
+-- The id will be autoincremented.
+```
+
+### Special Values
+
+Both numeric and floating-point types support special values:
+
+- **Infinity**: Represents a value larger than any finite number.
+- **-Infinity**: Represents a value smaller than any finite number.
+- **NaN (Not-a-Number)**: Represents an undefined or unreliable result.
+
+**Example Usage:**
+
+```sql
+UPDATE measurements SET temperature = 'Infinity' WHERE id = 1;
+```
+
+### Important Notes
+
+- **Rounding**: Numeric types round ties away from zero, while floating-point types round ties to the nearest even number.
+- **Precision and Scale**: For numeric types, the precision and scale must be considered to avoid errors due to rounding or exceeding the declared precision.
+- **Portability**: Using scales outside the range specified by the SQL standard (0 to precision) may not be portable to other database systems.

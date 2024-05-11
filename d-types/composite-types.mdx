@@ -1,0 +1,151 @@
+## Composite Types in PostgreSQL
+
+### Overview
+
+Composite types in PostgreSQL represent the structure of a row or record, consisting of a list of field names and their data types. They can be used in various ways similar to simple types, such as declaring columns in tables or as function parameters.
+
+### Declaration of Composite Types
+
+Composite types are defined using the `CREATE TYPE` command, specifying field names and their types. Here are two simple examples:
+
+```sql
+-- Define a composite type for complex numbers
+CREATE TYPE complex AS (
+    r double precision,
+    i double precision
+);
+
+-- Define a composite type for inventory items
+CREATE TYPE inventory_item AS (
+    name text,
+    supplier_id integer,
+    price numeric
+);
+```
+
+### Constructing Composite Values
+
+Composite values can be written as literal constants by enclosing field values within parentheses and separating them by commas. Double quotes can be used around field values if they contain commas or parentheses.
+
+```sql
+-- Example of a composite constant for the inventory_item type
+'("fuzzy dice", 42, 1.99)'
+
+-- Using the ROW expression syntax for clarity
+ROW('fuzzy dice', 42, 1.99)
+```
+
+### Accessing Composite Types
+
+To access a field of a composite column, use a dot followed by the field name. Parentheses may be necessary to avoid confusing the parser.
+
+```sql
+-- Selecting a subfield from a composite column
+SELECT (item).name FROM on_hand WHERE (item).price > 9.99;
+
+-- Using table name for clarity in multitable queries
+SELECT (on_hand.item).name FROM on_hand WHERE (on_hand.item).price > 9.99;
+```
+
+### Modifying Composite Types
+
+Composite columns can be inserted or updated as a whole or by specifying individual subfields.
+
+```sql
+-- Inserting a whole composite column
+INSERT INTO mytab (complex_col) VALUES((1.1, 2.2));
+
+-- Updating a whole composite column
+UPDATE mytab SET complex_col = ROW(1.1, 2.2) WHERE ...;
+
+-- Updating an individual subfield
+UPDATE mytab SET complex_col.r = (complex_col).r + 1 WHERE ...;
+
+-- Inserting individual subfields
+INSERT INTO mytab (complex_col.r, complex_col.i) VALUES(1.1, 2.2);
+```
+
+### Using Composite Types in Queries
+
+Composite types can be used in queries with special syntax rules for shortcuts.
+
+```sql
+-- Selecting a composite-valued column
+SELECT c FROM inventory_item c;
+
+-- Expanding a composite-valued column into separate columns
+SELECT c.* FROM inventory_item c;
+
+-- Using the ROW constructor for clarity
+SELECT (myfunc(x)).* FROM some_table;
+
+-- Avoiding multiple function invocations with LATERAL
+SELECT m.* FROM some_table, LATERAL myfunc(x) AS m;
+```
+
+### Composite Type Input and Output Syntax
+
+The external text representation of a composite value includes parentheses and commas, with whitespace outside the parentheses ignored.
+
+```sql
+-- Example of a composite value with whitespace
+'( 42)'
+
+-- Using double quotes around field values
+'("fuzzy dice", 42, 1.99)'
+
+-- Backslash-escaping for special characters
+INSERT ... VALUES ('("\"\\")');
+```
+
+### Usage Examples
+
+1. **Creating Tables with Composite Types**:
+
+   ```sql
+   CREATE TABLE on_hand (
+       item inventory_item,
+       count integer
+   );
+
+   INSERT INTO on_hand VALUES (ROW('fuzzy dice', 42, 1.99), 1000);
+   ```
+
+2. **Functions with Composite Types**:
+
+   ```sql
+   CREATE FUNCTION price_extension(inventory_item, integer) RETURNS numeric
+   AS 'SELECT $1.price * $2' LANGUAGE SQL;
+
+   SELECT price_extension(item, 10) FROM on_hand;
+   ```
+
+3. **Accessing Subfields**:
+
+   ```sql
+   SELECT (item).name FROM on_hand WHERE (item).price > 9.99;
+   ```
+
+4. **Updating Composite Columns**:
+
+   ```sql
+   UPDATE mytab SET complex_col = ROW(1.1, 2.2) WHERE ...;
+   ```
+
+5. **Using Composite Types in Queries**:
+
+   ```sql
+   SELECT c.* FROM inventory_item c;
+   ```
+
+6. **LATERAL Function Invocation**:
+   ```sql
+   SELECT m.* FROM some_table, LATERAL myfunc(x) AS m;
+   ```
+
+### Tips and Considerations
+
+- **Avoid Ambiguity**: Use parentheses and table names to avoid confusing the parser.
+- **Function Invocation**: Be aware of multiple function invocations when using the `.*` syntax and consider using `LATERAL` to avoid this.
+- **Backslash-Escaping**: Use backslash-escaping or dollar quoting to handle special characters in composite values.
+- **Field Naming**: Avoid giving functions the same name as fields in composite types to prevent ambiguity.

@@ -1,0 +1,68 @@
+## Domain Types
+
+A domain is a user-defined data type that is based on another underlying type. It can have constraints that restrict its valid values to a subset of what the underlying type would allow.
+
+### Creating a Domain
+
+To create a domain, use the `CREATE DOMAIN` command. For example, we can create a domain over integers that accepts only positive integers:
+
+```sql
+CREATE DOMAIN posint AS integer CHECK (VALUE > 0);
+```
+
+This creates a new domain type called `posint` that is based on the `integer` type and has a constraint that only allows values greater than 0.
+
+### Using a Domain in a Table
+
+We can use the `posint` domain in a table like this:
+
+```sql
+CREATE TABLE mytable (id posint);
+```
+
+This creates a table called `mytable` with a column called `id` that has the `posint` domain type.
+
+### Inserting Values into a Domain Column
+
+We can insert values into the `id` column like this:
+
+```sql
+INSERT INTO mytable VALUES(1);   -- works
+INSERT INTO mytable VALUES(-1);  -- fails
+```
+
+The first insert statement works because the value 1 is a positive integer, which is allowed by the `posint` domain. The second insert statement fails because the value -1 is not a positive integer, which is not allowed by the `posint` domain.
+
+### Down-Casting a Domain Value
+
+When an operator or function of the underlying type is applied to a domain value, the domain is automatically down-cast to the underlying type. For example:
+
+```sql
+SELECT mytable.id - 1 FROM mytable;
+```
+
+This query subtracts 1 from the `id` column, which is of type `posint`. The result is considered to be of type `integer`, not `posint`.
+
+### Casting a Value Back to a Domain Type
+
+We can cast the result back to the `posint` domain type like this:
+
+```sql
+SELECT (mytable.id - 1)::posint FROM mytable;
+```
+
+This query casts the result of the subtraction back to the `posint` domain type, which causes the domain's constraints to be rechecked. If the expression had been applied to an `id` value of 1, this would result in an error.
+
+### Assigning a Value of the Underlying Type to a Domain Column
+
+We can assign a value of the underlying type to a field or variable of the domain type without writing an explicit cast:
+
+```sql
+UPDATE mytable SET id = 2;
+```
+
+This update statement sets the `id` column to the value 2, which is a positive integer and is allowed by the `posint` domain. The domain's constraints will be checked when the assignment is made.
+
+### Additional Information
+
+For more information on creating domains, see the [CREATE DOMAIN](https://www.postgresql.org/docs/current/sql-createdomain.html) documentation.

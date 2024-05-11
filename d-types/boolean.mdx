@@ -1,0 +1,91 @@
+# **Boolean Type in PostgreSQL**
+
+PostgreSQL provides the standard SQL type `boolean` which can have three states: `true`, `false`, and `unknown` (represented by the SQL `null` value).
+
+## **Boolean Data Type**
+
+| Name    | Storage Size | Description            |
+| ------- | ------------ | ---------------------- |
+| boolean | 1 byte       | state of true or false |
+
+## **Boolean Constants**
+
+Boolean constants can be represented in SQL queries using the following keywords:
+
+- `TRUE`
+- `FALSE`
+- `NULL`
+
+## **String Representations**
+
+The datatype input function for type `boolean` accepts the following string representations:
+
+- For `true` state:
+  - `true`
+  - `yes`
+  - `on`
+  - `1`
+- For `false` state:
+  - `false`
+  - `no`
+  - `off`
+  - `0`
+
+Unique prefixes of these strings are also accepted, for example `t` or `n`. Leading or trailing whitespace is ignored, and case does not matter.
+
+## **Example Usage**
+
+```sql
+-- Create a table with a boolean column
+CREATE TABLE test1 (a boolean, b text);
+
+-- Insert values into the table
+INSERT INTO test1 VALUES (TRUE, 'sic est');
+INSERT INTO test1 VALUES (FALSE, 'non est');
+
+-- Select all rows from the table
+SELECT * FROM test1;
+ a |    b
+---+---------
+ t | sic est
+ f | non est
+
+-- Select rows where the boolean column is true
+SELECT * FROM test1 WHERE a;
+ a |    b
+---+---------
+ t | sic est
+```
+
+## **Using String-Literal Constants**
+
+You can also use string-literal constants by following the generic string-literal constant syntax, for example:
+
+```sql
+SELECT 'yes'::boolean AS result;
+ result
+--------
+ t
+```
+
+## **Casting NULL to Boolean**
+
+In some contexts, you might need to cast `NULL` to `boolean` explicitly, for example:
+
+```sql
+SELECT NULL::boolean AS result;
+ result
+--------
+ null
+```
+
+## **Omitting Casts**
+
+In contexts where the parser can deduce that the literal must be of type `boolean`, the cast can be omitted, for example:
+
+```sql
+SELECT 'true' AS result;
+ result
+--------
+ t
+```

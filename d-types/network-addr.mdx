@@ -1,0 +1,119 @@
+## Network Address Types in PostgreSQL
+
+PostgreSQL provides several data types to store network addresses, including IPv4, IPv6, and MAC addresses. These types offer input error checking and specialized operators and functions.
+
+### inet Type
+
+The `inet` type holds an IPv4 or IPv6 host address and optionally its subnet, all in one field. The subnet is represented by the number of network address bits present in the host address (the “netmask”).
+
+**Input Format:**
+The input format for this type is `address/y` where `address` is an IPv4 or IPv6 address and `y` is the number of bits in the netmask. If the `/y` portion is omitted, the netmask is taken to be 32 for IPv4 or 128 for IPv6, so the value represents just a single host.
+
+**Example:**
+
+```sql
+CREATE TABLE hosts (
+    address inet
+);
+
+INSERT INTO hosts (address) VALUES ('192.168.1.1/24');
+INSERT INTO hosts (address) VALUES ('2001:4f8:3:ba::/64');
+```
+
+### cidr Type
+
+The `cidr` type holds an IPv4 or IPv6 network specification. Input and output formats follow Classless Internet Domain Routing conventions.
+
+**Input Format:**
+The format for specifying networks is `address/y` where `address` is the network's lowest address represented as an IPv4 or IPv6 address, and `y` is the number of bits in the netmask. If `y` is omitted, it is calculated using assumptions from the older classful network numbering system.
+
+**Example:**
+
+```sql
+CREATE TABLE networks (
+    address cidr
+);
+
+INSERT INTO networks (address) VALUES ('192.168.1.0/24');
+INSERT INTO networks (address) VALUES ('2001:4f8:3:ba::/64');
+```
+
+### inet vs. cidr
+
+The essential difference between `inet` and `cidr` data types is that `inet` accepts values with nonzero bits to the right of the netmask, whereas `cidr` does not.
+
+**Example:**
+
+```sql
+-- Valid for inet, but not for cidr
+INSERT INTO hosts (address) VALUES ('192.168.0.1/24');
+
+-- Valid for cidr
+INSERT INTO networks (address) VALUES ('192.168.0.0/24');
+```
+
+### macaddr Type
+
+The `macaddr` type stores MAC addresses.
+
+**Input Format:**
+Input is accepted in the following formats:
+
+- `08:00:2b:01:02:03`
+- `08-00-2b-01-02-03`
+- `08002b:010203`
+- `08002b-010203`
+- `0800.2b01.0203`
+- `0800-2b01-0203`
+- `08002b010203`
+
+**Example:**
+
+```sql
+CREATE TABLE devices (
+    mac macaddr
+);
+
+INSERT INTO devices (mac) VALUES ('08:00:2b:01:02:03');
+```
+
+### macaddr8 Type
+
+The `macaddr8` type stores MAC addresses in EUI-64 format.
+
+**Input Format:**
+Input is accepted in the following formats:
+
+- `08:00:2b:01:02:03:04:05`
+- `08-00-2b-01-02-03-04-05`
+- `08002b:0102030405`
+- `08002b-0102030405`
+- `0800.2b01.0203.0405`
+- `0800-2b01-0203-0405`
+- `08002b01:02030405`
+- `08002b0102030405`
+
+**Example:**
+
+```sql
+CREATE TABLE devices (
+    mac macaddr8
+);
+
+INSERT INTO devices (mac) VALUES ('08:00:2b:01:02:03:04:05');
+```
+
+### Converting MAC Addresses
+
+To convert a traditional 48-bit MAC address in EUI-48 format to modified EUI-64 format, use the `macaddr8_set7bit` function.
+
+**Example:**
+
+```sql
+SELECT macaddr8_set7bit('08:00:2b:01:02:03');
+
+    macaddr8_set7bit
+-------------------------
+ 0a:00:2b:ff:fe:01:02:03
+(1 row)
+```

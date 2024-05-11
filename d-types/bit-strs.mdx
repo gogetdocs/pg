@@ -1,0 +1,92 @@
+# Bit String Types
+
+Bit strings are sequences of 1's and 0's used to store or visualize bit masks. There are two SQL bit types: `bit(n)` and `bit varying(n)`, where `n` is a positive integer.
+
+### Bit Type
+
+The `bit` type requires the data to match the length `n` exactly. Attempting to store shorter or longer bit strings will result in an error.
+
+**Example:**
+
+```sql
+CREATE TABLE test (a BIT(3));
+INSERT INTO test VALUES (B'101');  // succeeds
+INSERT INTO test VALUES (B'10');   // fails with error
+```
+
+Error message:
+
+```
+ERROR:  bit string length 2 does not match type bit(3)
+```
+
+To avoid this error, you can explicitly cast the bit-string value to `bit(n)`:
+
+```sql
+INSERT INTO test VALUES (B'10'::bit(3));  // succeeds, padded with zeros
+```
+
+### Bit Varying Type
+
+The `bit varying` type allows for variable length up to the maximum length `n`. Longer strings will be rejected.
+
+**Example:**
+
+```sql
+CREATE TABLE test (b BIT VARYING(5));
+INSERT INTO test VALUES (B'00');    // succeeds
+INSERT INTO test VALUES (B'101');   // succeeds
+INSERT INTO test VALUES (B'101010');  // fails with error
+```
+
+Error message:
+
+```
+ERROR:  bit string length 6 exceeds maximum length 5
+```
+
+To avoid this error, you can explicitly cast the bit-string value to `bit varying(n)`:
+
+```sql
+INSERT INTO test VALUES (B'101010'::bit varying(5));  // succeeds, truncated to 5 bits
+```
+
+### Usage
+
+Bit strings can be used to store flags or settings in a compact form. For example, in a user preferences table:
+
+```sql
+CREATE TABLE user_prefs (
+  id SERIAL PRIMARY KEY,
+  flags BIT(8)  // 8 flags, each represented by a single bit
+);
+
+INSERT INTO user_prefs (flags) VALUES (B'10101010');
+```
+
+In this example, each bit in the `flags` column represents a specific preference (e.g., "receive newsletters", "show ads", etc.). The `BIT(8)` type ensures that exactly 8 bits are stored, making it easy to manipulate and query the flags.
+
+### Bit-Logical Operators and String Manipulation Functions
+
+Bit-logical operators and string manipulation functions are available for bit strings. For example:
+
+```sql
+SELECT B'101' & B'110' AS result;  // bitwise AND
+SELECT B'101' | B'110' AS result;  // bitwise OR
+SELECT B'101' ^ B'110' AS result;  // bitwise XOR
+```
+
+These operators can be used to perform complex operations on bit strings.
+
+### Storage Requirements
+
+A bit string value requires 1 byte for each group of 8 bits, plus 5 or 8 bytes overhead depending on the length of the string. Long values may be compressed or moved out-of-line, as explained in Section 8.3 for character strings.
+
+**Example:**
+
+```sql
+CREATE TABLE test (a BIT(16));
+INSERT INTO test VALUES (B'1010101010101010');
+```
+
+In this example, the `a` column requires 2 bytes (16 bits / 8 bits per byte) + 5 bytes overhead = 7 bytes of storage.

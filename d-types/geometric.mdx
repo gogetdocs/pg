@@ -1,0 +1,139 @@
+# Geometric Types in PostgreSQL
+
+PostgreSQL provides a range of geometric data types to represent two-dimensional spatial objects. These data types include points, lines, line segments, boxes, paths, polygons, and circles.
+
+### Points
+
+Points are the fundamental building block for geometric types. A point is represented by a pair of coordinates (x, y).
+
+**Syntax**
+
+```sql
+( x , y )
+x , y
+```
+
+**Example**
+
+```sql
+SELECT '(1, 2)'::point;
+```
+
+### Lines
+
+Lines are represented by the linear equation Ax + By + C = 0, where A and B are not both zero.
+
+**Syntax**
+
+```sql
+{ A, B, C }
+[ ( x1 , y1 ) , ( x2 , y2 ) ]
+( ( x1 , y1 ) , ( x2 , y2 ) )
+( x1 , y1 ) , ( x2 , y2 )
+x1 , y1   ,   x2 , y2
+```
+
+**Example**
+
+```sql
+SELECT '{1, 2, 3}'::line;
+SELECT '[(1, 2), (3, 4)]'::line;
+```
+
+### Line Segments
+
+Line segments are represented by pairs of points that are the endpoints of the segment.
+
+**Syntax**
+
+```sql
+[ ( x1 , y1 ) , ( x2 , y2 ) ]
+( ( x1 , y1 ) , ( x2 , y2 ) )
+( x1 , y1 ) , ( x2 , y2 )
+x1 , y1   ,   x2 , y2
+```
+
+**Example**
+
+```sql
+SELECT '[(1, 2), (3, 4)]'::lseg;
+```
+
+### Boxes
+
+Boxes are represented by pairs of points that are opposite corners of the box.
+
+**Syntax**
+
+```sql
+( ( x1 , y1 ) , ( x2 , y2 ) )
+( x1 , y1 ) , ( x2 , y2 )
+x1 , y1   ,   x2 , y2
+```
+
+**Example**
+
+```sql
+SELECT '((1, 2), (3, 4))'::box;
+```
+
+### Paths
+
+Paths are represented by lists of connected points. Paths can be open or closed.
+
+**Syntax**
+
+```sql
+[ ( x1 , y1 ) , ... , ( xn , yn ) ]
+( ( x1 , y1 ) , ... , ( xn , yn ) )
+( x1 , y1 ) , ... , ( xn , yn )
+( x1 , y1   , ... ,   xn , yn )
+x1 , y1   , ... ,   xn , yn
+```
+
+**Example**
+
+```sql
+SELECT '[(1, 2), (3, 4), (5, 6)]'::path;
+SELECT '((1, 2), (3, 4), (5, 6))'::path;
+```
+
+### Polygons
+
+Polygons are represented by lists of points (the vertexes of the polygon).
+
+**Syntax**
+
+```sql
+( ( x1 , y1 ) , ... , ( xn , yn ) )
+( x1 , y1 ) , ... , ( xn , yn )
+( x1 , y1   , ... ,   xn , yn )
+x1 , y1   , ... ,   xn , yn
+```
+
+**Example**
+
+```sql
+SELECT '((1, 2), (3, 4), (5, 6))'::polygon;
+```
+
+### Circles
+
+Circles are represented by a center point and radius.
+
+**Syntax**
+
+```sql
+< ( x , y ) , r >
+( ( x , y ) , r )
+( x , y ) , r
+x , y   , r
+```
+
+**Example**
+
+```sql
+SELECT '<(1, 2), 3>'::circle;
+```
+
+Note: The individual coordinates are stored as double precision (float8) numbers. A rich set of functions and operators is available to perform various geometric operations such as scaling, translation, rotation, and determining intersections. They are explained in Section 9.11.
