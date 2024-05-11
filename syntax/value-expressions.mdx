@@ -1,0 +1,178 @@
+## Value Expressions in SQL
+
+Value expressions in SQL are used to combine, manipulate, and compare values in SQL statements to produce a meaningful result. They are essential for performing various operations such as arithmetic, logical, set, and other operations in SQL queries.
+
+### Types of Value Expressions
+
+1. **Constants or Literal Values**: These are specific values used directly in SQL expressions.
+2. **Column References**: These refer to columns in tables used in SQL queries.
+3. **Positional Parameters**: These are placeholders for values supplied externally to SQL statements.
+4. **Subscripts**: These are used to extract specific elements from array values.
+5. **Field Selection**: This involves extracting specific fields from composite types (row types).
+6. **Operator Invocations**: These involve using operators to perform operations on values.
+7. **Function Calls**: These involve invoking functions to perform specific operations.
+8. **Aggregate Expressions**: These are used to apply aggregate functions across rows selected by a query.
+9. **Window Function Calls**: These are used to apply aggregate-like functions over some portion of the rows selected by a query.
+10. **Type Casts**: These are used to convert values from one data type to another.
+11. **Collation Expressions**: These are used to override the collation of an expression.
+12. **Scalar Subqueries**: These are regular SELECT queries in parentheses that return exactly one value.
+13. **Array Constructors**: These are used to build array values using values for their member elements.
+14. **Row Constructors**: These are used to build row values (composite values) using values for their member fields.
+
+### Usages
+
+#### 1. Constants or Literal Values
+
+Constants are used directly in SQL expressions. For example, to select all employees with a salary greater than $50,000:
+
+```sql
+SELECT * FROM employees WHERE salary > 50000;
+```
+
+#### 2. Column References
+
+Column references are used to refer to columns in tables. For example, to select the names and salaries of all employees:
+
+```sql
+SELECT name, salary FROM employees;
+```
+
+The format for a column reference is `correlation.columnname`, where `correlation` is the name of a table or an alias for a table defined by a FROM clause[1].
+
+#### 3. Positional Parameters
+
+Positional parameters are used in SQL function definitions and prepared queries. For example, to define a function that takes a text parameter:
+
+```sql
+CREATE FUNCTION dept(text) RETURNS dept
+AS $$ SELECT * FROM dept WHERE name = $1 $$
+LANGUAGE SQL;
+```
+
+Here, `$1` references the value of the first function argument[1].
+
+#### 4. Subscripts
+
+Subscripts are used to extract specific elements from array values. For example, to extract the fourth element from an array column:
+
+```sql
+SELECT mytable.arraycolumn[4] FROM mytable;
+```
+
+Multiple subscripts can be concatenated for multidimensional arrays[1].
+
+#### 5. Field Selection
+
+Field selection is used to extract specific fields from composite types. For example, to extract a field from a table column that is of a composite type:
+
+```sql
+SELECT (compositecol).somefield FROM mytable;
+```
+
+Parentheses are required to show that `compositecol` is a column name, not a table name[1].
+
+#### 6. Operator Invocations
+
+Operators are used to perform operations on values. For example, to add two columns:
+
+```sql
+SELECT column1 + column2 FROM mytable;
+```
+
+Operators can be binary (infix) or unary (prefix)[1].
+
+#### 7. Function Calls
+
+Functions are invoked to perform specific operations. For example, to compute the square root of a value:
+
+```sql
+SELECT sqrt(2);
+```
+
+Functions can be built-in or user-defined[1].
+
+#### 8. Aggregate Expressions
+
+Aggregate expressions are used to apply aggregate functions across rows. For example, to count the number of rows in a table:
+
+```sql
+SELECT count(*) FROM mytable;
+```
+
+Aggregate functions can be used with or without the `DISTINCT` keyword to count distinct values[1].
+
+#### 9. Window Function Calls
+
+Window functions are used to apply aggregate-like functions over some portion of the rows. For example, to calculate the moving average of sales revenue for each product:
+
+```sql
+SELECT product, AVG(revenue) OVER (PARTITION BY product ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS moving_average
+FROM sales_data;
+```
+
+Window functions can be used to perform various calculations such as ranking and identifying outliers[1][7].
+
+#### 10. Type Casts
+
+Type casts are used to convert values from one data type to another. For example, to convert a string to an integer:
+
+```sql
+SELECT CAST('10' AS int);
+```
+
+Type casts can be performed using the `CAST` syntax or the `::` operator[1][3][12].
+
+#### 11. Collation Expressions
+
+Collation expressions are used to override the collation of an expression. For example, to sort a column using a specific collation:
+
+```sql
+SELECT * FROM mytable ORDER BY column1 COLLATE "C";
+```
+
+Collation expressions can be used to specify the sorting rules for character data[1][2].
+
+#### 12. Scalar Subqueries
+
+Scalar subqueries are used to return exactly one value. For example, to find the largest city population in each state:
+
+```sql
+SELECT name, (SELECT max(pop) FROM cities WHERE cities.state = states.name)
+FROM states;
+```
+
+Scalar subqueries can be used in most statements that call for an expression[1][9].
+
+#### 13. Array Constructors
+
+Array constructors are used to build array values. For example, to create an array from a list of values:
+
+```sql
+SELECT ARRAY[1,2,3+4];
+```
+
+Array constructors can be used to build multidimensional arrays by nesting constructors[1].
+
+#### 14. Row Constructors
+
+Row constructors are used to build row values. For example, to create a row from a list of values:
+
+```sql
+SELECT ROW(1,2.5,'this is a test');
+```
+
+Row constructors can be used to build composite values to be stored in a composite-type table column or passed to a function that accepts a composite parameter[1][6].
+
+### Key Takeaways
+
+- **Values**: Constants, variables, or column references used in SQL expressions.
+- **Operators**: Used to perform arithmetic, comparison, logical operations, etc.
+- **Functions**: Built-in or user-defined functions used to perform specific operations.
+- **Aggregate Functions**: Used to apply aggregate operations across rows.
+- **Window Functions**: Used to apply aggregate-like functions over some portion of the rows.
+- **Type Casting**: Used to convert values from one data type to another.
+- **Collation**: Used to override the sorting rules for character data.
+- **Scalar Subqueries**: Used to return exactly one value.
+- **Array and Row Constructors**: Used to build array and row values.
+
+Understanding and utilizing these components effectively is crucial for writing powerful and efficient SQL queries.

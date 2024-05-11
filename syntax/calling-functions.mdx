@@ -1,0 +1,126 @@
+## Function Call Notations in PostgreSQL
+
+PostgreSQL supports three notations for calling functions: positional, named, and mixed. Understanding these notations is crucial for effective and efficient use of functions in PostgreSQL.
+
+### Positional Notation
+
+Positional notation is the traditional method for passing arguments to functions. In this notation, arguments are specified in the same order as they are defined in the function declaration.
+
+#### Example Function
+
+Consider the following function definition:
+
+```sql
+CREATE FUNCTION concat_lower_or_upper(a text, b text, uppercase boolean DEFAULT false)
+RETURNS text
+AS
+$$
+ SELECT CASE
+        WHEN $3 THEN UPPER($1 || ' ' || $2)
+        ELSE LOWER($1 || ' ' || $2)
+        END;
+$$
+LANGUAGE SQL IMMUTABLE STRICT;
+```
+
+#### Positional Notation Usage
+
+To call this function using positional notation, you specify all arguments in order:
+
+```sql
+SELECT concat_lower_or_upper('Hello', 'World', true);
+-- Output: HELLO WORLD
+```
+
+If you omit the `uppercase` parameter, it receives its default value of `false`, resulting in lower case output:
+
+```sql
+SELECT concat_lower_or_upper('Hello', 'World');
+-- Output: hello world
+```
+
+### Named Notation
+
+Named notation allows you to specify arguments by name, making it easier to understand and maintain complex function calls.
+
+#### Named Notation Usage
+
+To call the `concat_lower_or_upper` function using named notation, you specify each argument's name using `=>` to separate it from the argument expression:
+
+```sql
+SELECT concat_lower_or_upper(a => 'Hello', b => 'World');
+-- Output: hello world
+```
+
+You can omit the `uppercase` parameter, and it will be set to `false` implicitly:
+
+```sql
+SELECT concat_lower_or_upper(a => 'Hello', b => 'World', uppercase => true);
+-- Output: HELLO WORLD
+```
+
+Named notation also allows you to specify arguments in any order:
+
+```sql
+SELECT concat_lower_or_upper(a => 'Hello', uppercase => true, b => 'World');
+-- Output: HELLO WORLD
+```
+
+For backward compatibility, an older syntax based on `:=` is supported:
+
+```sql
+SELECT concat_lower_or_upper(a := 'Hello', uppercase := true, b := 'World');
+-- Output: HELLO WORLD
+```
+
+### Mixed Notation
+
+Mixed notation combines positional and named notation. However, named arguments cannot precede positional arguments.
+
+#### Mixed Notation Usage
+
+To call the `concat_lower_or_upper` function using mixed notation, you specify the first arguments positionally and the remaining arguments by name:
+
+```sql
+SELECT concat_lower_or_upper('Hello', 'World', uppercase => true);
+-- Output: HELLO WORLD
+```
+
+In this example, the arguments `a` and `b` are specified positionally, while `uppercase` is specified by name.
+
+### Usage
+
+Consider a more complex function with numerous parameters that have default values:
+
+```sql
+CREATE FUNCTION complex_function(
+    param1 text,
+    param2 integer,
+    param3 boolean DEFAULT false,
+    param4 text DEFAULT 'default_value'
+)
+RETURNS text
+AS
+$$
+    -- Function implementation
+$$
+LANGUAGE SQL IMMUTABLE STRICT;
+```
+
+Using named or mixed notation can save a great deal of writing and reduce chances for error:
+
+```sql
+SELECT complex_function(
+    param1 => 'value1',
+    param2 => 123,
+    param4 => 'custom_value'
+);
+```
+
+Or:
+
+```sql
+SELECT complex_function('value1', 123, param4 => 'custom_value');
+```
+
+In both cases, the `param3` parameter is omitted and receives its default value of `false`.

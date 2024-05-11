@@ -1,0 +1,180 @@
+## SQL Syntax and Lexical Structure
+
+### Overview
+
+SQL input consists of a sequence of commands, each composed of tokens terminated by a semicolon (`;`). Tokens can be key words, identifiers, literals (constants), or special character symbols. They are typically separated by whitespace but do not need to be if there is no ambiguity[1].
+
+### Identifiers and Key Words
+
+#### Definition
+
+- **Identifiers**: Names of tables, columns, or other database objects. They must begin with a letter (a-z, including diacritical marks and non-Latin letters) or an underscore (`_`). Subsequent characters can be letters, underscores, digits (0-9), or dollar signs (`$`), though dollar signs are not standard and may reduce portability[1].
+- **Key Words**: Words with fixed meanings in SQL, such as `SELECT`, `UPDATE`, and `VALUES`.
+
+#### Case Sensitivity
+
+- **Unquoted Identifiers**: Case-insensitive. For example, `MY_TABLE` and `my_table` are treated as the same[1].
+- **Quoted Identifiers**: Case-sensitive and enclosed in double quotes (`""`). For example, `"my_table"` and `"MY_TABLE"` are different[1].
+
+#### Quoted Identifiers
+
+- **Usage**: Enclose identifiers in double quotes to include special characters or to make them case-sensitive.
+- **Example**:
+  ```sql
+  UPDATE "my_table" SET "a" = 5;
+  ```
+- **Unicode Escapes**: Use `U&` followed by the opening double quote to include Unicode characters by their code points.
+  ```sql
+  U&"d\0061t\+000061"
+  U&"\0441\043B\043E\043D"
+  ```
+- **UESCAPE Clause**: Specify a different escape character.
+  ```sql
+  U&"d0061t+000061" UESCAPE '!'
+  ```
+
+### Constants
+
+#### String Constants
+
+- **Standard Syntax**: Enclosed in single quotes (`'`).
+  ```sql
+  'This is a string'
+  ```
+- **Concatenation**: Two string constants separated by whitespace with at least one newline are concatenated.
+  ```sql
+  SELECT 'foo'
+  'bar';  -- Equivalent to SELECT 'foobar';
+  ```
+- **Escape Syntax**: Use `E` before the opening single quote to include backslash escapes.
+  ```sql
+  E'foo\nbar'
+  ```
+- **Unicode Escapes**: Similar to quoted identifiers, use `U&` followed by the opening single quote.
+  ```sql
+  U&'d\0061t\+000061'
+  U&'\0441\043B\043E\043D'
+  ```
+- **Dollar-Quoted Strings**: Enclosed in dollar signs (`$$`) with an optional tag.
+  ```sql
+  $$Dianne's horse$$
+  $SomeTag$Dianne's horse$SomeTag$
+  ```
+
+#### Bit-String Constants
+
+- **Binary Syntax**: Use `B` before the opening single quote.
+  ```sql
+  B'1001'
+  ```
+- **Hexadecimal Syntax**: Use `X` before the opening single quote.
+  ```sql
+  X'1FF'
+  ```
+
+#### Numeric Constants
+
+- **Forms**:
+  - `digits`
+  - `digits.[digits][e[+-]digits]`
+  - `[digits].digits[e[+-]digits]`
+  - `digitse[+-]digits`
+- **Examples**:
+  ```sql
+  42
+  3.5
+  4.
+  .001
+  5e2
+  1.925e-3
+  ```
+
+#### Constants of Other Types
+
+- **Notations**:
+  - `type 'string'`
+  - `'string'::type`
+  - `CAST ( 'string' AS type )`
+- **Examples**:
+  ```sql
+  REAL '1.23'
+  1.23::REAL
+  CAST('1.23' AS REAL)
+  ```
+
+### Operators
+
+#### Definition
+
+- **Operator Names**: Sequences of up to 63 characters from a specific list, with restrictions to avoid ambiguity with comments and to ensure proper parsing[1].
+
+#### Precedence
+
+- **Table 4.2**: Lists operator precedence from highest to lowest.
+- **Parentheses**: Use parentheses to enforce different precedence in expressions.
+
+### Special Characters
+
+#### Usage
+
+- **Dollar Sign (`$`)**: Represents positional parameters or part of identifiers and dollar-quoted strings.
+- **Parentheses (`()`)**: Group expressions and enforce precedence.
+- **Brackets (`[]`)**: Select array elements.
+- **Commas (`,`)**: Separate list elements.
+- **Semicolon (`;`)**: Terminates SQL commands.
+- **Colon (`:`)**: Selects slices from arrays or prefixes variable names in certain dialects.
+- **Asterisk (`*`)**: Denotes all fields of a table row or composite value.
+- **Period (`.`)**: Used in numeric constants and to separate schema, table, and column names.
+
+### Comments
+
+#### Types
+
+- **Standard SQL Comments**: Begin with double dashes (`--`) and extend to the end of the line.
+  ```sql
+  -- This is a standard SQL comment
+  ```
+- **C-Style Block Comments**: Begin with `/*` and extend to the matching `*/`.
+  ```sql
+  /* multiline comment
+  * with nesting: /* nested block comment */
+  */
+  ```
+
+### Usage Examples
+
+- **Identifiers and Key Words**:
+  ```sql
+  SELECT * FROM my_table;  -- Unquoted identifier
+  UPDATE "my_table" SET "a" = 5;  -- Quoted identifier
+  ```
+- **String Constants**:
+  ```sql
+  SELECT 'This is a string';  -- Standard syntax
+  SELECT E'foo\nbar';  -- Escape syntax
+  SELECT U&'d\0061t\+000061';  -- Unicode escapes
+  SELECT $$Dianne's horse$$;  -- Dollar-quoted string
+  ```
+- **Bit-String Constants**:
+  ```sql
+  SELECT B'1001';  -- Binary syntax
+  SELECT X'1FF';  -- Hexadecimal syntax
+  ```
+- **Numeric Constants**:
+  ```sql
+  SELECT 42;  -- Integer
+  SELECT 3.5;  -- Decimal
+  SELECT 5e2;  -- Exponential
+  ```
+- **Constants of Other Types**:
+  ```sql
+  SELECT REAL '1.23';  -- Type notation
+  SELECT 1.23::REAL;  -- PostgreSQL-style typecast
+  SELECT CAST('1.23' AS REAL);  -- CAST notation
+  ```
+- **Operators and Precedence**:
+  ```sql
+  SELECT 3 + 4 * 2;  -- Precedence example
+  SELECT (3 + 4) * 2;  -- Using parentheses to enforce precedence
+  ```
+- **Special Characters**:
