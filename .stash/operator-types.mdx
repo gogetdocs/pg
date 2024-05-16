@@ -1,0 +1,68 @@
+PostgreSQL provides a wide range of operator classes for different data types. Here’s a comprehensive list of the main operator classes available in PostgreSQL, excluding array and geometric operators:
+
+### 1. **Comparison Operators**
+
+- Operators for comparing values, such as `=`, `<>`, `<`, `<=`, `>`, `>=`.
+
+### 2. **Boolean Operators**
+
+- Operators for boolean logic, such as `AND`, `OR`, `NOT`.
+
+### 3. **String Operators**
+
+- Operators for string manipulation, such as `||` (concatenation), `LIKE`, `ILIKE`, `SIMILAR TO`, and `~` (regular expression match).
+
+### 4. **Mathematical Operators**
+
+- Operators for mathematical operations, including `+`, `-`, `*`, `/`, `%`, and more.
+
+### 5. **Bitwise Operators**
+
+- Operators for performing bitwise operations, such as `&`, `|`, `#`, `<<`, and `>>`.
+
+### 6. **JSON and JSONB Operators**
+
+- Operators for working with JSON and JSONB data types, such as `->`, `->>`, `#>`, `#>>`, and `@>`.
+
+### 7. **Range Operators**
+
+- Operators for range types, such as `&&` (overlap), `<@` (contained by), and `@>` (contains).
+
+### 8. **Network Address Operators**
+
+- Operators for working with network address types, such as `<<` (is contained by), `>>` (contains), and `&&` (overlaps).
+
+### 9. **Full-Text Search Operators**
+
+- Operators for full-text search, such as `@@` (matches), `||` (concatenation of text search documents), and `<->` (distance operator for text search).
+
+### 10. **UUID Operators**
+
+- Operators for comparing UUID values, such as `=` and `<>`.
+
+### 11. **Temporal Operators**
+
+- Operators for working with date and time types, including comparison operators (`=`, `<>`, `<`, `<=`, `>`, `>=`) and interval operators.
+
+### 12. **XML Operators**
+
+- Operators for working with XML data types, such as `||` (concatenation) and `@>` (contains).
+
+### 13. **Hstore Operators**
+
+- Operators for working with the hstore data type, such as `->`, `->>`, and `@>`.
+
+### 14. **Object Identifier Operators**
+
+- Operators for working with object identifiers (OID), such as `=` and `<>`.
+
+### 15. **Custom Data Type Operators**
+
+- Users can define their own operators for custom data types using the `CREATE OPERATOR` command.
+
+### Additional Notes
+
+- **Operator Precedence**: Operators have different precedence levels, which affect the order in which they are evaluated in expressions.
+- **Operator Overloading**: PostgreSQL supports operator overloading, allowing different data types to use the same operator with different behaviors.
+
+This categorization helps users understand and utilize the various operators available in PostgreSQL for different types of data and operations. Each operator class serves specific purposes, enabling flexible and powerful data manipulation and querying capabilities.
