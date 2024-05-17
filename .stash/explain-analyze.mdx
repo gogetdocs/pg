@@ -1,0 +1,1376 @@
+To analyze and interpret query execution in PostgreSQL and optimize it for performance, you can use the `EXPLAIN` and `EXPLAIN ANALYZE` commands. These tools help you understand how PostgreSQL plans and executes queries. Below is a detailed explanation of various aspects, such as sequential scans, index usage, partitioning, and optimization strategies. I'll also walk you through different techniques for query tuning and performance improvement.
+
+### 1. **Using `EXPLAIN` and `EXPLAIN ANALYZE`**
+
+- **EXPLAIN**: Shows the execution plan without running the query.
+
+  ```sql
+  EXPLAIN SELECT * FROM my_table WHERE id = 100;
+  ```
+
+- **EXPLAIN ANALYZE**: Shows the execution plan and also runs the query to provide real execution statistics. This is more detailed and useful for understanding real query performance.
+
+  ```sql
+  EXPLAIN ANALYZE SELECT * FROM my_table WHERE id = 100;
+  ```
+
+### 2. **Key Concepts in Query Execution Plan**
+
+Here are some common elements in an `EXPLAIN` or `EXPLAIN ANALYZE` output, and what they mean:
+
+- **Seq Scan (Sequential Scan)**: PostgreSQL scans the entire table row by row. This is slow for large tables, especially if the query could benefit from an index. This is chosen when:
+  - No suitable index exists for the query.
+  - PostgreSQL estimates that a sequential scan is faster due to the query structure or data distribution.
+- **Index Scan**: PostgreSQL uses an index to find rows matching a query condition. This is much faster than a sequential scan for large tables. Indexes can be used for filtering, sorting, or joining.
+- **Bitmap Index Scan/Bitmap Heap Scan**: This is a hybrid approach where PostgreSQL uses an index to find rows but doesn't immediately retrieve them. Instead, it builds a bitmap of relevant row locations and fetches the rows in batches. This can be efficient when many rows are scattered across the table.
+
+- **Nested Loop**: A loop where for each row in the outer table, PostgreSQL scans the inner table. This can be very inefficient for large tables unless it’s combined with indexes or optimizations.
+
+- **Hash Join**: PostgreSQL builds a hash table from one table and scans the other table to look up matches. This is efficient for larger datasets.
+
+- **Merge Join**: This is typically used when both input tables are sorted on the join key. It can be very efficient if the data is pre-sorted or indexed correctly.
+
+### 3. **Sequential Scans vs. Index Scans**
+
+#### **Sequential Scan**
+
+Sequential scans are generally slower and less efficient than index scans, especially when a table is large. However, in certain situations, a sequential scan might still be chosen:
+
+- If the table is small (a sequential scan might actually be faster).
+- If there are no usable indexes for the query's filter conditions.
+- If PostgreSQL estimates that a large portion of the table needs to be read (e.g., when retrieving 50% of the rows), where reading the whole table might be cheaper than using an index.
+
+#### **Index Scan**
+
+Index scans are used when the database can use an index to locate specific rows. However, PostgreSQL will only choose an index scan if it determines that the index is more efficient than a sequential scan. Some considerations for index scans:
+
+- **Cost of index maintenance**: Indexes can slow down writes (inserts, updates, and deletes), so over-indexing can hurt performance.
+- **Index-only scans**: If an index contains all the columns required by a query, PostgreSQL can perform an index-only scan, skipping the need to access the table (also known as a covering index).
+- **Partial indexes**: Creating indexes on a subset of data (e.g., `WHERE is_active = true`) can make queries faster by focusing only on relevant rows.
+
+### 4. **Partitioned Tables**
+
+Table partitioning can improve query performance by breaking large tables into smaller, more manageable pieces (partitions). PostgreSQL supports both range and list partitioning.
+
+- **Partition Pruning**: When querying a partitioned table, PostgreSQL can prune unnecessary partitions at execution time. This reduces the amount of data scanned, improving performance.
+
+  For example:
+
+  ```sql
+  SELECT * FROM sales WHERE sale_date >= '2024-01-01' AND sale_date < '2024-02-01';
+  ```
+
+  If the `sales` table is partitioned by month on `sale_date`, PostgreSQL will only scan the partition for January 2024, skipping the others.
+
+- **Indexes on Partitions**: Each partition can have its own indexes. If your query can prune partitions, the indexes on the pruned partitions are ignored, further speeding up the query.
+
+- **Avoid Global Indexes**: Unlike some other databases, PostgreSQL does not support global indexes across partitions. Each partition maintains its own indexes.
+
+#### When to Partition:
+
+- **Large datasets**: Partitioning makes sense when tables grow large (millions of rows).
+- **Range queries**: If your queries filter by a range, partitioning by that range (e.g., date or ID) can significantly reduce the amount of data scanned.
+- **Data lifecycle management**: Partitioning makes it easier to archive or drop old data.
+
+### 5. **Optimizing Query Performance**
+
+Here are various optimization techniques for PostgreSQL queries:
+
+#### **1. Indexing Strategies**
+
+- **Composite Indexes**: If your query involves multiple columns in the `WHERE` clause, a composite (multicolumn) index may improve performance.
+
+  ```sql
+  CREATE INDEX idx_my_table_on_col1_col2 ON my_table (col1, col2);
+  ```
+
+- **Partial Indexes**: Index only a subset of rows (e.g., frequently queried data).
+
+  ```sql
+  CREATE INDEX idx_my_table_partial ON my_table (col1) WHERE col2 = 'active';
+  ```
+
+- **Functional Indexes**: Index expressions instead of columns.
+
+  ```sql
+  CREATE INDEX idx_my_table_lower_col1 ON my_table (LOWER(col1));
+  ```
+
+#### **2. Analyze and Vacuum**
+
+- **Analyze**: Ensures that PostgreSQL has up-to-date statistics about table data distribution. Always use `ANALYZE` after major data changes (inserts, updates, deletes).
+
+  ```sql
+  ANALYZE my_table;
+  ```
+
+- **Vacuum**: Cleans up dead rows and optimizes table storage. Regularly vacuum tables to avoid bloating, which can slow down queries.
+
+  ```sql
+  VACUUM my_table;
+  ```
+
+- **Autovacuum**: Ensure that autovacuum is properly configured. Autovacuum automatically triggers `ANALYZE` and `VACUUM` to keep the database healthy.
+
+#### **3. Avoid Unnecessary Columns in Queries**
+
+Fetching unnecessary columns adds overhead. If your query doesn’t need all columns, select only the required ones.
+
+```sql
+-- Bad
+SELECT * FROM my_table WHERE id = 100;
+
+-- Better
+SELECT name, age FROM my_table WHERE id = 100;
+```
+
+#### **4. Optimize Joins**
+
+- Use proper indexes for join conditions.
+- Consider denormalizing heavily-joined tables if joins are consistently slow.
+
+#### **5. Subqueries and CTEs**
+
+- **Common Table Expressions (CTEs)**: Sometimes, CTEs can lead to performance issues due to materialization. PostgreSQL used to materialize (compute and store) the result of CTEs, but this changed in newer versions. Use `EXPLAIN ANALYZE` to see how PostgreSQL handles CTEs.
+- **Subqueries**: In some cases, subqueries might be less efficient than a `JOIN`. Test both approaches.
+
+#### **6. Parallel Query Execution**
+
+PostgreSQL can perform parallel execution for large queries that scan large tables. Use `EXPLAIN ANALYZE` to check if a query uses parallelism.
+
+```sql
+SET max_parallel_workers_per_gather = 4; -- Adjust to your server capabilities
+```
+
+#### **7. Adjust Work Memory**
+
+Increase the `work_mem` parameter for queries that require large sorts or hash tables (joins or aggregates). Use session-level adjustments for individual queries.
+
+```sql
+SET work_mem = '128MB'; -- For a single large query
+```
+
+#### **8. Optimize Sorting and Aggregations**
+
+Indexes that support sorting (e.g., `ORDER BY`) or aggregates can improve performance. For large aggregates, ensure sufficient memory is available for sorting to avoid disk I/O.
+
+### 6. **EXPLAIN ANALYZE Example**
+
+Let's look at an example `EXPLAIN ANALYZE` output and interpret it:
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM my_table WHERE id = 100;
+```
+
+The output might look like this:
+
+```
+ Index Scan using idx_my_table_id on my_table  (cost=0.29..8.56 rows=1 width=45) (actual time=0.015..0.017 rows=1 loops=1)
+   Index Cond: (id = 100)
+ Planning Time: 0.075 ms
+ Execution Time: 0.039 ms
+```
+
+- **Index Scan**: PostgreSQL used the `idx_my_table_id` index to locate the row.
+- **Cost**: The estimated cost of the query (`0.29..8.56`), where the first number is the startup cost, and the second number is the total cost.
+- **Rows**: PostgreSQL estimated that the query would return `1` row, which matched the actual result.
+- **Actual Time**: The time taken to execute the
+
+---
+
+When you execute a query using `EXPLAIN ANALYZE` in PostgreSQL, it provides a comprehensive breakdown of the query execution plan along with actual execution statistics. This is crucial for understanding how the database processes a query and for identifying potential performance bottlenecks.
+
+### Basic Structure of EXPLAIN ANALYZE Output
+
+The output consists of several components, including the following key pieces of information:
+
+1. **Execution Plan Tree**: This shows how PostgreSQL executed the query in a hierarchical format.
+2. **Cost Estimates**: These are the planner's estimates of the resources required to execute the query.
+3. **Actual Execution Statistics**: These show the real-time data after the query has been executed.
+
+### Example of EXPLAIN ANALYZE Output
+
+Here’s an example query and its corresponding `EXPLAIN ANALYZE` output:
+
+```sql
+EXPLAIN ANALYZE SELECT * FROM employees WHERE department_id = 3;
+```
+
+#### Sample Output
+
+```
+                                                   QUERY PLAN
+---------------------------------------------------------------------------------------------------------------
+ Seq Scan on employees  (cost=0.00..35.25 rows=7 width=142) (actual time=0.020..0.065 rows=7 loops=1)
+   Filter: (department_id = 3)
+   Rows Removed by Filter: 93
+ Planning Time: 0.123 ms
+ Execution Time: 0.075 ms
+(5 rows)
+```
+
+### Breakdown of the Output
+
+1. **Query Plan**: This section displays the method used to retrieve data.
+
+   - **Seq Scan on employees**: Indicates that a sequential scan was performed on the `employees` table.
+   - **cost=0.00..35.25**: Represents the estimated cost of executing the query. The first number is the startup cost (cost to begin the operation), and the second is the total cost (cost to complete the operation). Lower costs indicate a more efficient plan.
+   - **rows=7**: Estimated number of rows that will be returned by this operation.
+   - **width=142**: The average size (in bytes) of a row returned by this operation.
+
+2. **Actual Time**: This shows the actual time taken to perform the operation.
+
+   - **actual time=0.020..0.065**: The time in milliseconds it took to start and finish the operation.
+   - **rows=7 loops=1**: This indicates that 7 rows were returned in one execution loop.
+
+3. **Filter**: Displays the filter condition applied to the query.
+
+   - **Filter: (department_id = 3)**: This indicates the filter condition applied during the scan.
+
+4. **Rows Removed by Filter**: Shows how many rows were examined and not returned due to the filter condition.
+
+   - **Rows Removed by Filter: 93**: Indicates that 93 rows were scanned but did not match the filter.
+
+5. **Planning Time**: The time taken to plan the query.
+
+   - **Planning Time: 0.123 ms**: The time taken to create the execution plan.
+
+6. **Execution Time**: The total time taken to execute the query.
+   - **Execution Time: 0.075 ms**: The time taken from the start of execution to the completion of the query.
+
+### Detailed Components
+
+#### 1. **Node Types**
+
+- **Seq Scan**: Indicates a sequential scan.
+- **Index Scan**: Indicates an index was used to retrieve rows.
+- **Bitmap Index Scan**: Combines index and heap scans for efficiency.
+- **Nested Loop**: Joins tables by looping through them.
+- **Hash Join**: Uses a hash table for join operations.
+- **Sort**: Indicates that sorting is performed on the result set.
+
+#### 2. **Cost Estimates**
+
+- **Startup Cost**: The cost to start returning rows.
+- **Total Cost**: The cost to retrieve all the rows.
+- Cost estimates are calculated based on statistics gathered from the tables, indexes, and data distribution.
+
+#### 3. **Rows and Width**
+
+- **Estimated Rows**: The planner's estimate of how many rows will be returned.
+- **Actual Rows**: The actual number of rows returned during execution.
+- **Width**: The average size of the rows returned.
+
+### Additional Information
+
+1. **Execution Plan Size**: The depth of the plan can get quite complex, depending on the query. A more complicated query will have nested operations with several layers.
+
+2. **Parallel Execution**: If parallel execution is utilized, you may see additional lines indicating parallel workers used, along with their respective execution times.
+
+3. **Timing Stats**: More detailed timing statistics are available in newer versions of PostgreSQL, allowing for deeper insights into various execution phases.
+
+### Using EXPLAIN ANALYZE Effectively
+
+- **Optimization**: Use `EXPLAIN ANALYZE` to identify slow parts of a query. Look for:
+
+  - High actual times.
+  - High numbers of rows removed by filters.
+  - Use of sequential scans on large tables when an index would be beneficial.
+
+- **Tuning**: Adjust indexes, rewrite queries, or alter table structures based on findings from the `EXPLAIN ANALYZE` output.
+
+- **Understanding Data Distribution**: Running `ANALYZE` on tables helps PostgreSQL gather accurate statistics, leading to better query planning.
+
+---
+
+### Scenario 5: Multiple Joins with Performance Issues
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.name, d.department_name, p.project_name
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+JOIN projects p ON e.id = p.employee_id
+WHERE d.location = 'California';
+```
+
+#### Sample Output
+
+```
+                                           QUERY PLAN
+---------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.42..52.29 rows=20 width=92) (actual time=0.061..0.158 rows=20 loops=1)
+   -> Seq Scan on departments d  (cost=0.00..2.01 rows=2 width=30) (actual time=0.014..0.018 rows=2 loops=1)
+         Filter: (location = 'California')
+         Rows Removed by Filter: 3
+   -> Hash Join  (cost=0.42..25.99 rows=10 width=92) (actual time=0.022..0.075 rows=10 loops=1)
+         Hash Cond: (e.id = p.employee_id)
+         -> Seq Scan on employees e  (cost=0.00..18.35 rows=1000 width=38) (actual time=0.020..0.047 rows=10 loops=1)
+         -> Hash  (cost=10.00..10.00 rows=10 width=34) (actual time=0.013..0.013 rows=10 loops=1)
+               -> Seq Scan on projects p  (cost=0.00..10.00 rows=10 width=34) (actual time=0.007..0.010 rows=10 loops=1)
+ Planning Time: 0.118 ms
+ Execution Time: 0.218 ms
+(8 rows)
+```
+
+#### Interpretation
+
+- **Nested Loop**: The execution plan indicates a nested loop for joining the tables.
+- **Seq Scan on departments**: A sequential scan is performed on the `departments` table, which returns 2 rows, indicating potential for optimization.
+- **Hash Join**: A hash join is performed between `employees` and `projects`, but both tables are accessed using sequential scans.
+
+#### Optimizations
+
+1. **Indexes on `location` and Join Columns**: Create indexes on the `location` column in `departments` and `employee_id` in `projects`:
+
+   ```sql
+   CREATE INDEX idx_departments_location ON departments(location);
+   CREATE INDEX idx_projects_employee_id ON projects(employee_id);
+   ```
+
+2. **Check Data Distribution**: Ensure that the number of rows returned from `departments` and `projects` is reasonable. If the `projects` table is large, consider filtering or aggregating data earlier.
+
+### Scenario 6: Inefficient Use of Indexes
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM employees
+WHERE last_name = 'Smith' AND department_id = 5;
+```
+
+#### Sample Output
+
+```
+                                             QUERY PLAN
+------------------------------------------------------------------------------------------------------
+ Bitmap Heap Scan on employees  (cost=12.14..15.14 rows=2 width=38) (actual time=0.034..0.048 rows=2 loops=1)
+   Recheck Cond: ((last_name = 'Smith') AND (department_id = 5))
+   -> Bitmap Index Scan on idx_employees_last_name  (cost=0.00..12.14 rows=5 width=0) (actual time=0.025..0.025 rows=5 loops=1)
+         Index Cond: (last_name = 'Smith')
+ Planning Time: 0.095 ms
+ Execution Time: 0.072 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Bitmap Heap Scan**: The execution plan shows a bitmap heap scan, which is efficient for retrieving rows based on multiple index conditions.
+- **Bitmap Index Scan**: The index on `last_name` is used but does not cover the `department_id`, indicating that both conditions need to be checked.
+
+#### Optimizations
+
+1. **Composite Index**: Create a composite index on both `last_name` and `department_id` to speed up this query:
+
+   ```sql
+   CREATE INDEX idx_employees_last_name_dept ON employees(last_name, department_id);
+   ```
+
+2. **Analyze Data**: After creating the index, run `ANALYZE employees;` to ensure the query planner has updated statistics.
+
+### Scenario 7: Using Functions in WHERE Clause
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM employees
+WHERE UPPER(last_name) = 'SMITH';
+```
+
+#### Sample Output
+
+```
+                                   QUERY PLAN
+-----------------------------------------------------------------------------
+ Seq Scan on employees  (cost=0.00..35.00 rows=1 width=38) (actual time=0.010..0.016 rows=1 loops=1)
+   Filter: (upper(last_name) = 'SMITH')
+   Rows Removed by Filter: 999
+ Planning Time: 0.095 ms
+ Execution Time: 0.033 ms
+(5 rows)
+```
+
+#### Interpretation
+
+- **Seq Scan**: A sequential scan is performed, and a function (`UPPER`) is used in the filter condition.
+- **High Rows Removed**: This indicates that a large number of rows were scanned, but only one matched the condition.
+
+#### Optimizations
+
+1. **Functional Index**: Create a functional index on the `UPPER(last_name)` to optimize queries that use this function:
+
+   ```sql
+   CREATE INDEX idx_upper_last_name ON employees(UPPER(last_name));
+   ```
+
+2. **Consider Case-Insensitive Collation**: If case sensitivity is not needed, consider using a case-insensitive collation at the column level for better performance on string comparisons.
+
+### Scenario 8: Handling Large Result Sets
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT department_id, COUNT(*)
+FROM employees
+GROUP BY department_id
+ORDER BY COUNT(*) DESC
+LIMIT 10;
+```
+
+#### Sample Output
+
+```
+                            QUERY PLAN
+-------------------------------------------------------------------
+ Limit  (cost=36.50..36.55 rows=10 width=8) (actual time=7.023..7.025 rows=10 loops=1)
+   -> Sort  (cost=36.50..38.75 rows=1000 width=8) (actual time=7.021..7.022 rows=10 loops=1)
+         Sort Key: count
+         -> GroupAggregate  (cost=36.50..36.75 rows=1000 width=8) (actual time=7.019..7.020 rows=10 loops=1)
+               Group Key: employees.department_id
+               -> Seq Scan on employees  (cost=0.00..35.00 rows=1000 width=8) (actual time=0.015..6.990 rows=1000 loops=1)
+ Planning Time: 0.130 ms
+ Execution Time: 7.059 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Limit**: A limit is applied to the result set, but the query still sorts all results.
+- **GroupAggregate**: The group aggregate step is processed after a sequential scan, which scans all rows in the `employees` table.
+
+#### Optimizations
+
+1. **Create an Index on `department_id`**: Although the aggregation is done after grouping, indexing can help PostgreSQL retrieve rows faster:
+
+   ```sql
+   CREATE INDEX idx_employees_department_id ON employees(department_id);
+   ```
+
+2. **Consider Pre-Aggregation**: If this query is frequently run, consider maintaining a pre-aggregated table to improve performance.
+
+3. **Use Partial Indexes**: If the majority of employees belong to a few departments, consider creating a partial index based on certain conditions to speed up queries.
+
+### Scenario 9: Window Functions
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT id, name, salary,
+       RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rank
+FROM employees;
+```
+
+#### Sample Output
+
+```
+                                  QUERY PLAN
+--------------------------------------------------------------------------------
+ WindowAgg  (cost=45.00..50.00 rows=1000 width=42) (actual time=3.118..3.120 rows=1000 loops=1)
+   -> Sort  (cost=45.00..46.00 rows=1000 width=34) (actual time=3.110..3.112 rows=1000 loops=1)
+         Sort Key: employees.department_id, employees.salary DESC
+         -> Seq Scan on employees  (cost=0.00..35.00 rows=1000 width=34) (actual time=0.018..2.940 rows=1000 loops=1)
+ Planning Time: 0.104 ms
+ Execution Time: 3.130 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **WindowAgg**: The plan indicates that a window function is used, which is generally resource-intensive.
+- **Sort**: The output indicates that sorting is performed based on `department_id` and `salary`, and a sequential scan was used to retrieve all rows.
+
+#### Optimizations
+
+1. **Create Index on `salary`**: An index on the `salary` column can speed up the sorting operation:
+
+   ```sql
+   CREATE INDEX idx_employees_salary ON employees(salary);
+   ```
+
+2. **Limit Dataset with a Filter**: If only specific departments
+
+are of interest, apply a filter before processing:
+
+```sql
+SELECT id, name, salary,
+       RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS rank
+FROM employees
+WHERE department_id IN (1, 2, 3);
+```
+
+3. **Materialized View for Heavy Calculations**: For complex calculations that don’t change frequently, consider using materialized views.
+
+### Summary of Further Optimizations
+
+1. **Composite Indexes**: Use composite indexes for queries that involve multiple columns in filtering or joining.
+
+2. **Functional Indexes**: Create functional indexes for columns used in functions within queries to speed up operations.
+
+3. **Analyze Your Data**: Use the `ANALYZE` command to gather statistics after making changes to your indexes or queries to ensure optimal performance.
+
+4. **Materialized Views**: For complex or heavy calculations, consider using materialized views for improved read performance.
+
+5. **Partitioning**: For large tables, explore table partitioning strategies to enhance performance based on how data is queried.
+
+6. **Regularly Monitor Performance**: Use PostgreSQL's monitoring tools and logs to identify slow queries and refactor them for better performance.
+
+By applying these optimizations, you can improve the performance of your PostgreSQL queries in various scenarios. If there are specific types of queries or scenarios you’d like to explore further, just let me know!
+
+---
+
+### Scenario 10: Subquery with EXISTS Clause
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.name
+FROM employees e
+WHERE EXISTS (SELECT 1 FROM projects p WHERE p.employee_id = e.id AND p.status = 'active');
+```
+
+#### Sample Output
+
+```
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
+ Seq Scan on employees e  (cost=0.00..35.00 rows=10 width=38) (actual time=0.016..0.021 rows=10 loops=1)
+   Filter: (exists (subquery))
+   Rows Removed by Filter: 990
+   Subquery:
+     Seq Scan on projects p  (cost=0.00..10.00 rows=100 width=4) (actual time=0.005..0.007 rows=10 loops=1)
+       Filter: (status = 'active')
+       Rows Removed by Filter: 90
+ Planning Time: 0.092 ms
+ Execution Time: 0.091 ms
+(7 rows)
+```
+
+#### Interpretation
+
+- **Seq Scan on employees**: A sequential scan is done on the `employees` table. It checks each employee to see if there’s an active project for them.
+- **High Rows Removed**: Indicates many employees did not have active projects, which is inefficient.
+- **Subquery Scan**: A sequential scan is also done on the `projects` table for filtering by `status`.
+
+#### Optimizations
+
+1. **Indexes on `status` and `employee_id`**: Create indexes on the `status` column in `projects` and `employee_id` to speed up lookups:
+
+   ```sql
+   CREATE INDEX idx_projects_status ON projects(status);
+   CREATE INDEX idx_projects_employee_id ON projects(employee_id);
+   ```
+
+2. **Refactor Using JOIN**: Rewrite the query using a join instead of a subquery for potentially better performance:
+   ```sql
+   SELECT DISTINCT e.name
+   FROM employees e
+   JOIN projects p ON e.id = p.employee_id
+   WHERE p.status = 'active';
+   ```
+
+### Scenario 11: UNION of Multiple Queries
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT id, name
+FROM employees
+WHERE department_id = 1
+UNION
+SELECT id, name
+FROM employees
+WHERE department_id = 2;
+```
+
+#### Sample Output
+
+```
+                                    QUERY PLAN
+-----------------------------------------------------------------------------------
+ Unique  (cost=0.00..21.38 rows=20 width=38) (actual time=0.029..0.031 rows=20 loops=1)
+   -> Append  (cost=0.00..21.38 rows=20 width=38) (actual time=0.021..0.023 rows=20 loops=1)
+         -> Seq Scan on employees  (cost=0.00..10.00 rows=10 width=38) (actual time=0.015..0.018 rows=10 loops=1)
+               Filter: (department_id = 1)
+         -> Seq Scan on employees  (cost=0.00..10.00 rows=10 width=38) (actual time=0.015..0.018 rows=10 loops=1)
+               Filter: (department_id = 2)
+ Planning Time: 0.079 ms
+ Execution Time: 0.044 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Unique**: The plan indicates that results from both queries are combined, and duplicates are removed.
+- **Seq Scan on employees**: Sequential scans are executed for both subqueries, which can be inefficient.
+
+#### Optimizations
+
+1. **Indexes on `department_id`**: Create an index on the `department_id` column to improve performance:
+
+   ```sql
+   CREATE INDEX idx_employees_department_id ON employees(department_id);
+   ```
+
+2. **Rewrite Using a Single Query**: Combine the conditions in a single query to minimize the need for `UNION` and duplicate scanning:
+   ```sql
+   SELECT id, name
+   FROM employees
+   WHERE department_id IN (1, 2);
+   ```
+
+### Scenario 12: Large IN Clause
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM employees
+WHERE department_id IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+```
+
+#### Sample Output
+
+```
+                                QUERY PLAN
+---------------------------------------------------------------------------
+ Seq Scan on employees  (cost=0.00..35.00 rows=50 width=38) (actual time=0.020..0.050 rows=50 loops=1)
+   Filter: (department_id = ANY ('{1,2,3,4,5,6,7,8,9,10}'::integer[]))
+ Planning Time: 0.086 ms
+ Execution Time: 0.070 ms
+(5 rows)
+```
+
+#### Interpretation
+
+- **Seq Scan**: A sequential scan is performed to filter employees based on a large list of department IDs.
+- **High Rows Removed**: This approach can be inefficient if the `employees` table is large.
+
+#### Optimizations
+
+1. **Index on `department_id`**: Create an index to speed up filtering based on `department_id`:
+
+   ```sql
+   CREATE INDEX idx_employees_department_id ON employees(department_id);
+   ```
+
+2. **Consider a JOIN**: If the list of IDs comes from another table, consider a `JOIN` to avoid scanning all rows unnecessarily:
+   ```sql
+   SELECT e.*
+   FROM employees e
+   JOIN departments d ON e.department_id = d.id
+   WHERE d.id IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+   ```
+
+### Scenario 13: Aggregation with Conditions
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT department_id, AVG(salary)
+FROM employees
+WHERE active = true
+GROUP BY department_id
+HAVING AVG(salary) > 60000;
+```
+
+#### Sample Output
+
+```
+                             QUERY PLAN
+---------------------------------------------------------------------
+ GroupAggregate  (cost=42.50..45.00 rows=5 width=12) (actual time=5.002..5.004 rows=5 loops=1)
+   Group Key: employees.department_id
+   -> Seq Scan on employees  (cost=0.00..35.00 rows=1000 width=8) (actual time=0.010..4.990 rows=1000 loops=1)
+         Filter: (active = true)
+         Rows Removed by Filter: 500
+ Planning Time: 0.085 ms
+ Execution Time: 5.030 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **GroupAggregate**: The execution plan shows an aggregation by `department_id` after filtering by `active`.
+- **Seq Scan on employees**: A sequential scan is performed on the `employees` table, which is likely inefficient for large datasets.
+
+#### Optimizations
+
+1. **Index on `active`**: Create an index on the `active` column to speed up filtering:
+
+   ```sql
+   CREATE INDEX idx_employees_active ON employees(active);
+   ```
+
+2. **Materialized Views**: If this query is executed frequently, consider creating a materialized view that pre-aggregates active employees:
+   ```sql
+   CREATE MATERIALIZED VIEW mv_avg_salary AS
+   SELECT department_id, AVG(salary)
+   FROM employees
+   WHERE active = true
+   GROUP BY department_id;
+   ```
+
+### Scenario 14: Recursive Query
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+WITH RECURSIVE org_chart AS (
+    SELECT id, name, manager_id
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id
+    FROM employees e
+    JOIN org_chart o ON e.manager_id = o.id
+)
+SELECT * FROM org_chart;
+```
+
+#### Sample Output
+
+```
+                                    QUERY PLAN
+-----------------------------------------------------------------------------------
+ CTE Scan on org_chart  (cost=0.00..0.01 rows=1000 width=38) (actual time=0.007..0.009 rows=1000 loops=1)
+   -> Recursive Union  (cost=0.00..35.00 rows=1000 width=38) (actual time=0.002..0.004 rows=1000 loops=1)
+         -> Seq Scan on employees  (cost=0.00..10.00 rows=10 width=38) (actual time=0.003..0.005 rows=10 loops=1)
+               Filter: (manager_id IS NULL)
+         -> Seq Scan on employees e  (cost=0.00..10.00 rows=10 width=38) (actual time=0.004..0.005 rows=10 loops=1)
+               Filter: (manager_id = o.id)
+ Planning Time: 0.156 ms
+ Execution Time: 0.030 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **CTE Scan**: The output indicates a Common Table Expression (CTE) is used to generate an organizational chart based on managers.
+- **Recursive Union**: Both the base case and the recursive step use sequential scans, which may become inefficient for large datasets.
+
+#### Optimizations
+
+1. **Indexes on `manager_id`**: Create
+
+an index on `manager_id` to improve the efficiency of the recursive step:
+
+```sql
+CREATE INDEX idx_employees_manager_id ON employees(manager_id);
+```
+
+2. **Limit Depth**: If applicable, limit the depth of recursion to avoid performance issues with very deep hierarchies.
+
+### Scenario 15: JSON Processing
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.id, e.name, p.project_data->>'project_name' AS project_name
+FROM employees e
+JOIN projects p ON e.id = p.employee_id
+WHERE p.project_data->>'status' = 'active';
+```
+
+#### Sample Output
+
+```
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Nested Loop  (cost=0.42..52.29 rows=10 width=40) (actual time=0.063..0.120 rows=10 loops=1)
+   -> Seq Scan on employees e  (cost=0.00..35.00 rows=1000 width=38) (actual time=0.015..0.021 rows=10 loops=1)
+   -> Seq Scan on projects p  (cost=0.00..35.00 rows=1000 width=38) (actual time=0.045..0.054 rows=10 loops=1)
+         Filter: ((project_data ->> 'status'::text) = 'active')
+         Rows Removed by Filter: 990
+ Planning Time: 0.096 ms
+ Execution Time: 0.153 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Nested Loop**: A nested loop join is performed, which can be inefficient if both tables have a lot of rows.
+- **Sequential Scans**: Both `employees` and `projects` are scanned sequentially.
+
+#### Optimizations
+
+1. **Indexes on JSONB fields**: If using JSONB, create a GIN index on the `project_data` field for faster querying:
+
+   ```sql
+   CREATE INDEX idx_projects_project_data ON projects USING gin (project_data);
+   ```
+
+2. **Use of Proper Data Types**: If possible, consider normalizing JSON data into separate tables for better performance.
+
+3. **Materialized Views**: For complex queries involving JSON processing that are executed frequently, consider creating a materialized view.
+
+### Conclusion
+
+These scenarios illustrate various aspects of PostgreSQL performance, showcasing different types of queries, their execution plans, interpretations, and potential optimizations.
+
+### General Optimization Strategies
+
+1. **Indexing**: Use appropriate indexing strategies based on query patterns.
+2. **Analyze Tables**: Regularly analyze tables to ensure statistics are up-to-date.
+3. **Refactor Queries**: Simplify queries or rewrite them to use joins instead of subqueries where applicable.
+4. **Materialized Views**: Use materialized views for frequently queried data.
+5. **Partitioning**: Consider partitioning large tables for improved performance.
+6. **Proper Data Types**: Use appropriate data types and structures for your use case, especially when dealing with JSON or array data.
+
+---
+
+### Scenario 16: Complex Joins with Multiple Tables
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.name, d.department_name, p.project_name
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+JOIN projects p ON e.id = p.employee_id
+WHERE d.location = 'New York' AND p.start_date > '2023-01-01';
+```
+
+#### Sample Output
+
+```
+                                 QUERY PLAN
+--------------------------------------------------------------------------------
+ Nested Loop  (cost=0.42..123.45 rows=25 width=100) (actual time=0.061..0.092 rows=25 loops=1)
+   -> Nested Loop  (cost=0.42..75.00 rows=30 width=62) (actual time=0.035..0.062 rows=30 loops=1)
+         -> Seq Scan on departments d  (cost=0.00..10.00 rows=100 width=38) (actual time=0.020..0.024 rows=10 loops=1)
+               Filter: (location = 'New York')
+               Rows Removed by Filter: 90
+         -> Index Scan using idx_employees_department_id on employees e  (cost=0.42..3.55 rows=5 width=38) (actual time=0.012..0.016 rows=3 loops=1)
+               Index Cond: (department_id = d.id)
+   -> Seq Scan on projects p  (cost=0.00..35.00 rows=1000 width=50) (actual time=0.015..0.018 rows=3 loops=3)
+         Filter: (start_date > '2023-01-01')
+         Rows Removed by Filter: 997
+ Planning Time: 0.096 ms
+ Execution Time: 0.250 ms
+(8 rows)
+```
+
+#### Interpretation
+
+- **Nested Loop**: The plan uses nested loops for joining `departments`, `employees`, and `projects`.
+- **Seq Scan on departments**: A sequential scan is performed on the `departments` table filtered by location, with a high number of rows removed.
+- **Index Scan on employees**: An index scan is utilized for the `employees` table based on the department ID.
+- **Seq Scan on projects**: A sequential scan on the `projects` table is performed, which could be optimized.
+
+#### Unique Optimizations
+
+1. **Index on `location`**: Create an index on the `location` column in the `departments` table to speed up filtering:
+
+   ```sql
+   CREATE INDEX idx_departments_location ON departments(location);
+   ```
+
+2. **Combined Index on `projects`**: Use a composite index on both `employee_id` and `start_date` in the `projects` table to improve filtering:
+
+   ```sql
+   CREATE INDEX idx_projects_employee_start ON projects(employee_id, start_date);
+   ```
+
+3. **Adjust Join Order**: Analyze the query execution plan to see if changing the join order can improve performance.
+
+4. **Caching**: If this query is frequently executed, consider caching results in an application-level cache or a materialized view.
+
+### Scenario 17: Window Functions for Analytics
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.name, e.salary,
+       RANK() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC) AS salary_rank
+FROM employees e
+WHERE e.active = true;
+```
+
+#### Sample Output
+
+```
+                                  QUERY PLAN
+--------------------------------------------------------------------------------
+ Seq Scan on employees e  (cost=0.00..35.00 rows=1000 width=46) (actual time=0.015..0.020 rows=10 loops=1)
+   Filter: (active = true)
+   Rows Removed by Filter: 990
+ Planning Time: 0.067 ms
+ Execution Time: 0.022 ms
+(5 rows)
+```
+
+#### Interpretation
+
+- **Seq Scan on employees**: The query performs a sequential scan on the `employees` table to filter for active employees.
+- **RANK() Function**: The ranking function is applied to the filtered dataset.
+
+#### Unique Optimizations
+
+1. **Index on `active`**: Create an index on the `active` column to speed up filtering:
+
+   ```sql
+   CREATE INDEX idx_employees_active ON employees(active);
+   ```
+
+2. **Materialized View for Rankings**: If this analysis is frequently performed, consider creating a materialized view to pre-calculate ranks:
+
+   ```sql
+   CREATE MATERIALIZED VIEW mv_salary_rank AS
+   SELECT e.name, e.salary,
+          RANK() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC) AS salary_rank
+   FROM employees e;
+   ```
+
+3. **Partitioning**: Consider partitioning the `employees` table by `department_id` for better performance when querying large datasets.
+
+### Scenario 18: Aggregation with JSONB Data
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.id, e.name,
+       jsonb_agg(p.project_data) AS projects
+FROM employees e
+LEFT JOIN projects p ON e.id = p.employee_id
+WHERE e.active = true
+GROUP BY e.id;
+```
+
+#### Sample Output
+
+```
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.42..58.00 rows=50 width=100) (actual time=0.052..0.060 rows=10 loops=1)
+   Group Key: e.id
+   -> Hash Join  (cost=0.42..35.00 rows=1000 width=100) (actual time=0.036..0.045 rows=10 loops=1)
+         Hash Cond: (p.employee_id = e.id)
+         -> Seq Scan on projects p  (cost=0.00..35.00 rows=1000 width=50) (actual time=0.020..0.030 rows=10 loops=1)
+         -> Hash  (cost=0.42..0.42 rows=10 width=62) (actual time=0.008..0.009 rows=10 loops=1)
+               -> Seq Scan on employees e  (cost=0.00..10.00 rows=10 width=62) (actual time=0.004..0.008 rows=10 loops=1)
+                     Filter: (active = true)
+ Planning Time: 0.070 ms
+ Execution Time: 0.098 ms
+(7 rows)
+```
+
+#### Interpretation
+
+- **GroupAggregate**: The query aggregates project data for each active employee.
+- **Hash Join**: A hash join is performed between `employees` and `projects`.
+- **Seq Scans**: Sequential scans are executed on both `employees` and `projects`.
+
+#### Unique Optimizations
+
+1. **Indexes on `active` and `employee_id`**: Create indexes to speed up filtering and joining:
+
+   ```sql
+   CREATE INDEX idx_employees_active ON employees(active);
+   CREATE INDEX idx_projects_employee_id ON projects(employee_id);
+   ```
+
+2. **JSONB Indexing**: If querying specific keys in `project_data`, create a GIN index on the JSONB field:
+
+   ```sql
+   CREATE INDEX idx_projects_project_data ON projects USING gin (project_data);
+   ```
+
+3. **Partial Indexes**: Consider creating partial indexes for active employees if that’s a common filter:
+   ```sql
+   CREATE INDEX idx_active_employees ON employees(id) WHERE active = true;
+   ```
+
+### Scenario 19: Recursive CTE with Depth Limiting
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+WITH RECURSIVE org_chart AS (
+    SELECT id, name, manager_id, 1 AS depth
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, oc.depth + 1
+    FROM employees e
+    JOIN org_chart oc ON e.manager_id = oc.id
+    WHERE oc.depth < 5  -- Limit the depth to avoid performance issues
+)
+SELECT * FROM org_chart;
+```
+
+#### Sample Output
+
+```
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
+ CTE Scan on org_chart  (cost=0.00..0.01 rows=10 width=38) (actual time=0.005..0.008 rows=10 loops=1)
+   -> Recursive Union  (cost=0.00..35.00 rows=1000 width=38) (actual time=0.002..0.005 rows=10 loops=1)
+         -> Seq Scan on employees  (cost=0.00..10.00 rows=10 width=38) (actual time=0.002..0.004 rows=10 loops=1)
+               Filter: (manager_id IS NULL)
+         -> Seq Scan on employees e  (cost=0.00..10.00 rows=10 width=38) (actual time=0.003..0.004 rows=10 loops=1)
+               Filter: (manager_id = oc.id)
+ Planning Time: 0.085 ms
+ Execution Time: 0.020 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **CTE Scan**: A Common Table Expression (CTE) is used to fetch an organizational chart.
+- **Recursive Union**: The recursion is limited to a depth of 5 to avoid performance degradation.
+
+#### Unique Optimizations
+
+1. **Indexes on `manager_id`**: Create an index
+
+on the `manager_id` column to speed up the recursive join:
+
+```sql
+CREATE INDEX idx_employees_manager_id ON employees(manager_id);
+```
+
+2. **Materialized Views**: Consider a materialized view that precomputes organization structures if this query is often executed.
+
+3. **Avoid Deep Recursion**: Always limit recursion depth in recursive CTEs to prevent excessive resource consumption.
+
+### Scenario 20: Advanced Aggregation with CUBE and ROLLUP
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT department_id,
+       job_title,
+       COUNT(*) AS employee_count
+FROM employees
+GROUP BY CUBE(department_id, job_title);
+```
+
+#### Sample Output
+
+```
+                               QUERY PLAN
+---------------------------------------------------------------------------
+ CUBE  (cost=20.00..40.00 rows=100 width=38) (actual time=0.123..0.125 rows=10 loops=1)
+   -> Aggregate  (cost=20.00..35.00 rows=100 width=38) (actual time=0.050..0.060 rows=10 loops=1)
+         Group Key: employees.department_id, employees.job_title
+         -> Seq Scan on employees  (cost=0.00..35.00 rows=1000 width=38) (actual time=0.012..0.015 rows=10 loops=1)
+ Planning Time: 0.067 ms
+ Execution Time: 0.126 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **CUBE**: This query aggregates employee counts across all combinations of department and job title.
+- **Seq Scan**: A sequential scan is used on the `employees` table.
+
+#### Unique Optimizations
+
+1. **Index on `department_id` and `job_title`**: Create composite indexes to improve performance for grouped queries:
+
+   ```sql
+   CREATE INDEX idx_employees_department_job ON employees(department_id, job_title);
+   ```
+
+2. **Pre-aggregation with Materialized Views**: Use a materialized view for this aggregation if it's frequently queried:
+
+   ```sql
+   CREATE MATERIALIZED VIEW mv_employee_counts AS
+   SELECT department_id, job_title, COUNT(*) AS employee_count
+   FROM employees
+   GROUP BY department_id, job_title;
+   ```
+
+3. **Data Warehousing Techniques**: Consider data warehousing strategies (like ETL processes) to pre-aggregate data during off-peak hours.
+
+### Summary
+
+These advanced scenarios illustrate the intricacies of PostgreSQL querying and optimization techniques. Here are some general guidelines for further improvement:
+
+1. **Profile Your Queries**: Regularly analyze query performance and identify bottlenecks using `EXPLAIN ANALYZE`.
+2. **Use Appropriate Indexing Strategies**: Understand the access patterns and create indexes accordingly. Consider using partial indexes for common filters.
+3. **Leverage Advanced Features**: Utilize PostgreSQL’s advanced features like materialized views, CTEs, window functions, and JSONB data types effectively.
+4. **Partition Large Tables**: Use table partitioning for large datasets based on common query patterns.
+5. **Monitor Performance**: Keep an eye on the performance using PostgreSQL monitoring tools and logs to adjust and optimize further as needed.
+
+---
+
+### Scenario 21: Full-Text Search Optimization
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM documents
+WHERE to_tsvector('english', content) @@ to_tsquery('postgres & optimization');
+```
+
+#### Sample Output
+
+```
+                                 QUERY PLAN
+-------------------------------------------------------------------------------
+ Seq Scan on documents  (cost=0.00..42.00 rows=5 width=256) (actual time=0.040..0.050 rows=5 loops=1)
+   Filter: (to_tsvector('english'::text, content) @@ to_tsquery('postgres & optimization'::text))
+   Rows Removed by Filter: 995
+ Planning Time: 0.080 ms
+ Execution Time: 0.060 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Seq Scan**: The query scans the `documents` table sequentially and applies a full-text search filter.
+- **Rows Removed**: A large number of rows are removed by the filter, indicating potential performance issues.
+
+#### Unique Optimizations
+
+1. **GIN Index on Full-Text Search**: Create a GIN index on the `to_tsvector` column to speed up full-text searches:
+
+   ```sql
+   CREATE INDEX idx_documents_content ON documents USING gin (to_tsvector('english', content));
+   ```
+
+2. **Using `plainto_tsquery` for Simplicity**: If you’re not using complex queries, `plainto_tsquery` can simplify the search:
+
+   ```sql
+   WHERE to_tsvector('english', content) @@ plainto_tsquery('postgres optimization');
+   ```
+
+3. **Configuration Tuning**: Ensure the text search configuration is optimized for your language and use case.
+
+### Scenario 22: Lateral Joins for Dynamic Subqueries
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT e.name, p.project_name, p.budget
+FROM employees e
+JOIN LATERAL (
+    SELECT project_name, budget
+    FROM projects
+    WHERE employee_id = e.id
+    ORDER BY budget DESC
+    LIMIT 1
+) p ON true;
+```
+
+#### Sample Output
+
+```
+                                  QUERY PLAN
+------------------------------------------------------------------------------
+ Nested Loop  (cost=0.42..50.00 rows=10 width=78) (actual time=0.056..0.080 rows=10 loops=1)
+   -> Seq Scan on employees e  (cost=0.00..35.00 rows=100 width=38) (actual time=0.012..0.020 rows=10 loops=1)
+   -> Limit  (cost=0.42..0.43 rows=1 width=40) (actual time=0.012..0.013 rows=1 loops=10)
+         -> Sort  (cost=0.42..0.42 rows=1 width=40) (actual time=0.011..0.011 rows=1 loops=10)
+               Sort Key: p.budget DESC
+               -> Seq Scan on projects p  (cost=0.00..10.00 rows=1000 width=40) (actual time=0.007..0.008 rows=1 loops=10)
+                     Filter: (employee_id = e.id)
+ Planning Time: 0.090 ms
+ Execution Time: 0.126 ms
+(8 rows)
+```
+
+#### Interpretation
+
+- **Nested Loop with LATERAL**: A nested loop join retrieves the most expensive project for each employee.
+- **Seq Scan**: Sequential scans are performed on both `employees` and `projects`.
+
+#### Unique Optimizations
+
+1. **Indexes on `employee_id` and `budget`**: Create indexes to improve performance on the `projects` table:
+
+   ```sql
+   CREATE INDEX idx_projects_employee_budget ON projects(employee_id, budget DESC);
+   ```
+
+2. **Denormalization**: Consider denormalizing if this query is run frequently, possibly by storing the most expensive project directly in the `employees` table.
+
+3. **Analyze**: Ensure that statistics are up to date on the involved tables to help the planner choose optimal execution paths.
+
+### Scenario 23: Partitioned Tables for Time-Series Data
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT AVG(temperature)
+FROM weather_data
+WHERE recorded_at BETWEEN '2024-01-01' AND '2024-01-31'
+AND location = 'New York';
+```
+
+#### Sample Output
+
+```
+                                   QUERY PLAN
+--------------------------------------------------------------------------------
+ Append  (cost=0.00..100.00 rows=200 width=8) (actual time=0.040..0.080 rows=10 loops=1)
+   -> Seq Scan on weather_data_2024_01  (cost=0.00..50.00 rows=100 width=8) (actual time=0.020..0.025 rows=10 loops=1)
+         Filter: ((recorded_at >= '2024-01-01'::timestamp without time zone) AND (recorded_at <= '2024-01-31'::timestamp without time zone) AND (location = 'New York'))
+         Rows Removed by Filter: 990
+ Planning Time: 0.067 ms
+ Execution Time: 0.092 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **Append**: The query utilizes table partitioning to read from specific partitions.
+- **Seq Scan**: Sequential scans are performed on the relevant partitions.
+
+#### Unique Optimizations
+
+1. **Partitioning Strategy**: Ensure partitions are set based on an optimal strategy (e.g., by month) to allow efficient filtering:
+
+   ```sql
+   CREATE TABLE weather_data_2024_01 PARTITION OF weather_data FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+   ```
+
+2. **Indexes on `location`**: Create indexes on the `location` column for faster filtering:
+
+   ```sql
+   CREATE INDEX idx_weather_data_location ON weather_data(location);
+   ```
+
+3. **Maintenance**: Regularly analyze and vacuum partitions to maintain performance.
+
+### Scenario 24: Advanced Use of CTEs with Materialization
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 1 AS level
+    FROM employees
+    WHERE manager_id IS NULL
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT *
+FROM employee_hierarchy
+WHERE level <= 3;
+```
+
+#### Sample Output
+
+```
+                                 QUERY PLAN
+-------------------------------------------------------------------------------
+ CTE Scan on employee_hierarchy  (cost=0.00..10.00 rows=5 width=38) (actual time=0.050..0.060 rows=5 loops=1)
+   -> Recursive Union  (cost=0.00..50.00 rows=100 width=38) (actual time=0.012..0.020 rows=5 loops=1)
+         -> Seq Scan on employees  (cost=0.00..10.00 rows=10 width=38) (actual time=0.005..0.010 rows=5 loops=1)
+               Filter: (manager_id IS NULL)
+         -> Seq Scan on employees e  (cost=0.00..10.00 rows=10 width=38) (actual time=0.005..0.010 rows=5 loops=1)
+               Filter: (manager_id = eh.id)
+ Planning Time: 0.090 ms
+ Execution Time: 0.140 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **CTE Scan**: A recursive CTE is used to traverse the employee hierarchy.
+- **Seq Scan**: Sequential scans are performed on the `employees` table.
+
+#### Unique Optimizations
+
+1. **Materialized CTE**: Materialize the CTE if the hierarchy is static and queried often:
+
+   ```sql
+   CREATE MATERIALIZED VIEW mv_employee_hierarchy AS
+   WITH RECURSIVE employee_hierarchy AS (...)
+   SELECT * FROM employee_hierarchy WHERE level <= 3;
+   ```
+
+2. **Index on `manager_id`**: Ensure that an index exists on `manager_id` to speed up recursive joins:
+
+   ```sql
+   CREATE INDEX idx_employees_manager_id ON employees(manager_id);
+   ```
+
+3. **Limit Recursion Depth**: Always use depth limits in recursive CTEs to prevent long execution times.
+
+### Scenario 25: Complex Aggregations with Grouping Sets
+
+#### Query
+
+```sql
+EXPLAIN ANALYZE
+SELECT department_id, job_title, COUNT(*)
+FROM employees
+GROUP BY GROUPING SETS (
+    (department_id, job_title),
+    (department_id),
+    ()
+);
+```
+
+#### Sample Output
+
+```
+                                QUERY PLAN
+---------------------------------------------------------------------------
+ GroupAggregate  (cost=0.42..100.00 rows=20 width=50) (actual time=0.095..0.150 rows=3 loops=1)
+   Group Key: employees.department_id, employees.job_title
+   -> HashAggregate  (cost=0.42..60.00 rows=100 width=38) (actual time=0.050..0.070 rows=10 loops=1)
+         Group Key: employees.department_id, employees.job_title
+         -> Seq Scan on employees  (cost=0.00
+
+..35.00 rows=1000 width=38) (actual time=0.010..0.015 rows=10 loops=1)
+ Planning Time: 0.080 ms
+ Execution Time: 0.170 ms
+(6 rows)
+```
+
+#### Interpretation
+
+- **GroupAggregate**: This query uses grouping sets to compute aggregates for various groupings.
+- **Seq Scan**: Sequential scans are performed on the `employees` table.
+
+#### Unique Optimizations
+
+1. **Index on `department_id` and `job_title`**: Create composite indexes for grouped queries:
+
+   ```sql
+   CREATE INDEX idx_employees_department_job ON employees(department_id, job_title);
+   ```
+
+2. **Use of Materialized Views**: If this query is frequently run, consider using a materialized view to store the results of these aggregations.
+
+3. **Partitioning**: If the `employees` table is large, consider partitioning it by `department_id` to speed up aggregate queries.
+
+### Summary
+
+These advanced scenarios showcase the flexibility and power of PostgreSQL's querying capabilities and optimization strategies. Here are key takeaways:
+
+1. **Indexing**: Always consider appropriate indexing strategies to speed up query performance.
+2. **Materialized Views**: Utilize materialized views for complex queries that do not require real-time data.
+3. **Partitioning**: For large datasets, use partitioning to improve query performance and manageability.
+4. **CTEs and Lateral Joins**: Explore recursive CTEs and lateral joins for complex data relationships and hierarchies.
+5. **Regular Maintenance**: Keep the database optimized with regular analysis and maintenance tasks.
