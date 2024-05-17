@@ -1,0 +1,168 @@
+PostgreSQL offers several operators similar to `<->` that are useful for working with geometric, spatial, and distance-based queries. These operators are particularly helpful for geometric data types like `POINT`, `BOX`, `CIRCLE`, `POLYGON`, and more. Below is a list of similar operators and their meanings:
+
+### **Geometric Operators in PostgreSQL**
+
+1. **Distance operator (`<->`)**:
+
+   - **Syntax**: `point1 <-> point2`
+   - **Description**: Computes the **Euclidean distance** between two geometric points.
+   - **Example**:
+     ```sql
+     SELECT POINT(1, 2) <-> POINT(4, 6); -- Returns the distance between the points
+     ```
+
+2. **Equality (`=`)**:
+
+   - **Syntax**: `geom1 = geom2`
+   - **Description**: True if two geometries are exactly the same.
+   - **Example**:
+     ```sql
+     SELECT POINT(1, 1) = POINT(1, 1); -- Returns true
+     ```
+
+3. **Not Equal (`<>`)**:
+
+   - **Syntax**: `geom1 <> geom2`
+   - **Description**: True if two geometries are different.
+   - **Example**:
+     ```sql
+     SELECT POINT(1, 1) <> POINT(1, 2); -- Returns true
+     ```
+
+4. **Contains (`@>`)**:
+
+   - **Syntax**: `geom1 @> geom2`
+   - **Description**: True if `geom1` contains `geom2`. Typically used for geometries like `CIRCLE`, `BOX`, or `POLYGON`.
+   - **Example**:
+     ```sql
+     SELECT BOX '(0,0),(5,5)' @> POINT(3, 3); -- Returns true if point is inside the box
+     ```
+
+5. **Contained by (`<@`)**:
+
+   - **Syntax**: `geom1 <@ geom2`
+   - **Description**: True if `geom1` is contained within `geom2`.
+   - **Example**:
+     ```sql
+     SELECT POINT(3, 3) <@ BOX '(0,0),(5,5)'; -- Returns true
+     ```
+
+6. **Overlaps (`&&`)**:
+
+   - **Syntax**: `geom1 && geom2`
+   - **Description**: True if two geometries overlap (i.e., they share any area or points in common).
+   - **Example**:
+     ```sql
+     SELECT BOX '(0,0),(3,3)' && BOX '(2,2),(4,4)'; -- Returns true because the boxes overlap
+     ```
+
+7. **Is Strictly Left of (`<<`)**:
+
+   - **Syntax**: `geom1 << geom2`
+   - **Description**: True if `geom1` is strictly left of `geom2`.
+   - **Example**:
+     ```sql
+     SELECT POINT(1, 1) << POINT(5, 5); -- Returns true if the first point is strictly left
+     ```
+
+8. **Is Strictly Right of (`>>`)**:
+
+   - **Syntax**: `geom1 >> geom2`
+   - **Description**: True if `geom1` is strictly right of `geom2`.
+   - **Example**:
+     ```sql
+     SELECT POINT(5, 5) >> POINT(1, 1); -- Returns true
+     ```
+
+9. **Is Strictly Above (`|>>`)**:
+
+   - **Syntax**: `geom1 |>> geom2`
+   - **Description**: True if `geom1` is strictly above `geom2`.
+   - **Example**:
+     ```sql
+     SELECT POINT(5, 5) |>> POINT(5, 1); -- Returns true if the first point is above
+     ```
+
+10. **Is Strictly Below (`<<|`)**:
+
+    - **Syntax**: `geom1 <<| geom2`
+    - **Description**: True if `geom1` is strictly below `geom2`.
+    - **Example**:
+      ```sql
+      SELECT POINT(1, 1) <<| POINT(1, 5); -- Returns true if the first point is below
+      ```
+
+11. **Horizontally Touches or Overlaps (`&<`)**:
+
+    - **Syntax**: `geom1 &< geom2`
+    - **Description**: True if `geom1` is to the left or overlaps `geom2`.
+    - **Example**:
+      ```sql
+      SELECT BOX '(0,0),(2,2)' &< BOX '(1,1),(3,3)'; -- Returns true because they overlap
+      ```
+
+12. **Horizontally Touches or Overlaps (`&>`)**:
+
+    - **Syntax**: `geom1 &> geom2`
+    - **Description**: True if `geom1` is to the right or overlaps `geom2`.
+    - **Example**:
+      ```sql
+      SELECT BOX '(2,2),(4,4)' &> BOX '(0,0),(3,3)'; -- Returns true because they overlap
+      ```
+
+13. **Vertically Touches or Overlaps (`|&>`)**:
+
+    - **Syntax**: `geom1 |&> geom2`
+    - **Description**: True if `geom1` is above or overlaps `geom2`.
+    - **Example**:
+      ```sql
+      SELECT BOX '(2,2),(4,4)' |&> BOX '(1,1),(3,3)'; -- Returns true because they overlap vertically
+      ```
+
+14. **Vertically Touches or Overlaps (`|&<`)**:
+    - **Syntax**: `geom1 |&< geom2`
+    - **Description**: True if `geom1` is below or overlaps `geom2`.
+    - **Example**:
+      ```sql
+      SELECT BOX '(0,0),(2,2)' |&< BOX '(1,1),(3,3)'; -- Returns true because they overlap vertically
+      ```
+
+### **Additional Distance Operators**
+
+1. **Manhattan Distance Operator (`<#>`)**:
+   - **Syntax**: `point1 <#> point2`
+   - **Description**: Computes the **Manhattan (or "taxicab") distance** between two points. This measures distance by summing the absolute horizontal and vertical distances between the points (no diagonal movement).
+   - **Example**:
+     ```sql
+     SELECT POINT(1, 2) <#> POINT(4, 6); -- Returns Manhattan distance
+     ```
+
+### **Bounding Box Operators**
+
+1. **Bounding Box Contains (`~`)**:
+
+   - **Syntax**: `geom1 ~ geom2`
+   - **Description**: True if the bounding box of `geom1` contains the bounding box of `geom2`.
+   - **Example**:
+     ```sql
+     SELECT BOX '(0,0),(5,5)' ~ CIRCLE '(2,2),3'; -- Returns true if the bounding box of the box contains the circle
+     ```
+
+2. **Bounding Box Contained by (`~=`)**:
+   - **Syntax**: `geom1 ~= geom2`
+   - **Description**: True if the bounding box of `geom1` is contained by the bounding box of `geom2`.
+   - **Example**:
+     ```sql
+     SELECT BOX '(1,1),(2,2)' ~= BOX '(0,0),(5,5)'; -- Returns true
+     ```
+
+### **Geometric Functions**
+
+In addition to the operators, PostgreSQL provides geometric functions that can also be used for distance and other geometric calculations, such as:
+
+- **`distance(geom1, geom2)`**: Returns the Euclidean distance between two geometries.
+- **`intersects(geom1, geom2)`**: Returns true if two geometries intersect.
+- **`centroid(geom)`**: Returns the centroid of a geometry.
+- **`area(geom)`**: Returns the area of a geometry.
+
+These operators are highly efficient when used with proper spatial indexing like `GiST` or `SP-GiST` for fast querying of geometric and spatial data.
