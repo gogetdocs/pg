@@ -1,0 +1,905 @@
+### **1. Time-Series Data Management**
+
+#### **Use Case Implementation: Sensor Data**
+
+Let's create a partitioned table for **IoT sensor data** that logs temperature readings with timestamps.
+
+```sql
+-- Step 1: Create the parent table
+CREATE TABLE sensor_data (
+    id SERIAL PRIMARY KEY,
+    sensor_id INT NOT NULL,
+    temperature DECIMAL NOT NULL,
+    recorded_at TIMESTAMP NOT NULL
+) PARTITION BY RANGE (recorded_at);
+
+-- Step 2: Create partitions
+CREATE TABLE sensor_data_2023_01 PARTITION OF sensor_data
+    FOR VALUES FROM ('2023-01-01') TO ('2023-02-01');
+
+CREATE TABLE sensor_data_2023_02 PARTITION OF sensor_data
+    FOR VALUES FROM ('2023-02-01') TO ('2023-03-01');
+
+-- Add more partitions as needed
+CREATE TABLE sensor_data_2023_03 PARTITION OF sensor_data
+    FOR VALUES FROM ('2023-03-01') TO ('2023-04-01');
+
+-- Step 3: Insert data
+INSERT INTO sensor_data (sensor_id, temperature, recorded_at)
+VALUES
+    (1, 20.5, '2023-01-15 10:00:00'),
+    (2, 21.0, '2023-02-10 14:00:00'),
+    (1, 19.5, '2023-03-20 12:00:00');
+
+-- Query data
+SELECT * FROM sensor_data WHERE recorded_at >= '2023-01-01' AND recorded_at < '2023-02-01';
+```
+
+### **2. E-Commerce Applications**
+
+#### **Use Case Implementation: Orders**
+
+This example demonstrates how to partition an **orders** table by the order creation date.
+
+```sql
+-- Step 1: Create the parent table
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date TIMESTAMP NOT NULL,
+    total_amount DECIMAL NOT NULL
+) PARTITION BY RANGE (order_date);
+
+-- Step 2: Create partitions
+CREATE TABLE orders_2023_01 PARTITION OF orders
+    FOR VALUES FROM ('2023-01-01') TO ('2023-02-01');
+
+CREATE TABLE orders_2023_02 PARTITION OF orders
+    FOR VALUES FROM ('2023-02-01') TO ('2023-03-01');
+
+CREATE TABLE orders_2023_03 PARTITION OF orders
+    FOR VALUES FROM ('2023-03-01') TO ('2023-04-01');
+
+-- Step 3: Insert data
+INSERT INTO orders (customer_id, order_date, total_amount)
+VALUES
+    (1, '2023-01-10 09:30:00', 100.00),
+    (2, '2023-01-15 10:15:00', 150.50),
+    (1, '2023-02-05 14:20:00', 200.00);
+
+-- Query data
+SELECT * FROM orders WHERE order_date >= '2023-01-01' AND order_date < '2023-02-01';
+```
+
+### **3. Multi-Tenancy Applications**
+
+#### **Use Case Implementation: Tenant Data**
+
+In this example, we will create a partitioned table for **user activities** based on **tenant_id** and then range-partition by **activity_date**.
+
+```sql
+-- Step 1: Create the parent table
+CREATE TABLE user_activities (
+    activity_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    activity_date DATE NOT NULL,
+    activity_type VARCHAR(50)
+) PARTITION BY LIST (tenant_id) PARTITION BY RANGE (activity_date);
+
+-- Step 2: Create partitions for each tenant
+CREATE TABLE user_activities_tenant_1 PARTITION OF user_activities
+    FOR VALUES IN (1) PARTITION BY RANGE (activity_date);
+
+CREATE TABLE user_activities_tenant_1_2023_01 PARTITION OF user_activities_tenant_1
+    FOR VALUES FROM ('2023-01-01') TO ('2023-02-01');
+
+CREATE TABLE user_activities_tenant_1_2023_02 PARTITION OF user_activities_tenant_1
+    FOR VALUES FROM ('2023-02-01') TO ('2023-03-01');
+
+-- Step 3: Insert data
+INSERT INTO user_activities (tenant_id, activity_date, activity_type)
+VALUES
+    (1, '2023-01-10', 'Login'),
+    (1, '2023-01-15', 'Purchase'),
+    (1, '2023-02-05', 'Logout');
+
+-- Query data for tenant 1 in January 2023
+SELECT * FROM user_activities WHERE tenant_id = 1 AND activity_date >= '2023-01-01' AND activity_date < '2023-02-01';
+```
+
+### **Considerations and Best Practices**
+
+1. **Partition Maintenance**: Remember to create new partitions regularly as new data arrives, especially for time-series data.
+2. **Data Archiving**: For historical data, consider dropping older partitions to manage storage effectively.
+3. **Indexes**: Each partition can have its own indexes. Consider the queries you will run frequently and create indexes accordingly.
+4. **Testing**: Test your partitioning strategy with real-world data sizes to ensure performance gains.
+5. **Schema Changes**: Be mindful of how schema changes affect all partitions; plan for them accordingly.
+
+---
+
+### **4. Financial Data Management**
+
+#### **Implementation: Transactions Table**
+
+We'll create a partitioned table for financial transactions based on the transaction date.
+
+```sql
+-- Step 1: Create the parent table for transactions
+CREATE TABLE transactions (
+    transaction_id SERIAL PRIMARY KEY,
+    account_id INT NOT NULL,
+    transaction_date DATE NOT NULL,
+    amount DECIMAL NOT NULL,
+    description TEXT
+) PARTITION BY RANGE (transaction_date);
+
+-- Step 2: Create partitions for each month of 2023
+CREATE TABLE transactions_2023_01 PARTITION OF transactions
+    FOR VALUES FROM ('2023-01-01') TO ('2023-02-01');
+
+CREATE TABLE transactions_2023_02 PARTITION OF transactions
+    FOR VALUES FROM ('2023-02-01') TO ('2023-03-01');
+
+CREATE TABLE transactions_2023_03 PARTITION OF transactions
+    FOR VALUES FROM ('2023-03-01') TO ('2023-04-01');
+
+-- Step 3: Insert data
+INSERT INTO transactions (account_id, transaction_date, amount, description)
+VALUES
+    (1, '2023-01-10', 150.00, 'Deposit'),
+    (2, '2023-01-15', -50.00, 'Withdrawal'),
+    (1, '2023-02-05', 200.00, 'Transfer');
+
+-- Query data
+SELECT * FROM transactions WHERE transaction_date >= '2023-01-01' AND transaction_date < '2023-02-01';
+```
+
+---
+
+### **5. Employee Records Management**
+
+#### **Implementation: Employees Table**
+
+We will create a partitioned table for employee records based on their hire date.
+
+```sql
+-- Step 1: Create the parent table for employees
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    hire_date DATE NOT NULL,
+    department VARCHAR(50) NOT NULL
+) PARTITION BY RANGE (hire_date);
+
+-- Step 2: Create partitions for each year
+CREATE TABLE employees_2020 PARTITION OF employees
+    FOR VALUES FROM ('2020-01-01') TO ('2021-01-01');
+
+CREATE TABLE employees_2021 PARTITION OF employees
+    FOR VALUES FROM ('2021-01-01') TO ('2022-01-01');
+
+CREATE TABLE employees_2022 PARTITION OF employees
+    FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+
+-- Step 3: Insert data
+INSERT INTO employees (name, hire_date, department)
+VALUES
+    ('Alice Smith', '2020-06-15', 'Sales'),
+    ('Bob Johnson', '2021-03-10', 'HR'),
+    ('Carol Davis', '2022-09-20', 'Engineering');
+
+-- Query data for employees hired in 2021
+SELECT * FROM employees WHERE hire_date >= '2021-01-01' AND hire_date < '2022-01-01';
+```
+
+---
+
+### **6. Log Data Management**
+
+#### **Implementation: Application Logs Table**
+
+Here we will manage application log data by partitioning it by **log date**.
+
+```sql
+-- Step 1: Create the parent table for application logs
+CREATE TABLE application_logs (
+    log_id SERIAL PRIMARY KEY,
+    log_level VARCHAR(20) NOT NULL,
+    log_message TEXT NOT NULL,
+    log_date TIMESTAMP NOT NULL
+) PARTITION BY RANGE (log_date);
+
+-- Step 2: Create partitions for each month of 2023
+CREATE TABLE application_logs_2023_01 PARTITION OF application_logs
+    FOR VALUES FROM ('2023-01-01') TO ('2023-02-01');
+
+CREATE TABLE application_logs_2023_02 PARTITION OF application_logs
+    FOR VALUES FROM ('2023-02-01') TO ('2023-03-01');
+
+CREATE TABLE application_logs_2023_03 PARTITION OF application_logs
+    FOR VALUES FROM ('2023-03-01') TO ('2023-04-01');
+
+-- Step 3: Insert log data
+INSERT INTO application_logs (log_level, log_message, log_date)
+VALUES
+    ('INFO', 'Application started', '2023-01-01 08:00:00'),
+    ('ERROR', 'An error occurred', '2023-01-15 10:30:00'),
+    ('DEBUG', 'Debugging information', '2023-02-05 14:00:00');
+
+-- Query data for logs in January 2023
+SELECT * FROM application_logs WHERE log_date >= '2023-01-01' AND log_date < '2023-02-01';
+```
+
+---
+
+### **Considerations for Each Use Case**
+
+1. **Transaction Management**:
+
+   - **Performance**: Partitioning improves performance for queries that filter on `transaction_date`, allowing for efficient data retrieval.
+   - **Data Retention**: Older transactions can be archived or removed by dropping partitions.
+
+2. **Employee Records**:
+
+   - **HR Analytics**: Queries on hire dates can efficiently return statistics on workforce demographics and trends.
+   - **Partition Maintenance**: As new employees are added, ensure partitions are created for future years.
+
+3. **Log Data**:
+   - **Retention Policies**: Easily drop or archive older log partitions that are no longer needed.
+   - **Log Analysis**: Quick access to recent logs for monitoring application performance and troubleshooting.
+
+---
+
+Sure! Below are detailed use cases for each type of partitioning in PostgreSQL, complete with full-fledged SQL code examples. Each section highlights ten examples that showcase various scenarios where each partitioning type can be beneficial.
+
+### 1. Range Partitioning Use Cases
+
+**Use Case**: Ideal for time-series data, such as logs, where data is inserted over time and can be partitioned by date.
+
+```sql
+-- Create a parent table for sales data partitioned by range
+CREATE TABLE sales (
+    id serial PRIMARY KEY,
+    sale_date date NOT NULL,
+    amount numeric NOT NULL
+) PARTITION BY RANGE (sale_date);
+
+-- Create partitions for different years
+CREATE TABLE sales_2021 PARTITION OF sales FOR VALUES FROM ('2021-01-01') TO ('2022-01-01');
+CREATE TABLE sales_2022 PARTITION OF sales FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+CREATE TABLE sales_2023 PARTITION OF sales FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+CREATE TABLE sales_2024 PARTITION OF sales FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+
+-- Inserting sample data
+INSERT INTO sales (sale_date, amount) VALUES
+('2021-05-15', 100.00),
+('2022-07-20', 150.50),
+('2023-03-12', 200.75),
+('2023-11-01', 250.00);
+
+-- Querying the table
+SELECT * FROM sales WHERE sale_date BETWEEN '2022-01-01' AND '2023-12-31';
+```
+
+### Additional Range Partitioning Use Cases
+
+1. **Employee records by hire date**:
+
+   ```sql
+   CREATE TABLE employees (
+       id serial PRIMARY KEY,
+       name text NOT NULL,
+       hire_date date NOT NULL
+   ) PARTITION BY RANGE (hire_date);
+
+   CREATE TABLE employees_2020 PARTITION OF employees FOR VALUES FROM ('2020-01-01') TO ('2021-01-01');
+   CREATE TABLE employees_2021 PARTITION OF employees FOR VALUES FROM ('2021-01-01') TO ('2022-01-01');
+   ```
+
+2. **Customer orders by order date**:
+
+   ```sql
+   CREATE TABLE orders (
+       id serial PRIMARY KEY,
+       customer_id int NOT NULL,
+       order_date date NOT NULL
+   ) PARTITION BY RANGE (order_date);
+
+   CREATE TABLE orders_2022 PARTITION OF orders FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+   ```
+
+3. **Event logs by timestamp**:
+
+   ```sql
+   CREATE TABLE event_logs (
+       id serial PRIMARY KEY,
+       event_time timestamp NOT NULL,
+       event_type text NOT NULL
+   ) PARTITION BY RANGE (event_time);
+
+   CREATE TABLE event_logs_2023 PARTITION OF event_logs FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+   ```
+
+4. **Subscription data by subscription start date**:
+
+   ```sql
+   CREATE TABLE subscriptions (
+       id serial PRIMARY KEY,
+       user_id int NOT NULL,
+       start_date date NOT NULL
+   ) PARTITION BY RANGE (start_date);
+
+   CREATE TABLE subscriptions_2023 PARTITION OF subscriptions FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+   ```
+
+5. **Sales forecast by month**:
+
+   ```sql
+   CREATE TABLE sales_forecast (
+       id serial PRIMARY KEY,
+       forecast_date date NOT NULL,
+       forecast_amount numeric NOT NULL
+   ) PARTITION BY RANGE (forecast_date);
+
+   CREATE TABLE sales_forecast_2023 PARTITION OF sales_forecast FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+   ```
+
+6. **Financial transactions by transaction date**:
+
+   ```sql
+   CREATE TABLE transactions (
+       id serial PRIMARY KEY,
+       transaction_date date NOT NULL,
+       amount numeric NOT NULL
+   ) PARTITION BY RANGE (transaction_date);
+
+   CREATE TABLE transactions_2022 PARTITION OF transactions FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+   ```
+
+7. **Project milestones by completion date**:
+
+   ```sql
+   CREATE TABLE project_milestones (
+       id serial PRIMARY KEY,
+       project_id int NOT NULL,
+       completion_date date NOT NULL
+   ) PARTITION BY RANGE (completion_date);
+
+   CREATE TABLE project_milestones_2023 PARTITION OF project_milestones FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+   ```
+
+8. **Website traffic by date**:
+
+   ```sql
+   CREATE TABLE website_traffic (
+       id serial PRIMARY KEY,
+       visit_date date NOT NULL,
+       page_views int NOT NULL
+   ) PARTITION BY RANGE (visit_date);
+
+   CREATE TABLE website_traffic_2023 PARTITION OF website_traffic FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+   ```
+
+9. **Inventory checks by check date**:
+
+   ```sql
+   CREATE TABLE inventory_checks (
+       id serial PRIMARY KEY,
+       check_date date NOT NULL,
+       item_count int NOT NULL
+   ) PARTITION BY RANGE (check_date);
+
+   CREATE TABLE inventory_checks_2022 PARTITION OF inventory_checks FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+   ```
+
+10. **Temperature records by date**:
+
+    ```sql
+    CREATE TABLE temperature_records (
+        id serial PRIMARY KEY,
+        record_date date NOT NULL,
+        temperature numeric NOT NULL
+    ) PARTITION BY RANGE (record_date);
+
+    CREATE TABLE temperature_records_2023 PARTITION OF temperature_records FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+    ```
+
+---
+
+### 2. List Partitioning Use Cases
+
+**Use Case**: Useful for categorical data, where rows can be grouped by a specific attribute.
+
+```sql
+-- Create a parent table for customer data partitioned by country
+CREATE TABLE customer_data (
+    id serial PRIMARY KEY,
+    name text NOT NULL,
+    country_code text NOT NULL
+) PARTITION BY LIST (country_code);
+
+-- Create partitions for different countries
+CREATE TABLE customer_us PARTITION OF customer_data FOR VALUES IN ('US');
+CREATE TABLE customer_uk PARTITION OF customer_data FOR VALUES IN ('UK');
+CREATE TABLE customer_ca PARTITION OF customer_data FOR VALUES IN ('CA');
+
+-- Inserting sample data
+INSERT INTO customer_data (name, country_code) VALUES
+('John Doe', 'US'),
+('Jane Smith', 'UK'),
+('Alice Johnson', 'CA');
+
+-- Querying the table
+SELECT * FROM customer_data WHERE country_code = 'US';
+```
+
+### Additional List Partitioning Use Cases
+
+1. **Product data by category**:
+
+   ```sql
+   CREATE TABLE products (
+       id serial PRIMARY KEY,
+       name text NOT NULL,
+       category text NOT NULL
+   ) PARTITION BY LIST (category);
+
+   CREATE TABLE products_electronics PARTITION OF products FOR VALUES IN ('Electronics');
+   CREATE TABLE products_clothing PARTITION OF products FOR VALUES IN ('Clothing');
+   ```
+
+2. **Employee data by department**:
+
+   ```sql
+   CREATE TABLE employees (
+       id serial PRIMARY KEY,
+       name text NOT NULL,
+       department text NOT NULL
+   ) PARTITION BY LIST (department);
+
+   CREATE TABLE employees_sales PARTITION OF employees FOR VALUES IN ('Sales');
+   CREATE TABLE employees_hr PARTITION OF employees FOR VALUES IN ('HR');
+   ```
+
+3. **Orders by payment method**:
+
+   ```sql
+   CREATE TABLE orders (
+       id serial PRIMARY KEY,
+       customer_id int NOT NULL,
+       payment_method text NOT NULL
+   ) PARTITION BY LIST (payment_method);
+
+   CREATE TABLE orders_credit_card PARTITION OF orders FOR VALUES IN ('Credit Card');
+   CREATE TABLE orders_paypal PARTITION OF orders FOR VALUES IN ('PayPal');
+   ```
+
+4. **Shipping data by region**:
+
+   ```sql
+   CREATE TABLE shipping (
+       id serial PRIMARY KEY,
+       order_id int NOT NULL,
+       region text NOT NULL
+   ) PARTITION BY LIST (region);
+
+   CREATE TABLE shipping_us PARTITION OF shipping FOR VALUES IN ('US');
+   CREATE TABLE shipping_eu PARTITION OF shipping FOR VALUES IN ('EU');
+   ```
+
+5. **Feedback data by source**:
+
+   ```sql
+   CREATE TABLE feedback (
+       id serial PRIMARY KEY,
+       source text NOT NULL,
+       comment text NOT NULL
+   ) PARTITION BY LIST (source);
+
+   CREATE TABLE feedback_website PARTITION OF feedback FOR VALUES IN ('Website');
+   CREATE TABLE feedback_app PARTITION OF feedback FOR VALUES IN ('Mobile App');
+   ```
+
+6. **Maintenance records by vehicle type**:
+
+   ```sql
+   CREATE TABLE vehicle_maintenance (
+       id serial PRIMARY KEY,
+       vehicle_type text NOT NULL,
+       maintenance_date date NOT NULL
+   ) PARTITION BY LIST (vehicle_type);
+
+   CREATE TABLE maintenance_cars PARTITION OF vehicle_maintenance FOR VALUES IN ('Car');
+   CREATE TABLE maintenance_trucks PARTITION OF vehicle_maintenance FOR VALUES IN ('Truck');
+   ```
+
+7. **User activity logs by activity type**:
+
+   ```sql
+   CREATE TABLE user_activity (
+       id serial PRIMARY KEY,
+       user_id int NOT NULL,
+       activity_type text NOT NULL
+   ) PARTITION BY LIST (activity_type);
+
+   CREATE TABLE activity_login PARTITION OF user_activity FOR VALUES IN ('Login');
+   CREATE TABLE activity_logout PARTITION OF user_activity FOR VALUES IN ('Logout
+   ```
+
+');
+
+````
+
+8. **Sales by product type**:
+```sql
+CREATE TABLE sales (
+    id serial PRIMARY KEY,
+    product_id int NOT NULL,
+    product_type text NOT NULL
+) PARTITION BY LIST (product_type);
+
+CREATE TABLE sales_electronics PARTITION OF sales FOR VALUES IN ('Electronics');
+CREATE TABLE sales_furniture PARTITION OF sales FOR VALUES IN ('Furniture');
+````
+
+9. **Promotions by type**:
+
+   ```sql
+   CREATE TABLE promotions (
+       id serial PRIMARY KEY,
+       promo_code text NOT NULL,
+       promo_type text NOT NULL
+   ) PARTITION BY LIST (promo_type);
+
+   CREATE TABLE promotions_discount PARTITION OF promotions FOR VALUES IN ('Discount');
+   CREATE TABLE promotions_free_shipping PARTITION OF promotions FOR VALUES IN ('Free Shipping');
+   ```
+
+10. **Library books by genre**:
+
+    ```sql
+    CREATE TABLE library_books (
+        id serial PRIMARY KEY,
+        title text NOT NULL,
+        genre text NOT NULL
+    ) PARTITION BY LIST (genre);
+
+    CREATE TABLE library_fiction PARTITION OF library_books FOR VALUES IN ('Fiction');
+    CREATE TABLE library_non_fiction PARTITION OF library_books FOR VALUES IN ('Non-Fiction');
+    ```
+
+---
+
+### 3. Hash Partitioning Use Cases
+
+**Use Case**: Best for distributing data evenly across multiple partitions when data does not fit neatly into categories or ranges.
+
+```sql
+-- Create a parent table for user data partitioned by hash
+CREATE TABLE users (
+    id serial PRIMARY KEY,
+    username text NOT NULL,
+    email text NOT NULL
+) PARTITION BY HASH (id);
+
+-- Create partitions based on hash values
+CREATE TABLE users_part_0 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+CREATE TABLE users_part_1 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+CREATE TABLE users_part_2 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+CREATE TABLE users_part_3 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 3);
+
+-- Inserting sample data
+INSERT INTO users (username, email) VALUES
+('user1', 'user1@example.com'),
+('user2', 'user2@example.com'),
+('user3', 'user3@example.com'),
+('user4', 'user4@example.com');
+
+-- Querying the table
+SELECT * FROM users WHERE id % 4 = 0; -- This will route to the appropriate partition
+```
+
+### Additional Hash Partitioning Use Cases
+
+1. **Session data by user ID**:
+
+   ```sql
+   CREATE TABLE user_sessions (
+       session_id serial PRIMARY KEY,
+       user_id int NOT NULL,
+       login_time timestamp NOT NULL
+   ) PARTITION BY HASH (user_id);
+
+   CREATE TABLE user_sessions_part_0 PARTITION OF user_sessions FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+   ```
+
+2. **Customer feedback by customer ID**:
+
+   ```sql
+   CREATE TABLE feedback (
+       id serial PRIMARY KEY,
+       customer_id int NOT NULL,
+       comment text NOT NULL
+   ) PARTITION BY HASH (customer_id);
+
+   CREATE TABLE feedback_part_0 PARTITION OF feedback FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+   ```
+
+3. **Log entries by user ID**:
+
+   ```sql
+   CREATE TABLE log_entries (
+       id serial PRIMARY KEY,
+       user_id int NOT NULL,
+       log_message text NOT NULL
+   ) PARTITION BY HASH (user_id);
+
+   CREATE TABLE log_entries_part_1 PARTITION OF log_entries FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+   ```
+
+4. **Product reviews by product ID**:
+
+   ```sql
+   CREATE TABLE product_reviews (
+       id serial PRIMARY KEY,
+       product_id int NOT NULL,
+       review_text text NOT NULL
+   ) PARTITION BY HASH (product_id);
+
+   CREATE TABLE product_reviews_part_2 PARTITION OF product_reviews FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+   ```
+
+5. **Transactions by transaction ID**:
+
+   ```sql
+   CREATE TABLE transactions (
+       transaction_id serial PRIMARY KEY,
+       amount numeric NOT NULL,
+       user_id int NOT NULL
+   ) PARTITION BY HASH (transaction_id);
+
+   CREATE TABLE transactions_part_3 PARTITION OF transactions FOR VALUES WITH (MODULUS 4, REMAINDER 3);
+   ```
+
+6. **Inventory records by product ID**:
+
+   ```sql
+   CREATE TABLE inventory (
+       id serial PRIMARY KEY,
+       product_id int NOT NULL,
+       quantity int NOT NULL
+   ) PARTITION BY HASH (product_id);
+
+   CREATE TABLE inventory_part_0 PARTITION OF inventory FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+   ```
+
+7. **Orders by order ID**:
+
+   ```sql
+   CREATE TABLE orders (
+       id serial PRIMARY KEY,
+       customer_id int NOT NULL,
+       order_date date NOT NULL
+   ) PARTITION BY HASH (id);
+
+   CREATE TABLE orders_part_1 PARTITION OF orders FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+   ```
+
+8. **Chat messages by sender ID**:
+
+   ```sql
+   CREATE TABLE chat_messages (
+       id serial PRIMARY KEY,
+       sender_id int NOT NULL,
+       message text NOT NULL
+   ) PARTITION BY HASH (sender_id);
+
+   CREATE TABLE chat_messages_part_2 PARTITION OF chat_messages FOR VALUES WITH (MODULUS 4, REMAINDER 2);
+   ```
+
+9. **Customer addresses by customer ID**:
+
+   ```sql
+   CREATE TABLE customer_addresses (
+       id serial PRIMARY KEY,
+       customer_id int NOT NULL,
+       address text NOT NULL
+   ) PARTITION BY HASH (customer_id);
+
+   CREATE TABLE customer_addresses_part_3 PARTITION OF customer_addresses FOR VALUES WITH (MODULUS 4, REMAINDER 3);
+   ```
+
+10. **Website interactions by user ID**:
+
+    ```sql
+    CREATE TABLE website_interactions (
+        id serial PRIMARY KEY,
+        user_id int NOT NULL,
+        interaction_time timestamp NOT NULL
+    ) PARTITION BY HASH (user_id);
+
+    CREATE TABLE website_interactions_part_0 PARTITION OF website_interactions FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+    ```
+
+---
+
+### 4. Composite Partitioning Use Cases
+
+**Use Case**: Combining multiple partitioning methods to handle complex datasets.
+
+```sql
+-- Create a parent table for order data partitioned first by range and then by list
+CREATE TABLE orders (
+    id serial PRIMARY KEY,
+    order_date date NOT NULL,
+    region text NOT NULL
+) PARTITION BY RANGE (order_date);
+
+-- Create partitions for different years
+CREATE TABLE orders_2023 PARTITION OF orders FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (region);
+
+CREATE TABLE orders_2023_us PARTITION OF orders_2023 FOR VALUES IN ('US');
+CREATE TABLE orders_2023_eu PARTITION OF orders_2023 FOR VALUES IN ('EU');
+
+-- Inserting sample data
+INSERT INTO orders (order_date, region) VALUES
+('2023-01-10', 'US'),
+('2023-02-15', 'EU'),
+('2023-03-20', 'US');
+
+-- Querying the table
+SELECT * FROM orders WHERE order_date BETWEEN '2023-01-01' AND '2023-12-31' AND region = 'US';
+```
+
+### Additional Composite Partitioning Use Cases
+
+1. **Event logs by year and type**:
+
+   ```sql
+   CREATE TABLE event_logs (
+       id serial PRIMARY KEY,
+       event_time timestamp NOT NULL,
+       event_type text NOT NULL
+   ) PARTITION BY RANGE (event_time);
+
+   CREATE TABLE event_logs_2023 PARTITION OF event_logs FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (event_type);
+   CREATE TABLE event_logs_2023_error PARTITION OF event_logs_2023 FOR VALUES IN ('Error');
+   ```
+
+2. **Sales data by quarter and region**:
+
+   ```sql
+   CREATE TABLE sales (
+       id serial PRIMARY KEY,
+       sale_date date NOT NULL,
+       region text NOT NULL
+   ) PARTITION BY RANGE (sale_date);
+
+   CREATE TABLE sales_q1_2023 PARTITION OF sales FOR VALUES FROM ('2023-01-01') TO ('2023-04-01') PARTITION BY LIST (region);
+   CREATE TABLE sales_q1_2023_us PARTITION OF sales_q1_2023 FOR VALUES IN ('US');
+   ```
+
+3. **User sessions by month and type**:
+
+   ```sql
+   CREATE TABLE user_sessions (
+       id serial PRIMARY KEY,
+       session_date date NOT NULL,
+       session_type text NOT NULL
+   ) PARTITION BY RANGE (session_date);
+
+   CREATE TABLE user_sessions_march_2023 PARTITION OF user_sessions FOR VALUES FROM ('2023-03-01') TO ('2023-04-01') PARTITION BY LIST (session_type);
+   CREATE TABLE user_sessions_march_2023_mobile PARTITION OF user_sessions_march_2023 FOR VALUES IN ('Mobile');
+   ```
+
+4. **Customer orders by year and payment type**:
+   ```sql
+   -- Creating partitions for customer orders by year and payment type
+   CREATE TABLE customer_orders (
+    id serial PRIMARY KEY,
+    order_date date NOT NULL,
+    payment_type text NOT NULL
+   ) PARTITION BY RANGE (order_date);
+   ```
+
+-- Create range partitions for each year, and then partition by payment type
+CREATE TABLE customer_orders_2023 PARTITION OF customer_orders FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (payment_type);
+
+CREATE TABLE customer_orders_2023_credit_card PARTITION OF customer_orders_2023 FOR VALUES IN ('Credit Card');
+CREATE TABLE customer_orders_2023_paypal PARTITION OF customer_orders_2023 FOR VALUES IN ('PayPal');
+
+-- Inserting sample data
+INSERT INTO customer_orders (order_date, payment_type) VALUES
+('2023-01-15', 'Credit Card'),
+('2023-03-10', 'PayPal');
+
+-- Querying data from 2023 orders that were paid via Credit Card
+SELECT \* FROM customer_orders WHERE order_date BETWEEN '2023-01-01' AND '2023-12-31' AND payment_type = 'Credit Card';
+
+````
+
+
+5. **Financial transactions by year and currency**:
+   ```sql
+   CREATE TABLE financial_transactions (
+       id serial PRIMARY KEY,
+       transaction_date date NOT NULL,
+       currency_code text NOT NULL
+   ) PARTITION BY RANGE (transaction_date);
+
+   CREATE TABLE transactions_2023 PARTITION OF financial_transactions FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (currency_code);
+   CREATE TABLE transactions_2023_usd PARTITION OF transactions_2023 FOR VALUES IN ('USD');
+   CREATE TABLE transactions_2023_eur PARTITION OF transactions_2023 FOR VALUES IN ('EUR');
+````
+
+6. **Inventory records by year and warehouse**:
+
+   ```sql
+   CREATE TABLE inventory (
+       id serial PRIMARY KEY,
+       inventory_date date NOT NULL,
+       warehouse_code text NOT NULL
+   ) PARTITION BY RANGE (inventory_date);
+
+   CREATE TABLE inventory_2023 PARTITION OF inventory FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (warehouse_code);
+   CREATE TABLE inventory_2023_ny PARTITION OF inventory_2023 FOR VALUES IN ('NY');
+   CREATE TABLE inventory_2023_sf PARTITION OF inventory_2023 FOR VALUES IN ('SF');
+   ```
+
+7. **Project tasks by deadline and priority**:
+
+   ```sql
+   CREATE TABLE project_tasks (
+       id serial PRIMARY KEY,
+       deadline date NOT NULL,
+       priority text NOT NULL
+   ) PARTITION BY RANGE (deadline);
+
+   CREATE TABLE tasks_2023 PARTITION OF project_tasks FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (priority);
+   CREATE TABLE tasks_2023_high PARTITION OF tasks_2023 FOR VALUES IN ('High');
+   CREATE TABLE tasks_2023_medium PARTITION OF tasks_2023 FOR VALUES IN ('Medium');
+   ```
+
+8. **Healthcare appointments by month and doctor**:
+
+   ```sql
+   CREATE TABLE appointments (
+       id serial PRIMARY KEY,
+       appointment_date date NOT NULL,
+       doctor_id int NOT NULL
+   ) PARTITION BY RANGE (appointment_date);
+
+   CREATE TABLE appointments_march_2023 PARTITION OF appointments FOR VALUES FROM ('2023-03-01') TO ('2023-04-01') PARTITION BY LIST (doctor_id);
+   CREATE TABLE appointments_march_2023_dr_smith PARTITION OF appointments_march_2023 FOR VALUES IN (1);
+   CREATE TABLE appointments_march_2023_dr_jones PARTITION OF appointments_march_2023 FOR VALUES IN (2);
+   ```
+
+9. **Marketing campaigns by year and channel**:
+
+   ```sql
+   CREATE TABLE marketing_campaigns (
+       id serial PRIMARY KEY,
+       campaign_date date NOT NULL,
+       channel text NOT NULL
+   ) PARTITION BY RANGE (campaign_date);
+
+   CREATE TABLE campaigns_2023 PARTITION OF marketing_campaigns FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (channel);
+   CREATE TABLE campaigns_2023_email PARTITION OF campaigns_2023 FOR VALUES IN ('Email');
+   CREATE TABLE campaigns_2023_social_media PARTITION OF campaigns_2023 FOR VALUES IN ('Social Media');
+   ```
+
+10. **Shipment tracking by year and shipping method**:
+
+    ```sql
+    CREATE TABLE shipment_tracking (
+        id serial PRIMARY KEY,
+        shipment_date date NOT NULL,
+        shipping_method text NOT NULL
+    ) PARTITION BY RANGE (shipment_date);
+
+    CREATE TABLE shipment_2023 PARTITION OF shipment_tracking FOR VALUES FROM ('2023-01-01') TO ('2024-01-01') PARTITION BY LIST (shipping_method);
+    CREATE TABLE shipment_2023_ground PARTITION OF shipment_2023 FOR VALUES IN ('Ground');
+    CREATE TABLE shipment_2023_air PARTITION OF shipment_2023 FOR VALUES IN ('Air');
+    ```
+
+---

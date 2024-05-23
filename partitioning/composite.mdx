@@ -1,0 +1,217 @@
+### 1. Multi-Tenant Applications
+
+In a multi-tenant application, we can partition data by `tenant_id` using **list partitioning** and further by `created_date` using **range partitioning**.
+
+#### 1.1 Create the Partitioned Table
+
+```sql
+CREATE TABLE tenant_orders (
+    order_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    created_date DATE NOT NULL,
+    total_amount NUMERIC(10, 2) NOT NULL
+) PARTITION BY LIST (tenant_id) PARTITION BY RANGE (created_date);
+```
+
+#### 1.2 Create Partitions
+
+```sql
+-- Creating partitions for tenant_id 1
+CREATE TABLE tenant_orders_tenant1 PARTITION OF tenant_orders
+    FOR VALUES IN (1)
+    PARTITION BY RANGE (created_date);
+
+CREATE TABLE tenant_orders_tenant1_2024_jan PARTITION OF tenant_orders_tenant1
+    FOR VALUES FROM ('2024-01-01') TO ('2024-01-31');
+
+CREATE TABLE tenant_orders_tenant1_2024_feb PARTITION OF tenant_orders_tenant1
+    FOR VALUES FROM ('2024-02-01') TO ('2024-02-28');
+
+-- Creating partitions for tenant_id 2
+CREATE TABLE tenant_orders_tenant2 PARTITION OF tenant_orders
+    FOR VALUES IN (2)
+    PARTITION BY RANGE (created_date);
+
+CREATE TABLE tenant_orders_tenant2_2024_jan PARTITION OF tenant_orders_tenant2
+    FOR VALUES FROM ('2024-01-01') TO ('2024-01-31');
+
+CREATE TABLE tenant_orders_tenant2_2024_feb PARTITION OF tenant_orders_tenant2
+    FOR VALUES FROM ('2024-02-01') TO ('2024-02-28');
+```
+
+#### 1.3 Inserting Data
+
+```sql
+INSERT INTO tenant_orders (tenant_id, created_date, total_amount) VALUES
+(1, '2024-01-15', 100.00),
+(1, '2024-02-20', 150.00),
+(2, '2024-01-10', 200.00),
+(2, '2024-02-15', 250.00);
+```
+
+#### 1.4 Querying Data
+
+```sql
+-- Querying tenant 1 orders for January 2024
+SELECT * FROM tenant_orders
+WHERE tenant_id = 1 AND created_date BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- Querying tenant 2 orders for February 2024
+SELECT * FROM tenant_orders
+WHERE tenant_id = 2 AND created_date BETWEEN '2024-02-01' AND '2024-02-28';
+```
+
+---
+
+### 2. Time-Series Data (IoT, Logging, Sensor Data)
+
+For time-series data, we can partition by `device_id` (list partitioning) and by `timestamp` (range partitioning).
+
+#### 2.1 Create the Partitioned Table
+
+```sql
+CREATE TABLE sensor_data (
+    data_id SERIAL PRIMARY KEY,
+    device_id INT NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    value NUMERIC(10, 2) NOT NULL
+) PARTITION BY LIST (device_id) PARTITION BY RANGE (timestamp);
+```
+
+#### 2.2 Create Partitions
+
+```sql
+-- Creating partitions for device_id 1
+CREATE TABLE sensor_data_device1 PARTITION OF sensor_data
+    FOR VALUES IN (1)
+    PARTITION BY RANGE (timestamp);
+
+CREATE TABLE sensor_data_device1_2024_jan PARTITION OF sensor_data_device1
+    FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2024-01-31 23:59:59');
+
+CREATE TABLE sensor_data_device1_2024_feb PARTITION OF sensor_data_device1
+    FOR VALUES FROM ('2024-02-01 00:00:00') TO ('2024-02-29 23:59:59');
+
+-- Creating partitions for device_id 2
+CREATE TABLE sensor_data_device2 PARTITION OF sensor_data
+    FOR VALUES IN (2)
+    PARTITION BY RANGE (timestamp);
+
+CREATE TABLE sensor_data_device2_2024_jan PARTITION OF sensor_data_device2
+    FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2024-01-31 23:59:59');
+
+CREATE TABLE sensor_data_device2_2024_feb PARTITION OF sensor_data_device2
+    FOR VALUES FROM ('2024-02-01 00:00:00') TO ('2024-02-29 23:59:59');
+```
+
+#### 2.3 Inserting Data
+
+```sql
+INSERT INTO sensor_data (device_id, timestamp, value) VALUES
+(1, '2024-01-15 12:00:00', 25.50),
+(1, '2024-02-10 15:00:00', 30.75),
+(2, '2024-01-05 09:30:00', 45.20),
+(2, '2024-02-25 14:45:00', 50.00);
+```
+
+#### 2.4 Querying Data
+
+```sql
+-- Querying data from device 1 for January 2024
+SELECT * FROM sensor_data
+WHERE device_id = 1 AND timestamp BETWEEN '2024-01-01 00:00:00' AND '2024-01-31 23:59:59';
+
+-- Querying data from device 2 for February 2024
+SELECT * FROM sensor_data
+WHERE device_id = 2 AND timestamp BETWEEN '2024-02-01 00:00:00' AND '2024-02-29 23:59:59';
+```
+
+---
+
+### 3. E-commerce Transactional Systems
+
+For an e-commerce system, we can partition by `region` (list partitioning) and by `order_date` (range partitioning).
+
+#### 3.1 Create the Partitioned Table
+
+```sql
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    region VARCHAR(50) NOT NULL,
+    total_amount NUMERIC(10, 2) NOT NULL
+) PARTITION BY LIST (region) PARTITION BY RANGE (order_date);
+```
+
+#### 3.2 Create Partitions
+
+```sql
+-- Creating partitions for the North region
+CREATE TABLE orders_north PARTITION OF orders
+    FOR VALUES IN ('North')
+    PARTITION BY RANGE (order_date);
+
+CREATE TABLE orders_north_2024_jan PARTITION OF orders_north
+    FOR VALUES FROM ('2024-01-01') TO ('2024-01-31');
+
+CREATE TABLE orders_north_2024_feb PARTITION OF orders_north
+    FOR VALUES FROM ('2024-02-01') TO ('2024-02-28');
+
+-- Creating partitions for the South region
+CREATE TABLE orders_south PARTITION OF orders
+    FOR VALUES IN ('South')
+    PARTITION BY RANGE (order_date);
+
+CREATE TABLE orders_south_2024_jan PARTITION OF orders_south
+    FOR VALUES FROM ('2024-01-01') TO ('2024-01-31');
+
+CREATE TABLE orders_south_2024_feb PARTITION OF orders_south
+    FOR VALUES FROM ('2024-02-01') TO ('2024-02-28');
+
+-- Creating partitions for the East region
+CREATE TABLE orders_east PARTITION OF orders
+    FOR VALUES IN ('East')
+    PARTITION BY RANGE (order_date);
+
+CREATE TABLE orders_east_2024_jan PARTITION OF orders_east
+    FOR VALUES FROM ('2024-01-01') TO ('2024-01-31');
+
+CREATE TABLE orders_east_2024_feb PARTITION OF orders_east
+    FOR VALUES FROM ('2024-02-01') TO ('2024-02-28');
+```
+
+#### 3.3 Inserting Data
+
+```sql
+INSERT INTO orders (customer_id, order_date, region, total_amount) VALUES
+(1, '2024-01-15', 'North', 100.00),
+(2, '2024-01-20', 'South', 150.00),
+(3, '2024-02-10', 'East', 200.00),
+(4, '2024-02-15', 'North', 250.00),
+(5, '2024-01-30', 'South', 300.00);
+```
+
+#### 3.4 Querying Data
+
+```sql
+-- Querying North region orders for January 2024
+SELECT * FROM orders
+WHERE region = 'North' AND order_date BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- Querying South region orders for February 2024
+SELECT * FROM orders
+WHERE region = 'South' AND order_date BETWEEN '2024-02-01' AND '2024-02-28';
+```
+
+---
+
+### Summary
+
+These implementations demonstrate how to effectively use **composite partitioning** in PostgreSQL for different scenarios. Each example includes:
+
+- Creation of a partitioned table.
+- Definition of specific partitions based on the chosen criteria.
+- Insertion of relevant data into those partitions.
+
+- Querying data using conditions that benefit from partition elimination.

@@ -1,0 +1,84 @@
+In PostgreSQL, partitioning refers to the technique of dividing a large table into smaller, more manageable pieces called **partitions**. PostgreSQL supports several types of partitioning, enabling better performance and management of large datasets.
+
+Here are the primary types of partitioning available in PostgreSQL:
+
+### 1. **Range Partitioning**
+
+- **Description**: In range partitioning, the table is divided into partitions based on a range of values. Each partition holds rows that fall within a specific range of values for the partitioning column.
+- **Use Case**: Useful when dealing with time-series data or data that naturally falls into ranges (e.g., dates, numeric ranges).
+- **Example**:
+
+  ```sql
+  CREATE TABLE sales (
+      id serial,
+      sale_date date,
+      amount numeric
+  ) PARTITION BY RANGE (sale_date);
+
+  CREATE TABLE sales_2023 PARTITION OF sales FOR VALUES FROM ('2023-01-01') TO ('2024-01-01');
+  ```
+
+### 2. **List Partitioning**
+
+- **Description**: In list partitioning, the table is divided based on a list of values. Each partition contains rows that match one or more values from the list.
+- **Use Case**: Useful when the data can be categorized into discrete sets (e.g., geographical regions, product categories).
+- **Example**:
+
+  ```sql
+  CREATE TABLE customer_data (
+      id serial,
+      country_code text,
+      name text
+  ) PARTITION BY LIST (country_code);
+
+  CREATE TABLE customer_us PARTITION OF customer_data FOR VALUES IN ('US');
+  CREATE TABLE customer_uk PARTITION OF customer_data FOR VALUES IN ('UK');
+  ```
+
+### 3. **Hash Partitioning**
+
+- **Description**: In hash partitioning, a hash function is applied to the partitioning key, and the result is used to determine which partition the data belongs to. The table is split into a fixed number of partitions based on the hash value.
+- **Use Case**: Useful when the data doesn't fit neatly into ranges or lists, providing an even distribution of rows across partitions.
+- **Example**:
+
+  ```sql
+  CREATE TABLE users (
+      id serial,
+      username text,
+      email text
+  ) PARTITION BY HASH (id);
+
+  CREATE TABLE users_part_0 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 0);
+  CREATE TABLE users_part_1 PARTITION OF users FOR VALUES WITH (MODULUS 4, REMAINDER 1);
+  ```
+
+### 4. **Composite Partitioning**
+
+- **Description**: Composite partitioning involves combining multiple partitioning methods, such as range + list or range + hash. This allows more complex partitioning schemes where one partitioning method is applied first, and then further partitions are created using another method.
+- **Use Case**: Useful for highly structured or hierarchical data where a combination of partitioning strategies makes sense.
+- **Example**:
+
+  ```sql
+  CREATE TABLE orders (
+      id serial,
+      order_date date,
+      region text
+  ) PARTITION BY RANGE (order_date);
+
+  CREATE TABLE orders_2023 PARTITION OF orders FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')
+  PARTITION BY LIST (region);
+
+  CREATE TABLE orders_us PARTITION OF orders_2023 FOR VALUES IN ('US');
+  CREATE TABLE orders_eu PARTITION OF orders_2023 FOR VALUES IN ('EU');
+  ```
+
+### 5. **Default Partition**
+
+- **Description**: In any partitioned table, PostgreSQL allows for a **default partition**, which captures any rows that do not match the conditions of other partitions. It ensures that no data is lost even if a specific partition does not cover some values.
+- **Use Case**: Useful as a fallback for data that doesn't fit into predefined partitions.
+- **Example**:
+  ```sql
+  CREATE TABLE customer_data_default PARTITION OF customer_data DEFAULT;
+  ```
+
+These partitioning strategies help PostgreSQL optimize query performance, manage large datasets efficiently, and enhance scalability. The choice of partitioning method depends on the nature of the data and the specific performance needs of the application.

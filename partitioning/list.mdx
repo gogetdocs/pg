@@ -1,0 +1,194 @@
+### 1. **Multi-Tenant SaaS Applications**
+
+**Use Case:** Segregate data for different tenants using `tenant_id`.
+
+#### SQL Implementation:
+
+```sql
+-- Drop existing partitions if they exist (for cleanup purposes)
+DROP TABLE IF EXISTS orders_tenant_1;
+DROP TABLE IF EXISTS orders_tenant_2;
+DROP TABLE IF EXISTS orders;
+
+-- Create the main orders table partitioned by tenant_id
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    tenant_id INT,
+    product_name TEXT,
+    order_date DATE
+) PARTITION BY LIST (tenant_id);
+
+-- Create partitions for each tenant
+CREATE TABLE orders_tenant_1 PARTITION OF orders FOR VALUES IN (1);
+CREATE TABLE orders_tenant_2 PARTITION OF orders FOR VALUES IN (2);
+
+-- Insert data into the partitions
+INSERT INTO orders_tenant_1 (tenant_id, product_name, order_date)
+VALUES (1, 'Product A', '2024-01-15'),
+       (1, 'Product B', '2024-02-20');
+
+INSERT INTO orders_tenant_2 (tenant_id, product_name, order_date)
+VALUES (2, 'Product C', '2024-01-25'),
+       (2, 'Product D', '2024-03-01');
+
+-- Query for tenant 1
+SELECT * FROM orders WHERE tenant_id = 1;
+
+-- Query for tenant 2
+SELECT * FROM orders WHERE tenant_id = 2;
+```
+
+---
+
+### 2. **Geographical Data Segmentation**
+
+**Use Case:** Manage customer data segmented by country.
+
+#### SQL Implementation:
+
+```sql
+-- Drop existing partitions if they exist (for cleanup purposes)
+DROP TABLE IF EXISTS customers_us;
+DROP TABLE IF EXISTS customers_uk;
+DROP TABLE IF EXISTS customers;
+
+-- Create the main customers table partitioned by country
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
+    name TEXT,
+    email TEXT,
+    country TEXT
+) PARTITION BY LIST (country);
+
+-- Create partitions for each country
+CREATE TABLE customers_us PARTITION OF customers FOR VALUES IN ('US');
+CREATE TABLE customers_uk PARTITION OF customers FOR VALUES IN ('UK');
+CREATE TABLE customers_canada PARTITION OF customers FOR VALUES IN ('Canada');
+
+-- Insert data into the partitions
+INSERT INTO customers_us (name, email, country)
+VALUES ('John Doe', 'john@example.com', 'US'),
+       ('Jane Smith', 'jane@example.com', 'US');
+
+INSERT INTO customers_uk (name, email, country)
+VALUES ('Charlie Brown', 'charlie@example.com', 'UK'),
+       ('Lucy van Pelt', 'lucy@example.com', 'UK');
+
+-- Query for US customers
+SELECT * FROM customers WHERE country = 'US';
+
+-- Query for UK customers
+SELECT * FROM customers WHERE country = 'UK';
+```
+
+---
+
+### 3. **Product Catalog by Type**
+
+**Use Case:** E-commerce system that categorizes products by type.
+
+#### SQL Implementation:
+
+```sql
+-- Drop existing partitions if they exist (for cleanup purposes)
+DROP TABLE IF EXISTS products_electronics;
+DROP TABLE IF EXISTS products_clothing;
+DROP TABLE IF EXISTS products_books;
+DROP TABLE IF EXISTS products;
+
+-- Create the main products table partitioned by product_type
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    name TEXT,
+    product_type TEXT,
+    price NUMERIC
+) PARTITION BY LIST (product_type);
+
+-- Create partitions for each product type
+CREATE TABLE products_electronics PARTITION OF products FOR VALUES IN ('Electronics');
+CREATE TABLE products_clothing PARTITION OF products FOR VALUES IN ('Clothing');
+CREATE TABLE products_books PARTITION OF products FOR VALUES IN ('Books');
+
+-- Insert data into the partitions
+INSERT INTO products_electronics (name, product_type, price)
+VALUES ('Smartphone', 'Electronics', 699.99),
+       ('Laptop', 'Electronics', 999.99);
+
+INSERT INTO products_clothing (name, product_type, price)
+VALUES ('T-Shirt', 'Clothing', 19.99),
+       ('Jeans', 'Clothing', 49.99);
+
+INSERT INTO products_books (name, product_type, price)
+VALUES ('PostgreSQL for Beginners', 'Books', 29.99),
+       ('Data Science Handbook', 'Books', 39.99);
+
+-- Query for electronics
+SELECT * FROM products WHERE product_type = 'Electronics';
+
+-- Query for clothing
+SELECT * FROM products WHERE product_type = 'Clothing';
+```
+
+---
+
+### 4. **Financial Systems Based on Account Type**
+
+**Use Case:** Manage accounts segmented by account type.
+
+#### SQL Implementation:
+
+```sql
+-- Drop existing partitions if they exist (for cleanup purposes)
+DROP TABLE IF EXISTS accounts_savings;
+DROP TABLE IF EXISTS accounts_checking;
+DROP TABLE IF EXISTS accounts_credit;
+DROP TABLE IF EXISTS accounts;
+
+-- Create the main accounts table partitioned by account_type
+CREATE TABLE accounts (
+    account_id SERIAL PRIMARY KEY,
+    account_name TEXT,
+    account_type TEXT,
+    balance NUMERIC
+) PARTITION BY LIST (account_type);
+
+-- Create partitions for each account type
+CREATE TABLE accounts_savings PARTITION OF accounts FOR VALUES IN ('Savings');
+CREATE TABLE accounts_checking PARTITION OF accounts FOR VALUES IN ('Checking');
+CREATE TABLE accounts_credit PARTITION OF accounts FOR VALUES IN ('Credit');
+
+-- Insert data into the partitions
+INSERT INTO accounts_savings (account_name, account_type, balance)
+VALUES ('Alice Savings Account', 'Savings', 1500.00),
+       ('Bob Savings Account', 'Savings', 2500.00);
+
+INSERT INTO accounts_checking (account_name, account_type, balance)
+VALUES ('Alice Checking Account', 'Checking', 300.00),
+       ('Bob Checking Account', 'Checking', 450.00);
+
+INSERT INTO accounts_credit (account_name, account_type, balance)
+VALUES ('Alice Credit Card', 'Credit', 1000.00),
+       ('Bob Credit Card', 'Credit', 1500.00);
+
+-- Query for savings accounts
+SELECT * FROM accounts WHERE account_type = 'Savings';
+
+-- Query for checking accounts
+SELECT * FROM accounts WHERE account_type = 'Checking';
+```
+
+---
+
+### Considerations and Best Practices
+
+1. **Partition Maintenance**: Regularly monitor the size of each partition and consider rebalancing or archiving old partitions if necessary.
+
+2. **Data Skew**: Be cautious of uneven data distribution across partitions. Use careful design to balance tenant/customer/account distribution.
+
+3. **Performance Testing**: Run performance tests on your queries to ensure that partitioning yields the desired improvements.
+
+4. **Indexing**: Consider indexing the partitioned columns and frequently queried fields to improve query performance.
+
+5. **Backup and Restore**: Consider the implications of partitioning on your backup and restore strategies. You may want to back up and restore specific partitions rather than the entire table.
+
+---
