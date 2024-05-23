@@ -1,0 +1,60 @@
+Lateral joins in PostgreSQL are a powerful feature that allow you to refer to columns from a preceding table in the same query. They can be particularly useful when you want to call a function or subquery that requires values from each row of the outer query. The `LATERAL` keyword effectively allows the inner subquery to depend on the outer query, enabling more complex and dynamic queries.
+
+### Key Uses of Lateral Joins:
+
+1. **Row-by-Row Calculations**: You can perform calculations or transformations that depend on each row from the outer query. For example, if you want to apply a function that requires data from a specific row of another table.
+
+2. **Working with Set-Returning Functions**: Lateral joins are particularly useful for invoking set-returning functions (SRFs) that return multiple rows. This allows you to generate rows based on each row of another table.
+
+3. **More Complex Filtering**: You can filter data based on correlated subqueries, which can simplify complex queries that might otherwise require multiple subqueries or joins.
+
+4. **Dynamic Result Sets**: They allow you to dynamically generate result sets based on the outer query's values, which can lead to more flexible and powerful queries.
+
+### Syntax:
+
+Here’s the basic syntax of a lateral join:
+
+```sql
+SELECT *
+FROM outer_table
+CROSS JOIN LATERAL (
+    SELECT *
+    FROM inner_table
+    WHERE inner_table.foreign_key = outer_table.primary_key
+) AS alias_name;
+```
+
+### Example Scenario:
+
+Suppose you have two tables: `authors` and `books`. You want to find all authors along with their most recent book. Here’s how you might use a lateral join:
+
+```sql
+CREATE TABLE authors (
+    id SERIAL PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE books (
+    id SERIAL PRIMARY KEY,
+    author_id INT REFERENCES authors(id),
+    title TEXT,
+    published_date DATE
+);
+
+-- Sample query using LATERAL
+SELECT a.name, b.title, b.published_date
+FROM authors a
+CROSS JOIN LATERAL (
+    SELECT title, published_date
+    FROM books
+    WHERE books.author_id = a.id
+    ORDER BY published_date DESC
+    LIMIT 1
+) b;
+```
+
+### Explanation of the Example:
+
+1. **Outer Query**: Iterates over each author in the `authors` table.
+2. **Lateral Join**: For each author, it runs a subquery that retrieves the most recent book from the `books` table by filtering with the author’s ID.
+3. **Results**: This will return a list of authors along with their most recent book title and publication date.
