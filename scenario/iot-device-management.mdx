@@ -1,0 +1,312 @@
+A large-scale Internet of Things (IoT) company needs to build a robust platform for managing millions of connected devices, processing real-time sensor data, detecting anomalies, and providing analytics and insights. The system needs to handle high-frequency data ingestion, perform complex time-series analysis, and support real-time dashboards and alerts.
+
+## Solution
+
+We'll use a combination of PostgreSQL features including table partitioning, JSON data types, window functions, custom functions, and advanced indexing strategies to create a scalable and efficient IoT platform.
+
+### 1. Table Structure
+
+```sql
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+
+CREATE TABLE devices (
+    id SERIAL PRIMARY KEY,
+    uuid UUID UNIQUE NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE sensor_data (
+    device_id INT NOT NULL,
+    timestamp TIMESTAMP NOT NULL,
+    sensor_type VARCHAR(50) NOT NULL,
+    value DOUBLE PRECISION NOT NULL
+);
+
+-- Convert sensor_data to a hypertable
+SELECT create_hypertable('sensor_data', 'timestamp', 'device_id', 4);
+
+CREATE TABLE alerts (
+    id SERIAL PRIMARY KEY,
+    device_id INT NOT NULL,
+    alert_type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_sensor_data_lookup ON sensor_data (device_id, sensor_type, timestamp DESC);
+CREATE INDEX idx_devices_uuid ON devices (uuid);
+CREATE INDEX idx_devices_metadata ON devices USING GIN (metadata jsonb_path_ops);
+```
+
+### 2. Function to Register or Update Device
+
+```sql
+CREATE OR REPLACE FUNCTION register_or_update_device(
+    p_uuid UUID,
+    p_type VARCHAR(50),
+    p_metadata JSONB
+) RETURNS INT AS $$
+DECLARE
+    v_device_id INT;
+BEGIN
+    INSERT INTO devices (uuid, type, metadata)
+    VALUES (p_uuid, p_type, p_metadata)
+    ON CONFLICT (uuid) DO UPDATE
+    SET type = EXCLUDED.type,
+        metadata = devices.metadata || EXCLUDED.metadata
+    RETURNING id INTO v_device_id;
+
+    RETURN v_device_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 3. Function to Ingest Sensor Data
+
+```sql
+CREATE OR REPLACE FUNCTION ingest_sensor_data(
+    p_device_uuid UUID,
+    p_timestamp TIMESTAMP,
+    p_sensor_type VARCHAR(50),
+    p_value DOUBLE PRECISION
+) RETURNS VOID AS $$
+DECLARE
+    v_device_id INT;
+BEGIN
+    SELECT id INTO v_device_id FROM devices WHERE uuid = p_device_uuid;
+
+    IF v_device_id IS NULL THEN
+        RAISE EXCEPTION 'Device with UUID % not found', p_device_uuid;
+    END IF;
+
+    INSERT INTO sensor_data (device_id, timestamp, sensor_type, value)
+    VALUES (v_device_id, p_timestamp, p_sensor_type, p_value);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 4. Function to Detect Anomalies
+
+```sql
+CREATE OR REPLACE FUNCTION detect_anomalies(
+    p_device_id INT,
+    p_sensor_type VARCHAR(50),
+    p_time_window INTERVAL,
+    p_z_score_threshold FLOAT
+) RETURNS TABLE (
+    timestamp TIMESTAMP,
+    value DOUBLE PRECISION,
+    z_score FLOAT
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH stats AS (
+        SELECT
+            AVG(value) AS mean,
+            STDDEV(value) AS stddev
+        FROM sensor_data
+        WHERE device_id = p_device_id
+        AND sensor_type = p_sensor_type
+        AND timestamp >= (CURRENT_TIMESTAMP - p_time_window)
+    ),
+    z_scores AS (
+        SELECT
+            timestamp,
+            value,
+            (value - stats.mean) / NULLIF(stats.stddev, 0) AS z_score
+        FROM sensor_data, stats
+        WHERE device_id = p_device_id
+        AND sensor_type = p_sensor_type
+        AND timestamp >= (CURRENT_TIMESTAMP - p_time_window)
+    )
+    SELECT timestamp, value, z_score
+    FROM z_scores
+    WHERE ABS(z_score) > p_z_score_threshold
+    ORDER BY timestamp DESC;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 5. Function to Generate Time-based Aggregations
+
+```sql
+CREATE OR REPLACE FUNCTION generate_time_aggregations(
+    p_device_id INT,
+    p_sensor_type VARCHAR(50),
+    p_start_time TIMESTAMP,
+    p_end_time TIMESTAMP,
+    p_interval INTERVAL
+) RETURNS TABLE (
+    time_bucket TIMESTAMP,
+    min_value DOUBLE PRECISION,
+    max_value DOUBLE PRECISION,
+    avg_value DOUBLE PRECISION
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        time_bucket(p_interval, timestamp) AS time_bucket,
+        MIN(value) AS min_value,
+        MAX(value) AS max_value,
+        AVG(value) AS avg_value
+    FROM sensor_data
+    WHERE device_id = p_device_id
+    AND sensor_type = p_sensor_type
+    AND timestamp BETWEEN p_start_time AND p_end_time
+    GROUP BY time_bucket
+    ORDER BY time_bucket;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 6. Function to Calculate Moving Average
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_moving_average(
+    p_device_id INT,
+    p_sensor_type VARCHAR(50),
+    p_window INTERVAL,
+    p_start_time TIMESTAMP,
+    p_end_time TIMESTAMP
+) RETURNS TABLE (
+    timestamp TIMESTAMP,
+    value DOUBLE PRECISION,
+    moving_avg DOUBLE PRECISION
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        timestamp,
+        value,
+        AVG(value) OVER (
+            ORDER BY timestamp
+            RANGE BETWEEN p_window PRECEDING AND CURRENT ROW
+        ) AS moving_avg
+    FROM sensor_data
+    WHERE device_id = p_device_id
+    AND sensor_type = p_sensor_type
+    AND timestamp BETWEEN p_start_time AND p_end_time
+    ORDER BY timestamp;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 7. Function to Generate Alerts
+
+```sql
+CREATE OR REPLACE FUNCTION generate_alert(
+    p_device_id INT,
+    p_alert_type VARCHAR(50),
+    p_message TEXT
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO alerts (device_id, alert_type, message)
+    VALUES (p_device_id, p_alert_type, p_message);
+
+    -- Here you could add additional logic to send notifications
+    -- e.g., trigger an event, send an email, etc.
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 8. Continuous Aggregates for Real-time Analytics
+
+```sql
+-- Create a continuous aggregate for hourly sensor data summaries
+CREATE MATERIALIZED VIEW hourly_sensor_summary
+WITH (timescaledb.continuous) AS
+SELECT
+    time_bucket('1 hour', timestamp) AS bucket,
+    device_id,
+    sensor_type,
+    AVG(value) AS avg_value,
+    MIN(value) AS min_value,
+    MAX(value) AS max_value,
+    COUNT(*) AS reading_count
+FROM sensor_data
+GROUP BY bucket, device_id, sensor_type;
+
+-- Add a refresh policy to update the view every 15 minutes
+SELECT add_continuous_aggregate_policy('hourly_sensor_summary',
+    start_offset => INTERVAL '2 hours',
+    end_offset => INTERVAL '15 minutes',
+    schedule_interval => INTERVAL '15 minutes');
+```
+
+### Usage Examples
+
+```sql
+-- Register a new device
+SELECT register_or_update_device(
+    '123e4567-e89b-12d3-a456-426614174000'::UUID,
+    'temperature_sensor',
+    '{"location": "warehouse_a", "model": "TempSensor2000"}'::JSONB
+);
+
+-- Ingest sensor data
+SELECT ingest_sensor_data(
+    '123e4567-e89b-12d3-a456-426614174000'::UUID,
+    CURRENT_TIMESTAMP,
+    'temperature',
+    23.5
+);
+
+-- Detect anomalies for a device's temperature readings in the last hour
+SELECT * FROM detect_anomalies(1, 'temperature', INTERVAL '1 hour', 3.0);
+
+-- Generate hourly aggregations for a device's humidity readings over the last day
+SELECT * FROM generate_time_aggregations(
+    1, 'humidity',
+    CURRENT_TIMESTAMP - INTERVAL '1 day',
+    CURRENT_TIMESTAMP,
+    INTERVAL '1 hour'
+);
+
+-- Calculate a 15-minute moving average for a device's pressure readings over the last 6 hours
+SELECT * FROM calculate_moving_average(
+    1, 'pressure',
+    INTERVAL '15 minutes',
+    CURRENT_TIMESTAMP - INTERVAL '6 hours',
+    CURRENT_TIMESTAMP
+);
+
+-- Generate an alert
+SELECT generate_alert(1, 'high_temperature', 'Temperature exceeded threshold: 30°C');
+
+-- Query the hourly sensor summary
+SELECT * FROM hourly_sensor_summary
+WHERE device_id = 1 AND sensor_type = 'temperature'
+AND bucket >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+ORDER BY bucket DESC;
+
+-- Find devices with specific metadata
+SELECT * FROM devices
+WHERE metadata @> '{"location": "warehouse_a"}'::JSONB;
+
+-- Complex query: Find devices with anomalous behavior in the last hour
+WITH anomalies AS (
+    SELECT device_id, COUNT(*) as anomaly_count
+    FROM sensor_data
+    WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '1 hour'
+    GROUP BY device_id
+    HAVING COUNT(*) > 10
+)
+SELECT d.id, d.uuid, d.type, a.anomaly_count
+FROM devices d
+JOIN anomalies a ON d.id = a.device_id
+ORDER BY a.anomaly_count DESC;
+```
+
+This solution demonstrates advanced PostgreSQL features including:
+
+1. Use of TimescaleDB extension for efficient time-series data handling
+2. JSON data types for flexible device metadata storage
+3. Complex functions for data ingestion, anomaly detection, and time-series analysis
+4. Window functions for moving averages
+5. Continuous aggregates for real-time analytics
+6. Advanced indexing strategies for high-performance queries
+7. Use of Common Table Expressions (CTEs) for complex analytics queries
+
+The implementation provides a scalable foundation for an IoT device management and analytics platform, capable of handling large volumes of sensor data, performing real-time analysis, and generating insights and alerts.

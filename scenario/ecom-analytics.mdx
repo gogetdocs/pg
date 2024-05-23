@@ -1,0 +1,240 @@
+An e-commerce company needs to perform real-time analytics on user behavior, product performance, and sales trends. They need to handle high-volume data ingestion and provide fast query responses for dashboards.
+
+### Solution
+
+We'll use a combination of partitioning, materialized views, and triggers to create an efficient real-time analytics system.
+
+#### 1. Table Structure
+
+```sql
+CREATE TABLE sales (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    product_id INT,
+    quantity INT,
+    price DECIMAL(10, 2),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) PARTITION BY RANGE (timestamp);
+
+CREATE TABLE sales_2024_q1 PARTITION OF sales
+    FOR VALUES FROM ('2024-01-01') TO ('2024-04-01');
+
+CREATE TABLE sales_2024_q2 PARTITION OF sales
+    FOR VALUES FROM ('2024-04-01') TO ('2024-07-01');
+
+-- Create more partitions as needed
+```
+
+#### 2. Materialized View for Daily Sales
+
+```sql
+CREATE MATERIALIZED VIEW daily_sales AS
+SELECT
+    DATE(timestamp) AS sale_date,
+    product_id,
+    SUM(quantity) AS total_quantity,
+    SUM(price * quantity) AS total_revenue
+FROM sales
+GROUP BY DATE(timestamp), product_id;
+
+CREATE UNIQUE INDEX ON daily_sales (sale_date, product_id);
+```
+
+#### 3. Trigger for Real-time Updates
+
+```sql
+CREATE OR REPLACE FUNCTION refresh_daily_sales()
+RETURNS TRIGGER AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY daily_sales;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_daily_sales
+AFTER INSERT OR UPDATE OR DELETE ON sales
+FOR EACH STATEMENT EXECUTE FUNCTION refresh_daily_sales();
+```
+
+#### 4. Function for Top-selling Products
+
+```sql
+CREATE OR REPLACE FUNCTION top_selling_products(start_date DATE, end_date DATE, limit_count INT)
+RETURNS TABLE (
+    product_id INT,
+    total_quantity INT,
+    total_revenue DECIMAL(12, 2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        ds.product_id,
+        SUM(ds.total_quantity)::INT AS total_quantity,
+        SUM(ds.total_revenue)::DECIMAL(12, 2) AS total_revenue
+    FROM daily_sales ds
+    WHERE ds.sale_date BETWEEN start_date AND end_date
+    GROUP BY ds.product_id
+    ORDER BY total_revenue DESC
+    LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Usage
+
+```sql
+-- Get top 10 selling products for the last 30 days
+SELECT * FROM top_selling_products(CURRENT_DATE - INTERVAL '30 days', CURRENT_DATE, 10);
+```
+
+This solution provides:
+
+1. Efficient data storage with partitioning
+2. Fast querying with materialized views
+3. Real-time updates using triggers
+4. Easy-to-use analytics functions
+
+## Scenario 2: Geospatial Analysis for a Ride-sharing Service
+
+### Problem Statement
+
+A ride-sharing service needs to analyze ride patterns, optimize driver locations, and provide estimated arrival times based on current traffic conditions.
+
+### Solution
+
+We'll use PostgreSQL's geospatial extension PostGIS along with custom functions and indexes to solve this problem.
+
+#### 1. Enable PostGIS
+
+```sql
+CREATE EXTENSION postgis;
+```
+
+#### 2. Table Structure
+
+```sql
+CREATE TABLE drivers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    location GEOGRAPHY(POINT, 4326),
+    status VARCHAR(20)
+);
+
+CREATE TABLE rides (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    driver_id INT,
+    start_location GEOGRAPHY(POINT, 4326),
+    end_location GEOGRAPHY(POINT, 4326),
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    distance FLOAT,
+    fare DECIMAL(10, 2)
+);
+
+CREATE TABLE traffic_conditions (
+    id SERIAL PRIMARY KEY,
+    location GEOGRAPHY(POLYGON, 4326),
+    congestion_level INT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+#### 3. Index for Geospatial Queries
+
+```sql
+CREATE INDEX idx_drivers_location ON drivers USING GIST (location);
+CREATE INDEX idx_traffic_location ON traffic_conditions USING GIST (location);
+```
+
+#### 4. Function to Find Nearest Available Drivers
+
+```sql
+CREATE OR REPLACE FUNCTION find_nearest_drivers(
+    user_location GEOGRAPHY,
+    max_distance FLOAT,
+    limit_count INT
+) RETURNS TABLE (
+    driver_id INT,
+    driver_name VARCHAR,
+    distance FLOAT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        d.id,
+        d.name,
+        ST_Distance(d.location, user_location) AS distance
+    FROM drivers d
+    WHERE d.status = 'available'
+      AND ST_DWithin(d.location, user_location, max_distance)
+    ORDER BY distance
+    LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 5. Function to Estimate Arrival Time
+
+```sql
+CREATE OR REPLACE FUNCTION estimate_arrival_time(
+    start_point GEOGRAPHY,
+    end_point GEOGRAPHY
+) RETURNS INTERVAL AS $$
+DECLARE
+    distance FLOAT;
+    avg_speed FLOAT := 30.0;  -- km/h
+    congestion_factor FLOAT := 1.0;
+    travel_time INTERVAL;
+BEGIN
+    -- Calculate distance
+    distance := ST_Distance(start_point, end_point) / 1000;  -- Convert to km
+
+    -- Check for traffic congestion
+    SELECT AVG(congestion_level)::FLOAT / 10 INTO congestion_factor
+    FROM traffic_conditions
+    WHERE ST_Intersects(location, ST_MakeLine(start_point, end_point)::GEOGRAPHY);
+
+    -- If no congestion data, default to 1.0
+    congestion_factor := COALESCE(congestion_factor, 1.0);
+
+    -- Calculate travel time
+    travel_time := (distance / (avg_speed * congestion_factor)) * INTERVAL '1 hour';
+
+    RETURN travel_time;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Usage
+
+```sql
+-- Find 5 nearest drivers within 10km
+SELECT * FROM find_nearest_drivers(
+    ST_MakePoint(-122.4194, 37.7749)::GEOGRAPHY,  -- San Francisco coordinates
+    10000,  -- 10km
+    5
+);
+
+-- Estimate arrival time
+SELECT estimate_arrival_time(
+    ST_MakePoint(-122.4194, 37.7749)::GEOGRAPHY,  -- Start: San Francisco
+    ST_MakePoint(-122.2711, 37.8044)::GEOGRAPHY   -- End: Berkeley
+);
+```
+
+This solution provides:
+
+1. Efficient geospatial queries using PostGIS and GiST indexes
+2. Custom functions for finding nearest drivers and estimating arrival times
+3. Consideration of traffic conditions in time estimates
+
+These scenarios demonstrate advanced PostgreSQL features including:
+
+- Table partitioning
+- Materialized views
+- Triggers and functions
+- PostGIS for geospatial analysis
+- Custom indexing for performance optimization
+
+They solve real-world problems in e-commerce analytics and ride-sharing services, showcasing PostgreSQL's versatility in handling complex data scenarios.

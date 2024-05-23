@@ -1,0 +1,334 @@
+A biotech company needs to build a high-performance genomic data analysis platform. The system needs to store and process large volumes of genomic sequences, perform complex sequence alignments, identify genetic variants, and support advanced querying for research purposes. The platform should be able to handle terabytes of data efficiently and provide fast query responses for various analytical tasks.
+
+## Solution
+
+We'll use a combination of PostgreSQL features including table partitioning, custom indexing, array operations, full-text search, and extensions to create a scalable and efficient genomic data analysis platform.
+
+### 1. Table Structure and Extensions
+
+```sql
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Create custom types
+CREATE TYPE dna_base AS ENUM ('A', 'C', 'G', 'T');
+CREATE TYPE amino_acid AS ENUM (
+    'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I',
+    'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V'
+);
+
+-- Create domain for chromosomes
+CREATE DOMAIN chromosome AS VARCHAR(2)
+CHECK (VALUE ~ '^([1-9]|1[0-9]|2[0-2]|X|Y|MT)$');
+
+CREATE TABLE samples (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    species VARCHAR(100) NOT NULL,
+    metadata JSONB
+);
+
+CREATE TABLE genes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    symbol VARCHAR(20) NOT NULL,
+    chromosome chromosome NOT NULL,
+    start_position INT NOT NULL,
+    end_position INT NOT NULL,
+    strand CHAR(1) CHECK (strand IN ('+', '-')),
+    CONSTRAINT gene_position CHECK (start_position <= end_position)
+);
+
+CREATE TABLE sequences (
+    id SERIAL PRIMARY KEY,
+    sample_id INT REFERENCES samples(id),
+    chromosome chromosome NOT NULL,
+    start_position INT NOT NULL,
+    end_position INT NOT NULL,
+    sequence TEXT NOT NULL,
+    CONSTRAINT seq_position CHECK (start_position <= end_position)
+) PARTITION BY LIST (chromosome);
+
+-- Create partitions for each chromosome
+CREATE TABLE sequences_chr1 PARTITION OF sequences FOR VALUES IN ('1');
+CREATE TABLE sequences_chr2 PARTITION OF sequences FOR VALUES IN ('2');
+-- ... Create partitions for other chromosomes
+
+CREATE TABLE variants (
+    id SERIAL PRIMARY KEY,
+    sample_id INT REFERENCES samples(id),
+    chromosome chromosome NOT NULL,
+    position INT NOT NULL,
+    reference_allele TEXT NOT NULL,
+    alternate_allele TEXT NOT NULL,
+    quality FLOAT,
+    filter VARCHAR(20),
+    info JSONB
+);
+
+-- Create indexes
+CREATE INDEX idx_genes_symbol ON genes (symbol);
+CREATE INDEX idx_genes_location ON genes USING GIST (chromosome, int4range(start_position, end_position));
+CREATE INDEX idx_sequences_location ON sequences USING GIST (chromosome, int4range(start_position, end_position));
+CREATE INDEX idx_variants_location ON variants (chromosome, position);
+CREATE INDEX idx_variants_sample ON variants (sample_id);
+```
+
+### 2. Function to Insert Sequence Data
+
+```sql
+CREATE OR REPLACE FUNCTION insert_sequence(
+    p_sample_id INT,
+    p_chromosome chromosome,
+    p_start_position INT,
+    p_end_position INT,
+    p_sequence TEXT
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO sequences (sample_id, chromosome, start_position, end_position, sequence)
+    VALUES (p_sample_id, p_chromosome, p_start_position, p_end_position, p_sequence);
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 3. Function to Search for Sequence Patterns
+
+```sql
+CREATE OR REPLACE FUNCTION search_sequence_pattern(
+    p_pattern TEXT,
+    p_chromosome chromosome = NULL
+) RETURNS TABLE (
+    sample_id INT,
+    chromosome chromosome,
+    start_position INT,
+    end_position INT,
+    match_start INT,
+    match_end INT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        s.sample_id,
+        s.chromosome,
+        s.start_position,
+        s.end_position,
+        s.start_position + (m.match_start - 1) AS match_start,
+        s.start_position + (m.match_end - 1) AS match_end
+    FROM sequences s,
+    LATERAL (
+        SELECT
+            match_start,
+            match_end
+        FROM regexp_matches(s.sequence, p_pattern, 'g') WITH ORDINALITY AS m(match, match_start)
+        CROSS JOIN LATERAL (
+            SELECT match_start + length(match) - 1 AS match_end
+        ) AS e
+    ) AS m
+    WHERE (p_chromosome IS NULL OR s.chromosome = p_chromosome)
+    ORDER BY s.chromosome, s.start_position, match_start;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 4. Function to Calculate GC Content
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_gc_content(p_sequence TEXT)
+RETURNS FLOAT AS $$
+DECLARE
+    v_gc_count INT;
+    v_total_length INT;
+BEGIN
+    v_gc_count := LENGTH(REGEXP_REPLACE(UPPER(p_sequence), '[^GC]', '', 'g'));
+    v_total_length := LENGTH(p_sequence);
+
+    IF v_total_length = 0 THEN
+        RETURN 0;
+    ELSE
+        RETURN (v_gc_count::FLOAT / v_total_length) * 100;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 5. Function to Translate DNA to Protein
+
+```sql
+CREATE OR REPLACE FUNCTION translate_dna_to_protein(p_dna_sequence TEXT)
+RETURNS TEXT AS $$
+DECLARE
+    v_protein TEXT := '';
+    v_codon TEXT;
+    v_amino_acid amino_acid;
+BEGIN
+    FOR i IN 1..LENGTH(p_dna_sequence)/3 LOOP
+        v_codon := SUBSTRING(UPPER(p_dna_sequence) FROM 3*i-2 FOR 3);
+        v_amino_acid := CASE v_codon
+            WHEN 'TTT' THEN 'F' WHEN 'TTC' THEN 'F' WHEN 'TTA' THEN 'L' WHEN 'TTG' THEN 'L'
+            WHEN 'CTT' THEN 'L' WHEN 'CTC' THEN 'L' WHEN 'CTA' THEN 'L' WHEN 'CTG' THEN 'L'
+            WHEN 'ATT' THEN 'I' WHEN 'ATC' THEN 'I' WHEN 'ATA' THEN 'I' WHEN 'ATG' THEN 'M'
+            WHEN 'GTT' THEN 'V' WHEN 'GTC' THEN 'V' WHEN 'GTA' THEN 'V' WHEN 'GTG' THEN 'V'
+            WHEN 'TCT' THEN 'S' WHEN 'TCC' THEN 'S' WHEN 'TCA' THEN 'S' WHEN 'TCG' THEN 'S'
+            WHEN 'CCT' THEN 'P' WHEN 'CCC' THEN 'P' WHEN 'CCA' THEN 'P' WHEN 'CCG' THEN 'P'
+            WHEN 'ACT' THEN 'T' WHEN 'ACC' THEN 'T' WHEN 'ACA' THEN 'T' WHEN 'ACG' THEN 'T'
+            WHEN 'GCT' THEN 'A' WHEN 'GCC' THEN 'A' WHEN 'GCA' THEN 'A' WHEN 'GCG' THEN 'A'
+            WHEN 'TAT' THEN 'Y' WHEN 'TAC' THEN 'Y' WHEN 'TAA' THEN '*' WHEN 'TAG' THEN '*'
+            WHEN 'CAT' THEN 'H' WHEN 'CAC' THEN 'H' WHEN 'CAA' THEN 'Q' WHEN 'CAG' THEN 'Q'
+            WHEN 'AAT' THEN 'N' WHEN 'AAC' THEN 'N' WHEN 'AAA' THEN 'K' WHEN 'AAG' THEN 'K'
+            WHEN 'GAT' THEN 'D' WHEN 'GAC' THEN 'D' WHEN 'GAA' THEN 'E' WHEN 'GAG' THEN 'E'
+            WHEN 'TGT' THEN 'C' WHEN 'TGC' THEN 'C' WHEN 'TGA' THEN '*' WHEN 'TGG' THEN 'W'
+            WHEN 'CGT' THEN 'R' WHEN 'CGC' THEN 'R' WHEN 'CGA' THEN 'R' WHEN 'CGG' THEN 'R'
+            WHEN 'AGT' THEN 'S' WHEN 'AGC' THEN 'S' WHEN 'AGA' THEN 'R' WHEN 'AGG' THEN 'R'
+            WHEN 'GGT' THEN 'G' WHEN 'GGC' THEN 'G' WHEN 'GGA' THEN 'G' WHEN 'GGG' THEN 'G'
+            ELSE 'X'
+        END;
+        v_protein := v_protein || v_amino_acid;
+    END LOOP;
+    RETURN v_protein;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 6. Function to Find Overlapping Genes
+
+```sql
+CREATE OR REPLACE FUNCTION find_overlapping_genes(
+    p_chromosome chromosome,
+    p_start_position INT,
+    p_end_position INT
+) RETURNS TABLE (
+    gene_id INT,
+    gene_name VARCHAR,
+    gene_symbol VARCHAR,
+    overlap_start INT,
+    overlap_end INT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        g.id AS gene_id,
+        g.name AS gene_name,
+        g.symbol AS gene_symbol,
+        GREATEST(g.start_position, p_start_position) AS overlap_start,
+        LEAST(g.end_position, p_end_position) AS overlap_end
+    FROM genes g
+    WHERE g.chromosome = p_chromosome
+    AND int4range(g.start_position, g.end_position) && int4range(p_start_position, p_end_position)
+    ORDER BY g.start_position;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 7. Function to Identify Potential SNPs
+
+```sql
+CREATE OR REPLACE FUNCTION identify_potential_snps(
+    p_sample_id INT,
+    p_chromosome chromosome,
+    p_start_position INT,
+    p_end_position INT
+) RETURNS TABLE (
+    position INT,
+    reference_base dna_base,
+    alternate_base dna_base,
+    frequency FLOAT
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH sequence_data AS (
+        SELECT
+            unnest(string_to_array(sequence, NULL)) AS base,
+            generate_series(start_position, end_position) AS position
+        FROM sequences
+        WHERE sample_id = p_sample_id
+        AND chromosome = p_chromosome
+        AND int4range(start_position, end_position) && int4range(p_start_position, p_end_position)
+    ),
+    base_counts AS (
+        SELECT
+            position,
+            base::dna_base AS base,
+            COUNT(*) AS count,
+            SUM(COUNT(*)) OVER (PARTITION BY position) AS total
+        FROM sequence_data
+        WHERE position BETWEEN p_start_position AND p_end_position
+        GROUP BY position, base
+    )
+    SELECT
+        b1.position,
+        b1.base AS reference_base,
+        b2.base AS alternate_base,
+        b2.count::FLOAT / b1.total AS frequency
+    FROM base_counts b1
+    JOIN base_counts b2 ON b1.position = b2.position AND b1.base != b2.base
+    WHERE b1.count > b2.count
+    AND b2.count::FLOAT / b1.total >= 0.1  -- Consider as SNP if alternate base frequency is at least 10%
+    ORDER BY b1.position, frequency DESC;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Usage Examples
+
+```sql
+-- Insert a sequence
+SELECT insert_sequence(1, '1', 1000, 2000, 'ATCGATCGATCG...');
+
+-- Search for a specific sequence pattern
+SELECT * FROM search_sequence_pattern('ATCG[AT]TGCA', '1');
+
+-- Calculate GC content for a sequence
+SELECT calculate_gc_content('ATCGATCGATCGCGCGCGCGCG');
+
+-- Translate DNA to protein
+SELECT translate_dna_to_protein('ATGGCCATGGCGCCCAGAACTGAGATCAATAGTACCCGTATTAACGGGTGA');
+
+-- Find overlapping genes
+SELECT * FROM find_overlapping_genes('1', 1000000, 1100000);
+
+-- Identify potential SNPs
+SELECT * FROM identify_potential_snps(1, '1', 1000000, 1100000);
+
+-- Complex query: Find genes with high GC content in their sequences
+WITH gene_sequences AS (
+    SELECT
+        g.id AS gene_id,
+        g.name AS gene_name,
+        g.symbol AS gene_symbol,
+        s.sequence
+    FROM genes g
+    JOIN sequences s ON g.chromosome = s.chromosome
+    WHERE int4range(g.start_position, g.end_position) && int4range(s.start_position, s.end_position)
+)
+SELECT
+    gene_id,
+    gene_name,
+    gene_symbol,
+    calculate_gc_content(sequence) AS gc_content
+FROM gene_sequences
+WHERE calculate_gc_content(sequence) > 60
+ORDER BY gc_content DESC
+LIMIT 10;
+
+-- Find samples with specific variants
+SELECT DISTINCT s.id, s.name
+FROM samples s
+JOIN variants v ON s.id = v.sample_id
+WHERE v.chromosome = '1'
+AND v.position BETWEEN 1000000 AND 2000000
+AND v.alternate_allele != v.reference_allele
+AND v.info @> '{"impact": "HIGH"}'::jsonb;
+```
+
+This solution demonstrates advanced PostgreSQL features including:
+
+1. Custom types and domains for genomic data
+2. Table partitioning for efficient storage and querying of sequence data
+3. GiST indexes for range queries on genomic positions
+4. Complex functions for sequence analysis, including pattern matching and DNA-to-protein translation
+5. Use of array operations and regular expressions for sequence manipulation
+6. JSON data types for flexible storage of variant information
+7. Advanced querying capabilities combining multiple genomic data types
+
+The implementation provides a scalable foundation for a genomic data analysis platform, capable of handling large volumes of sequence data, performing complex analyses, and supporting various research queries.

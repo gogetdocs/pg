@@ -1,0 +1,271 @@
+A social media company needs to build an analytics platform that can handle large volumes of user-generated content, track trending topics, and provide real-time insights into user engagement. The platform should be able to process millions of posts per day, identify trending hashtags, and calculate various engagement metrics.
+
+## Solution
+
+We'll use a combination of PostgreSQL features including JSON data types, full-text search, recursive queries, and window functions to create a scalable and efficient analytics platform.
+
+### 1. Table Structure
+
+```sql
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE posts (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id),
+    content TEXT NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE hashtags (
+    id SERIAL PRIMARY KEY,
+    tag VARCHAR(50) UNIQUE NOT NULL
+);
+
+CREATE TABLE post_hashtags (
+    post_id INT REFERENCES posts(id),
+    hashtag_id INT REFERENCES hashtags(id),
+    PRIMARY KEY (post_id, hashtag_id)
+);
+
+CREATE TABLE engagements (
+    id SERIAL PRIMARY KEY,
+    post_id INT REFERENCES posts(id),
+    user_id INT REFERENCES users(id),
+    type VARCHAR(20) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 2. Full-Text Search Configuration
+
+```sql
+CREATE EXTENSION IF NOT EXISTS unaccent;
+
+CREATE TEXT SEARCH CONFIGURATION social_media_config (COPY = simple);
+ALTER TEXT SEARCH CONFIGURATION social_media_config
+    ALTER MAPPING FOR hword, hword_part, word WITH unaccent, simple;
+
+CREATE INDEX idx_posts_content_fts ON posts
+    USING GIN (to_tsvector('social_media_config', content));
+```
+
+### 3. Function to Extract Hashtags
+
+```sql
+CREATE OR REPLACE FUNCTION extract_hashtags(content TEXT)
+RETURNS TABLE (hashtag TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT DISTINCT LOWER(regexp_matches.match)::TEXT
+    FROM regexp_matches(content, '#(\w+)', 'g')
+    WHERE LENGTH(regexp_matches.match) BETWEEN 1 AND 50;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 4. Trigger to Update Hashtags
+
+```sql
+CREATE OR REPLACE FUNCTION update_post_hashtags()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Delete existing hashtags for this post
+    DELETE FROM post_hashtags WHERE post_id = NEW.id;
+
+    -- Insert new hashtags
+    WITH new_hashtags AS (
+        SELECT DISTINCT hashtag FROM extract_hashtags(NEW.content)
+    ), inserted_hashtags AS (
+        INSERT INTO hashtags (tag)
+        SELECT hashtag FROM new_hashtags
+        ON CONFLICT (tag) DO NOTHING
+        RETURNING id, tag
+    )
+    INSERT INTO post_hashtags (post_id, hashtag_id)
+    SELECT NEW.id, COALESCE(ih.id, h.id)
+    FROM new_hashtags nh
+    LEFT JOIN inserted_hashtags ih ON nh.hashtag = ih.tag
+    LEFT JOIN hashtags h ON nh.hashtag = h.tag;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_post_hashtags
+AFTER INSERT OR UPDATE ON posts
+FOR EACH ROW EXECUTE FUNCTION update_post_hashtags();
+```
+
+### 5. Function to Get Trending Hashtags
+
+```sql
+CREATE OR REPLACE FUNCTION get_trending_hashtags(
+    time_window INTERVAL,
+    limit_count INT
+) RETURNS TABLE (
+    hashtag VARCHAR(50),
+    usage_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT h.tag, COUNT(*) as usage_count
+    FROM post_hashtags ph
+    JOIN hashtags h ON ph.hashtag_id = h.id
+    JOIN posts p ON ph.post_id = p.id
+    WHERE p.created_at >= (CURRENT_TIMESTAMP - time_window)
+    GROUP BY h.tag
+    ORDER BY usage_count DESC
+    LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 6. Function to Calculate User Engagement Score
+
+```sql
+CREATE OR REPLACE FUNCTION calculate_user_engagement_score(
+    user_id_param INT,
+    time_window INTERVAL
+) RETURNS FLOAT AS $$
+DECLARE
+    post_count INT;
+    engagement_score FLOAT;
+BEGIN
+    -- Count user's posts
+    SELECT COUNT(*) INTO post_count
+    FROM posts
+    WHERE user_id = user_id_param
+    AND created_at >= (CURRENT_TIMESTAMP - time_window);
+
+    -- Calculate engagement score
+    SELECT
+        COALESCE(
+            (SUM(CASE
+                WHEN type = 'like' THEN 1
+                WHEN type = 'comment' THEN 2
+                WHEN type = 'share' THEN 3
+                ELSE 0
+            END)::FLOAT / NULLIF(post_count, 0)), 0
+        ) INTO engagement_score
+    FROM engagements e
+    JOIN posts p ON e.post_id = p.id
+    WHERE p.user_id = user_id_param
+    AND e.created_at >= (CURRENT_TIMESTAMP - time_window);
+
+    RETURN engagement_score;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### 7. Materialized View for User Statistics
+
+```sql
+CREATE MATERIALIZED VIEW user_statistics AS
+SELECT
+    u.id AS user_id,
+    u.username,
+    COUNT(DISTINCT p.id) AS total_posts,
+    COUNT(DISTINCT e.id) AS total_engagements,
+    calculate_user_engagement_score(u.id, INTERVAL '30 days') AS engagement_score
+FROM users u
+LEFT JOIN posts p ON u.id = p.user_id
+LEFT JOIN engagements e ON p.id = e.post_id
+GROUP BY u.id, u.username;
+
+CREATE UNIQUE INDEX ON user_statistics (user_id);
+
+-- Function to refresh the materialized view
+CREATE OR REPLACE FUNCTION refresh_user_statistics()
+RETURNS TRIGGER AS $$
+BEGIN
+    REFRESH MATERIALIZED VIEW CONCURRENTLY user_statistics;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Triggers to refresh the materialized view
+CREATE TRIGGER refresh_user_stats_posts
+AFTER INSERT OR UPDATE OR DELETE ON posts
+FOR EACH STATEMENT EXECUTE FUNCTION refresh_user_statistics();
+
+CREATE TRIGGER refresh_user_stats_engagements
+AFTER INSERT OR UPDATE OR DELETE ON engagements
+FOR EACH STATEMENT EXECUTE FUNCTION refresh_user_statistics();
+```
+
+### 8. Function for Content Recommendation
+
+```sql
+CREATE OR REPLACE FUNCTION recommend_content(
+    user_id_param INT,
+    limit_count INT
+) RETURNS TABLE (
+    post_id INT,
+    content TEXT,
+    relevance_score FLOAT
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH user_interests AS (
+        SELECT DISTINCT h.id AS hashtag_id
+        FROM posts p
+        JOIN post_hashtags ph ON p.id = ph.post_id
+        JOIN hashtags h ON ph.hashtag_id = h.id
+        WHERE p.user_id = user_id_param
+        AND p.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')
+    )
+    SELECT
+        p.id AS post_id,
+        p.content,
+        ts_rank(to_tsvector('social_media_config', p.content),
+                (SELECT to_tsquery('social_media_config', string_agg(h.tag, ' | '))
+                 FROM user_interests ui
+                 JOIN hashtags h ON ui.hashtag_id = h.id)) AS relevance_score
+    FROM posts p
+    WHERE p.user_id != user_id_param
+    AND p.created_at >= (CURRENT_TIMESTAMP - INTERVAL '7 days')
+    ORDER BY relevance_score DESC, p.created_at DESC
+    LIMIT limit_count;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Usage Examples
+
+```sql
+-- Get trending hashtags for the last 24 hours
+SELECT * FROM get_trending_hashtags(INTERVAL '1 day', 10);
+
+-- Calculate engagement score for a user
+SELECT calculate_user_engagement_score(1, INTERVAL '30 days');
+
+-- Get user statistics
+SELECT * FROM user_statistics WHERE user_id = 1;
+
+-- Get content recommendations for a user
+SELECT * FROM recommend_content(1, 5);
+
+-- Full-text search for posts
+SELECT id, content, ts_rank(to_tsvector('social_media_config', content), to_tsquery('social_media_config', 'postgresql')) AS rank
+FROM posts
+WHERE to_tsvector('social_media_config', content) @@ to_tsquery('social_media_config', 'postgresql')
+ORDER BY rank DESC
+LIMIT 10;
+```
+
+This solution demonstrates advanced PostgreSQL features including:
+
+1. JSON data types for flexible metadata storage
+2. Full-text search with custom configuration
+3. Triggers for automatic hashtag extraction and updating
+4. Complex functions for trend analysis and engagement scoring
+5. Materialized views for caching expensive calculations
+6. Window functions for time-based analysis
+7. Custom text search configuration with accent-insensitive search
+
+The implementation provides a scalable foundation for a social media analytics platform, capable of handling large volumes of data and providing real-time insights.
