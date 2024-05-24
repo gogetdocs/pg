@@ -1,0 +1,414 @@
+In PostgreSQL, **views** are essentially stored SQL queries. They allow you to represent complex queries as simple virtual tables, which can then be queried just like a regular table. Views are useful for encapsulating complex SQL logic, securing sensitive data by exposing only necessary fields, and simplifying repeated queries. PostgreSQL supports **read-only** and **updatable views**, with the latter allowing INSERT, UPDATE, and DELETE operations under certain conditions.
+
+### 1. Basic View Creation
+
+You can create a view to encapsulate a query and reuse it for easier access.
+
+```sql
+CREATE VIEW employee_view AS
+SELECT employee_id, first_name, last_name, salary
+FROM employees
+WHERE status = 'active';
+```
+
+Now, querying the view becomes easy:
+
+```sql
+SELECT * FROM employee_view;
+```
+
+This will return all active employees from the `employees` table.
+
+### 2. Using Joins in Views
+
+Views can encapsulate complex queries, such as joining multiple tables. For instance, combining `employees` and `departments`:
+
+```sql
+CREATE VIEW department_employees AS
+SELECT e.employee_id, e.first_name, e.last_name, d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+WHERE e.status = 'active';
+```
+
+Now you can query the `department_employees` view:
+
+```sql
+SELECT * FROM department_employees WHERE department_name = 'HR';
+```
+
+This query lists all active employees in the HR department.
+
+### 3. Using Aggregate Functions in Views
+
+Views can also be used to represent aggregated data, such as totals or averages.
+
+```sql
+CREATE VIEW department_salary_avg AS
+SELECT department_id, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id;
+```
+
+This view can be used to fetch the average salary per department:
+
+```sql
+SELECT * FROM department_salary_avg;
+```
+
+### 4. Updatable Views
+
+In PostgreSQL, views can sometimes be **updatable**, meaning you can `INSERT`, `UPDATE`, or `DELETE` data through the view. A simple updatable view can be created like this:
+
+```sql
+CREATE VIEW active_employees AS
+SELECT employee_id, first_name, last_name, department_id
+FROM employees
+WHERE status = 'active';
+```
+
+Now, you can update the underlying table through the view:
+
+```sql
+UPDATE active_employees
+SET department_id = 3
+WHERE employee_id = 5;
+```
+
+This updates the `department_id` in the `employees` table for employee 5.
+
+### 5. Creating Views with Security Features
+
+Views can restrict access to certain columns, allowing you to expose only the necessary data to users. This can be helpful for security reasons, especially when you need to prevent users from accessing sensitive columns.
+
+```sql
+CREATE VIEW public_employee_info AS
+SELECT employee_id, first_name, last_name, department_id
+FROM employees;
+```
+
+Here, columns like `salary` and `personal_info` are excluded, so anyone querying this view will not have access to that data.
+
+### 6. Parameterized Views Using Functions
+
+While PostgreSQL views cannot take parameters, you can create **functions** that return the result of a query similar to a view, but allow parameters.
+
+Example: A function that acts like a view but takes a department ID as input:
+
+```sql
+CREATE OR REPLACE FUNCTION get_employees_by_department(dept_id INT)
+RETURNS TABLE(employee_id INT, first_name TEXT, last_name TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT employee_id, first_name, last_name
+    FROM employees
+    WHERE department_id = dept_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+You can call this function like:
+
+```sql
+SELECT * FROM get_employees_by_department(2);
+```
+
+### 7. Materialized Views
+
+A **materialized view** stores the result of the query physically, which can improve performance for expensive queries. However, it needs to be manually refreshed.
+
+```sql
+CREATE MATERIALIZED VIEW employee_salary_summary AS
+SELECT department_id, AVG(salary) AS avg_salary, MAX(salary) AS max_salary
+FROM employees
+GROUP BY department_id;
+```
+
+You can **refresh** the materialized view to update its data:
+
+```sql
+REFRESH MATERIALIZED VIEW employee_salary_summary;
+```
+
+Querying a materialized view works the same way as a regular view:
+
+```sql
+SELECT * FROM employee_salary_summary;
+```
+
+### 8. Dropping Views
+
+If you need to remove a view, use the `DROP VIEW` command:
+
+```sql
+DROP VIEW employee_view;
+```
+
+To drop a materialized view:
+
+```sql
+DROP MATERIALIZED VIEW employee_salary_summary;
+```
+
+### 9. Complex Views with CTEs (Common Table Expressions)
+
+You can create views that use CTEs to build up complex queries in a more readable way.
+
+```sql
+CREATE VIEW department_employee_stats AS
+WITH department_totals AS (
+    SELECT department_id, COUNT(employee_id) AS total_employees
+    FROM employees
+    GROUP BY department_id
+),
+department_salaries AS (
+    SELECT department_id, AVG(salary) AS avg_salary
+    FROM employees
+    GROUP BY department_id
+)
+SELECT dt.department_id, dt.total_employees, ds.avg_salary
+FROM department_totals dt
+JOIN department_salaries ds ON dt.department_id = ds.department_id;
+```
+
+Now you can query the view to get the employee count and average salary per department:
+
+```sql
+SELECT * FROM department_employee_stats;
+```
+
+### 10. Indexed Materialized Views
+
+For better query performance, you can even add an index to a materialized view:
+
+```sql
+CREATE INDEX idx_department_avg_salary ON employee_salary_summary(department_id);
+```
+
+### 11. View Dependencies
+
+To check the dependencies for a view (which tables and columns it depends on), you can query the `pg_catalog` system tables:
+
+```sql
+SELECT
+    viewname,
+    pg_catalog.pg_get_viewdef(c.oid, true) AS definition
+FROM
+    pg_catalog.pg_views v
+JOIN
+    pg_catalog.pg_class c ON v.viewname = c.relname
+WHERE
+    viewname = 'employee_view';
+```
+
+This query shows the definition of the view `employee_view`.
+
+---
+
+Views in PostgreSQL are powerful tools that can simplify complex queries, provide security, enhance performance, and even create materialized views for caching purposes. Below are advanced ways to leverage PostgreSQL views for different scenarios:
+
+### 1. **Parameterized Views Using Functions**
+
+PostgreSQL views don’t accept parameters directly. However, you can achieve parameterization using functions combined with views. For example, you can use a `PL/pgSQL` function to return a query based on a parameter.
+
+#### Example: View with a Function
+
+```sql
+CREATE VIEW employee_view AS
+SELECT id, name, department, salary FROM employees;
+
+-- Function to fetch employees by department
+CREATE OR REPLACE FUNCTION get_employees_by_department(dept_name TEXT)
+RETURNS TABLE (id INT, name TEXT, department TEXT, salary NUMERIC) AS
+$$
+BEGIN
+    RETURN QUERY
+    SELECT * FROM employee_view WHERE department = dept_name;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+You can then call this function with parameters:
+
+```sql
+SELECT * FROM get_employees_by_department('Sales');
+```
+
+### 2. **Updatable Views (INSTEAD OF Triggers)**
+
+PostgreSQL allows you to create updatable views by defining `INSTEAD OF` triggers. This enables you to insert, update, and delete rows from views, even if they are based on complex joins.
+
+#### Example: Updatable View
+
+```sql
+CREATE VIEW employee_department AS
+SELECT e.id, e.name, e.salary, d.department_name
+FROM employees e
+JOIN departments d ON e.department_id = d.id;
+
+-- Create trigger for updates
+CREATE OR REPLACE FUNCTION update_employee_department() RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'UPDATE' THEN
+        UPDATE employees SET name = NEW.name, salary = NEW.salary WHERE id = OLD.id;
+        UPDATE departments SET department_name = NEW.department_name WHERE id = OLD.department_id;
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Attach trigger to view
+CREATE TRIGGER employee_department_upd_trig
+INSTEAD OF UPDATE ON employee_department
+FOR EACH ROW EXECUTE FUNCTION update_employee_department();
+```
+
+Now you can update the view as if it were a table:
+
+```sql
+UPDATE employee_department SET salary = 75000 WHERE id = 101;
+```
+
+### 3. **Materialized Views**
+
+Materialized views store the result of a query physically on disk, unlike regular views that are virtual. This can improve query performance for large datasets but requires manual refreshing when the underlying data changes.
+
+#### Example: Materialized View
+
+```sql
+CREATE MATERIALIZED VIEW employee_salary_summary AS
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM employees
+GROUP BY department_id;
+
+-- To refresh the materialized view (e.g., after data changes):
+REFRESH MATERIALIZED VIEW employee_salary_summary;
+```
+
+Materialized views are useful when you need to query large datasets repeatedly without rerunning the full query.
+
+### 4. **Views with Row-Level Security (RLS)**
+
+Views can be combined with PostgreSQL’s **Row-Level Security (RLS)** to restrict access to data. This is especially useful for multi-tenant applications where different users should see only their own data.
+
+#### Example: View with RLS
+
+```sql
+-- Enable RLS on the employees table
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+
+-- Define a security policy for the employees table
+CREATE POLICY employee_policy ON employees
+USING (current_user = manager_username);  -- Only rows where current user is the manager
+
+-- Create a view to enforce RLS
+CREATE VIEW employee_manager_view AS
+SELECT id, name, salary FROM employees;
+
+-- Grant access to the view (RLS applies automatically)
+GRANT SELECT ON employee_manager_view TO managers;
+```
+
+With RLS, each manager will only see the employees they manage.
+
+### 5. **Recursive Views**
+
+Recursive views, in combination with **Common Table Expressions (CTEs)**, allow you to handle hierarchical or recursive data structures like organization charts or family trees.
+
+#### Example: Recursive View for Hierarchies
+
+```sql
+-- Employee table with self-references
+CREATE TABLE employees (
+    id SERIAL PRIMARY KEY,
+    name TEXT,
+    manager_id INT REFERENCES employees(id)
+);
+
+-- Create a recursive view to get all subordinates of a manager
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT id, name, manager_id, 1 AS level FROM employees WHERE manager_id IS NULL  -- Top-level managers
+    UNION ALL
+    SELECT e.id, e.name, e.manager_id, eh.level + 1
+    FROM employees e
+    JOIN employee_hierarchy eh ON e.manager_id = eh.id
+)
+SELECT * FROM employee_hierarchy;
+```
+
+This recursive view will return all employees in a hierarchical structure, showing how many levels deep each employee is.
+
+### 6. **Complex Joins and Aggregations in Views**
+
+Views can encapsulate complex business logic involving multiple joins, aggregations, and window functions. This simplifies the querying process for end users who only need to query the view without dealing with the underlying complexity.
+
+#### Example: View with Complex Joins and Aggregation
+
+```sql
+CREATE VIEW employee_performance_summary AS
+SELECT e.id, e.name, d.department_name, COUNT(p.project_id) AS project_count, AVG(p.performance_score) AS avg_score
+FROM employees e
+JOIN departments d ON e.department_id = d.id
+JOIN projects p ON e.id = p.employee_id
+GROUP BY e.id, e.name, d.department_name;
+```
+
+This view combines data from multiple tables and performs aggregations. You can simply query this view instead of repeatedly writing complex joins and aggregations:
+
+```sql
+SELECT * FROM employee_performance_summary WHERE avg_score > 85;
+```
+
+### 7. **Indexed Views (Materialized Views + Indexes)**
+
+While PostgreSQL doesn't support directly indexing normal views, you can use indexes with materialized views to enhance performance significantly.
+
+#### Example: Index on Materialized View
+
+```sql
+CREATE MATERIALIZED VIEW employee_department_summary AS
+SELECT department_id, COUNT(*) AS employee_count, AVG(salary) AS avg_salary
+FROM employees
+GROUP BY department_id;
+
+-- Create an index to optimize queries
+CREATE INDEX idx_department_id ON employee_department_summary (department_id);
+
+-- Refresh the materialized view when necessary
+REFRESH MATERIALIZED VIEW employee_department_summary;
+```
+
+This indexed materialized view allows fast querying, especially for frequent analytical queries.
+
+### 8. **Partitioned Views for Data Sharding**
+
+When working with large datasets, partitioned tables are essential for managing performance. You can create views that unify partitioned tables into a single queryable interface.
+
+#### Example: Partitioned View
+
+```sql
+-- Create partitioned tables
+CREATE TABLE employees_2023 PARTITION OF employees FOR VALUES FROM ('2023-01-01') TO ('2023-12-31');
+CREATE TABLE employees_2022 PARTITION OF employees FOR VALUES FROM ('2022-01-01') TO ('2022-12-31');
+
+-- Create a view to unify the partitions
+CREATE VIEW all_employees AS
+SELECT * FROM employees_2023
+UNION ALL
+SELECT * FROM employees_2022;
+```
+
+This allows seamless querying across partitions while retaining the performance benefits of partitioning.
+
+### 9. **Materialized Views with Auto Refresh**
+
+Automatically refreshing materialized views can be essential in environments with frequently updated data. Although PostgreSQL doesn't have a built-in scheduler, you can use tools like **pg_cron** or external schedulers to refresh materialized views.
+
+#### Example: Auto-Refreshing Materialized View
+
+```bash
+-- Assuming pg_cron is installed
+SELECT cron.schedule('0 0 * * *', 'REFRESH MATERIALIZED VIEW employee_salary_summary');
+```
+
+This will automatically refresh the materialized view every day at midnight.
