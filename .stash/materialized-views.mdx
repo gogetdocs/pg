@@ -1,0 +1,401 @@
+### Materialized Views in PostgreSQL
+
+A **Materialized View** in PostgreSQL is similar to a regular view but with a crucial difference: the data in a materialized view is physically stored on disk. This means that it doesn't need to recompute the result set every time it's queried, offering significant performance advantages for expensive or frequently accessed queries. However, the materialized view must be manually **refreshed** to reflect changes in the underlying data, unlike regular views, which always reflect the current state of the data.
+
+### 1. Creating a Materialized View
+
+The syntax for creating a materialized view is similar to that for a regular view, with the addition of the `MATERIALIZED` keyword.
+
+#### Example:
+
+```sql
+CREATE MATERIALIZED VIEW employee_salary_summary AS
+SELECT department_id, AVG(salary) AS avg_salary, MAX(salary) AS max_salary
+FROM employees
+GROUP BY department_id;
+```
+
+This stores the result of the query on disk, allowing for fast retrieval when queried.
+
+#### Querying the Materialized View:
+
+```sql
+SELECT * FROM employee_salary_summary;
+```
+
+This will return the previously stored result, without recomputing the query each time.
+
+---
+
+### 2. Refreshing a Materialized View
+
+Since materialized views do not automatically update when the underlying data changes, you need to manually refresh them. This is done using the `REFRESH MATERIALIZED VIEW` command.
+
+#### Example:
+
+```sql
+REFRESH MATERIALIZED VIEW employee_salary_summary;
+```
+
+This updates the materialized view with the latest data from the `employees` table.
+
+#### Refreshing Without Blocking Reads:
+
+If the materialized view is being actively queried, and you don't want to block those reads while refreshing, you can use the `CONCURRENTLY` option (though it requires a unique index).
+
+```sql
+REFRESH MATERIALIZED VIEW CONCURRENTLY employee_salary_summary;
+```
+
+This allows the materialized view to be refreshed without locking it for read queries. Note that the `CONCURRENTLY` option requires that the materialized view has a unique index.
+
+---
+
+### 3. Adding Indexes to Materialized Views
+
+To speed up queries against a materialized view, you can create indexes on the columns of the view. This is especially useful for large datasets where frequent lookups are done on certain columns.
+
+#### Example:
+
+```sql
+CREATE INDEX idx_department_avg_salary ON employee_salary_summary(department_id);
+```
+
+This will create an index on the `department_id` column in the materialized view, improving query performance for queries that filter by department.
+
+#### Querying With Indexes:
+
+Once indexed, querying the materialized view for specific departments will be much faster:
+
+```sql
+SELECT * FROM employee_salary_summary WHERE department_id = 3;
+```
+
+---
+
+### 4. Dropping a Materialized View
+
+If you no longer need the materialized view, you can drop it just like any other database object.
+
+#### Example:
+
+```sql
+DROP MATERIALIZED VIEW employee_salary_summary;
+```
+
+This removes the materialized view and its stored data from the database.
+
+---
+
+### 5. Using Materialized Views for Expensive Queries
+
+Materialized views are most beneficial when you're working with **expensive, time-consuming queries** or when the data doesn't need to be real-time but can be periodically refreshed. Here's an example with a more complex query involving multiple joins and aggregations.
+
+#### Example:
+
+```sql
+CREATE MATERIALIZED VIEW sales_summary AS
+SELECT s.salesperson_id, p.product_category, SUM(o.total_amount) AS total_sales
+FROM orders o
+JOIN salespersons s ON o.salesperson_id = s.salesperson_id
+JOIN products p ON o.product_id = p.product_id
+GROUP BY s.salesperson_id, p.product_category;
+```
+
+This query computes the total sales per salesperson and product category, which might take a long time to compute each time. Storing it as a materialized view improves performance.
+
+---
+
+### 6. Refreshing Materialized Views Automatically
+
+To automate the refreshing of materialized views at regular intervals, you can set up a **cron job** or use **pg_cron** (a PostgreSQL extension). This is particularly useful if the data needs to be kept up-to-date at specific intervals (e.g., daily, hourly).
+
+#### Example (Using pg_cron):
+
+```sql
+SELECT cron.schedule('0 2 * * *', 'REFRESH MATERIALIZED VIEW sales_summary');
+```
+
+This would refresh the `sales_summary` materialized view every day at 2 AM.
+
+---
+
+### 7. Materialized Views and Data Consistency
+
+Materialized views may present **stale data** if they are not refreshed after changes to the underlying tables. For use cases requiring the most up-to-date data, materialized views may not be suitable unless they are frequently refreshed.
+
+To mitigate this, some strategies include:
+
+- **Frequent Refreshing:** Schedule regular refreshes of the materialized view, especially after significant changes to the underlying data.
+- **Partial Refreshing (Future Versions):** PostgreSQL doesn’t support partial refresh out of the box, but for very large datasets, it’s worth partitioning the data and only refreshing the most recent partitions manually.
+
+---
+
+### 8. Materialized Views vs. Regular Views
+
+Here’s a quick comparison between **Materialized Views** and **Regular Views**:
+
+| Feature            | Regular View                          | Materialized View                          |
+| ------------------ | ------------------------------------- | ------------------------------------------ |
+| **Storage**        | No physical storage (always computed) | Data is physically stored                  |
+| **Performance**    | Recomputed on every access            | Fast since results are precomputed         |
+| **Data Freshness** | Always up-to-date with base tables    | Needs to be manually refreshed             |
+| **Refresh**        | Not applicable                        | Requires `REFRESH MATERIALIZED VIEW`       |
+| **Indexes**        | No                                    | Supports indexes on materialized data      |
+| **Concurrency**    | Always consistent with base tables    | Can be refreshed concurrently (with index) |
+
+---
+
+### 9. Advanced Usage: Incremental Updates (Manually)
+
+PostgreSQL does not natively support incremental refresh of materialized views (where only the new or changed data is updated in the materialized view). However, you can work around this limitation by creating a **partial refresh** mechanism. Here's an example:
+
+1. Create a base materialized view:
+
+   ```sql
+   CREATE MATERIALIZED VIEW sales_summary AS
+   SELECT salesperson_id, product_category, SUM(total_amount) AS total_sales
+   FROM orders
+   WHERE order_date < CURRENT_DATE
+   GROUP BY salesperson_id, product_category;
+   ```
+
+2. When new data arrives, use a staging table to compute the delta (the difference) and update the materialized view with the new totals.
+
+   ```sql
+   CREATE TEMP TABLE new_sales AS
+   SELECT salesperson_id, product_category, SUM(total_amount) AS new_total
+   FROM orders
+   WHERE order_date = CURRENT_DATE
+   GROUP BY salesperson_id, product_category;
+   ```
+
+3. Update the materialized view with the delta:
+
+   ```sql
+   UPDATE sales_summary
+   SET total_sales = total_sales + ns.new_total
+   FROM new_sales ns
+   WHERE sales_summary.salesperson_id = ns.salesperson_id
+     AND sales_summary.product_category = ns.product_category;
+   ```
+
+4. Insert new entries that don’t exist in the current materialized view:
+   ```sql
+   INSERT INTO sales_summary (salesperson_id, product_category, total_sales)
+   SELECT ns.salesperson_id, ns.product_category, ns.new_total
+   FROM new_sales ns
+   LEFT JOIN sales_summary ss
+   ON ns.salesperson_id = ss.salesperson_id AND ns.product_category = ss.product_category
+   WHERE ss.salesperson_id IS NULL;
+   ```
+
+This manual approach can improve the refresh performance, especially for large datasets.
+
+---
+
+Materialized views in PostgreSQL are a great way to cache expensive query results and improve performance for read-heavy workloads. They differ from regular views because they store the result set on disk, making it quicker to query, but they require manual or scheduled refreshing to keep the data up-to-date.
+
+Here’s a complete guide on using advanced techniques with **materialized views** in PostgreSQL:
+
+### 1. **Basic Creation of a Materialized View**
+
+Materialized views cache the results of complex queries, and querying a materialized view is faster than running the query repeatedly.
+
+#### Example: Basic Materialized View
+
+```sql
+CREATE MATERIALIZED VIEW employee_salary_summary AS
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM employees
+GROUP BY department_id;
+```
+
+This stores the result of the query physically on disk. You can query it like a normal table:
+
+```sql
+SELECT * FROM employee_salary_summary;
+```
+
+### 2. **Refreshing Materialized Views**
+
+Materialized views are static and need to be refreshed when the underlying data changes. This can be done manually or scheduled.
+
+#### Example: Refreshing a Materialized View
+
+```sql
+REFRESH MATERIALIZED VIEW employee_salary_summary;
+```
+
+By default, a `REFRESH MATERIALIZED VIEW` locks the view and prevents querying it until the refresh is complete. You can use the `CONCURRENTLY` option to refresh the view without locking it (but note that this requires an index on the view’s primary key).
+
+#### Example: Concurrent Refresh
+
+```sql
+-- Add an index on the view to use the CONCURRENTLY option
+CREATE UNIQUE INDEX idx_employee_department ON employee_salary_summary(department_id);
+
+-- Now, you can refresh the materialized view concurrently
+REFRESH MATERIALIZED VIEW CONCURRENTLY employee_salary_summary;
+```
+
+The `CONCURRENTLY` option allows querying of the view while it's being refreshed, which is useful in production environments.
+
+### 3. **Materialized Views with Indexing**
+
+Materialized views can also be indexed to further improve query performance, just like normal tables.
+
+#### Example: Indexing a Materialized View
+
+```sql
+CREATE MATERIALIZED VIEW employee_performance_summary AS
+SELECT department_id, AVG(performance_score) AS avg_score, COUNT(*) AS total_employees
+FROM employee_performance
+GROUP BY department_id;
+
+-- Add an index to speed up queries
+CREATE INDEX idx_performance_summary ON employee_performance_summary(department_id);
+```
+
+Now, querying the materialized view using the indexed column will be much faster:
+
+```sql
+SELECT * FROM employee_performance_summary WHERE department_id = 2;
+```
+
+### 4. **Partitioned Materialized Views**
+
+In large-scale databases, materialized views can be partitioned to handle very large datasets more efficiently. While PostgreSQL doesn’t directly support partitioning of materialized views, you can manually implement it by partitioning tables and using separate materialized views for each partition.
+
+#### Example: Partitioned Materialized Views
+
+1. Partition your data across multiple tables.
+2. Create separate materialized views for each partition.
+
+```sql
+-- Partition the employees table by year of employment
+CREATE TABLE employees_2022 PARTITION OF employees FOR VALUES FROM ('2022-01-01') TO ('2022-12-31');
+CREATE TABLE employees_2023 PARTITION OF employees FOR VALUES FROM ('2023-01-01') TO ('2023-12-31');
+
+-- Create separate materialized views for each partition
+CREATE MATERIALIZED VIEW employee_salary_summary_2022 AS
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM employees_2022
+GROUP BY department_id;
+
+CREATE MATERIALIZED VIEW employee_salary_summary_2023 AS
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM employees_2023
+GROUP BY department_id;
+```
+
+Now you can manage and query each partition’s materialized view independently.
+
+### 5. **Incremental Refresh of Materialized Views (Manual)**
+
+PostgreSQL doesn't natively support incremental refreshes of materialized views, but you can manually implement this behavior by designing your materialized view in a way that allows only new or changed data to be inserted into the view, avoiding the need for full refreshes.
+
+#### Example: Incremental Refresh Logic
+
+Assume you are storing employee performance data in a table and only want to refresh the view with new data added after a certain date.
+
+```sql
+-- Create a materialized view to track employee performance
+CREATE MATERIALIZED VIEW employee_performance_summary AS
+SELECT employee_id, SUM(performance_score) AS total_score
+FROM employee_performance
+GROUP BY employee_id;
+
+-- Create a function to refresh the materialized view incrementally
+CREATE OR REPLACE FUNCTION refresh_employee_performance_summary(last_update TIMESTAMP) RETURNS VOID AS $$
+BEGIN
+    -- Insert new records into the materialized view
+    INSERT INTO employee_performance_summary (employee_id, total_score)
+    SELECT employee_id, SUM(performance_score) AS total_score
+    FROM employee_performance
+    WHERE updated_at > last_update
+    GROUP BY employee_id;
+
+    -- Update records that were modified
+    UPDATE employee_performance_summary ep
+    SET total_score = new_data.total_score
+    FROM (SELECT employee_id, SUM(performance_score) AS total_score
+          FROM employee_performance
+          WHERE updated_at > last_update
+          GROUP BY employee_id) new_data
+    WHERE ep.employee_id = new_data.employee_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Run the refresh with the last update timestamp
+SELECT refresh_employee_performance_summary('2024-01-01 00:00:00');
+```
+
+This function would update the materialized view only for records that were modified since a given timestamp, mimicking an incremental refresh.
+
+### 6. **Automating Materialized View Refreshes (pg_cron)**
+
+To ensure your materialized views stay up-to-date without manual intervention, you can use external scheduling tools like `pg_cron`, or an external task scheduler like `cron` (on Linux) or a job scheduler (on Windows).
+
+#### Example: Automating with `pg_cron`
+
+```bash
+-- Assuming pg_cron is installed in PostgreSQL
+-- Schedule a daily refresh at midnight
+SELECT cron.schedule('0 0 * * *', 'REFRESH MATERIALIZED VIEW employee_salary_summary');
+```
+
+This schedules the materialized view to refresh every day at midnight.
+
+### 7. **Materialized Views with Data Compression**
+
+While PostgreSQL does not natively compress materialized views, you can achieve a similar effect by storing the materialized view on a table with compressed data types using extensions like `pg_compress`.
+
+#### Example: Compressed Materialized View
+
+```bash
+-- Assuming pg_compress is installed
+CREATE TABLE compressed_employee_salary_summary (
+    department_id INT,
+    avg_salary NUMERIC,
+    employee_count INT
+) WITH (compression_enabled = true);
+
+-- Populate the table with the result of the materialized view
+INSERT INTO compressed_employee_salary_summary
+SELECT * FROM employee_salary_summary;
+
+-- Create a compressed materialized view (data is manually refreshed here)
+```
+
+This reduces storage space, especially for large datasets, though querying performance could be impacted depending on the compression method used.
+
+### 8. **Advanced Use Case: Combining Materialized Views with Normal Tables**
+
+You can use materialized views in conjunction with normal tables to create hybrid solutions. For example, if you have real-time data and historical data, the materialized view could cache the historical data while querying the latest records from the live table.
+
+#### Example: Hybrid Real-Time and Cached Data
+
+```sql
+-- Create a materialized view for historical data
+CREATE MATERIALIZED VIEW historical_employee_salary AS
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM employees
+WHERE hire_date < '2024-01-01'
+GROUP BY department_id;
+
+-- Create a query that combines live and historical data
+SELECT department_id, AVG(salary) AS avg_salary, COUNT(*) AS employee_count
+FROM (
+    -- Historical data from materialized view
+    SELECT * FROM historical_employee_salary
+    UNION ALL
+    -- Real-time data from current employees
+    SELECT department_id, salary, 1
+    FROM employees
+    WHERE hire_date >= '2024-01-01'
+) AS combined_data
+GROUP BY department_id;
+```
+
+In this example, you get the best of both worlds: quick access to historical data and real-time data from the live table.
