@@ -1,0 +1,76 @@
+### 1. Preloading Libraries
+
+- **Concept**: Preloading libraries in PostgreSQL can significantly improve performance by reducing the overhead of loading libraries for each new connection.
+- **Example**: The speaker mentions using `plr` (a library for R) and notes that loading it on connection can take 220 milliseconds, which can be avoided by preloading.
+- **Code Example**:
+  ```sql
+  -- Preloading libraries example
+  -- In postgresql.conf or using ALTER SYSTEM
+  shared_preload_libraries = 'plr';
+  -- or for session-level preloading
+  SET session_preload_libraries = 'plr';
+  ```
+- **Key Point**: Preloading can save a lot of overhead, especially with many connections.
+
+### 2. Transaction Log Size
+
+- **Concept**: The size of the transaction log (WAL) can impact performance. Using `wal_level = minimal` and adjusting `max_wal_size` can help.
+- **Example**: The speaker compares running a test with `wal_level = logical` and `max_wal_size = 64MB` versus `wal_level = minimal` and `max_wal_size = 100GB`.
+- **Code Example**:
+  ```sql
+  -- Adjusting WAL settings
+  ALTER SYSTEM SET wal_level = 'minimal';
+  ALTER SYSTEM SET max_wal_size = '100GB';
+  ```
+- **Key Point**: Reducing WAL size can improve performance by writing less data.
+
+### 3. Indexing
+
+- **Concept**: Proper indexing is crucial for performance. The fill factor of an index can be adjusted for static data.
+- **Example**: The speaker mentions creating an index with a fill factor of 100% for static data, which can make the index smaller but may cause issues with dynamic data.
+- **Code Example**:
+  ```sql
+  -- Creating an index with a specified fill factor
+  CREATE INDEX idx_name ON table_name (column_name) WITH (FILLFACTOR = 100);
+  ```
+- **Key Point**: Adjusting the fill factor can be beneficial for static data but risky for dynamic data.
+
+### 4. Join Order
+
+- **Concept**: PostgreSQL’s optimizer determines the join order, but this can be influenced using `join_collapse_limit`.
+- **Example**: The speaker shows how to use `join_collapse_limit` to control the join order.
+- **Code Example**:
+  ```sql
+  -- Adjusting join collapse limit
+  SET join_collapse_limit = 8; -- Default value, can be adjusted
+  ```
+- **Key Point**: Controlling join order can improve planning time and execution performance.
+
+### 5. Execution Order of Functions
+
+- **Concept**: The execution order of functions in a query can be influenced by assigning costs to functions using `ALTER FUNCTION`.
+- **Example**: The speaker demonstrates how to use `ALTER FUNCTION` to make the optimizer choose a more efficient execution order.
+- **Code Example**:
+  ```sql
+  -- Altering function cost
+  ALTER FUNCTION function_name COST 1000; -- Assign a higher cost to influence execution order
+  ```
+- **Key Point**: Assigning appropriate costs to functions can improve execution performance.
+
+### 6. Generating SQL
+
+- **Concept**: PostgreSQL allows generating SQL dynamically using `psql` commands like `\gexec`.
+- **Example**: The speaker shows how to generate and execute SQL dynamically.
+- **Code Example**:
+  ```sql
+  -- Generating and executing SQL dynamically
+  SELECT format('CREATE TABLE %s (id SERIAL PRIMARY KEY);', 'table_name') \gexec
+  ```
+- **Key Point**: Dynamic SQL generation can be useful for creating or manipulating many tables or indexes.
+
+### 7. Additional Tips
+
+- **Concept**: Various additional tips were mentioned, including the importance of understanding how PostgreSQL works under the hood and the potential pitfalls of certain optimizations.
+- **Key Point**: Deep understanding and careful application of optimizations are crucial.
+
+---

@@ -1,0 +1,124 @@
+## PostgreSQL Partitioning and Sharding Guide
+
+### Introduction
+
+This guide provides a comprehensive overview of PostgreSQL partitioning and sharding, including their benefits, differences, and how they can be used together to improve query performance.
+
+### PostgreSQL Partitioning
+
+#### What is PostgreSQL Partitioning?
+
+PostgreSQL partitioning is a built-in feature that allows you to split large tables into smaller, more manageable pieces called partitions. This can improve query performance by reducing the amount of data that needs to be scanned.
+
+#### Benefits of Partitioning
+
+1. **Improved Query Performance**: Partitioning can improve query performance by allowing you to scan only the relevant partitions instead of the entire table.
+2. **Parallel Autovacuum**: Autovacuum can run in parallel across different partitions, helping to avoid performance issues.
+3. **Storage Cost Savings**: Partitions can be stored on different types of storage, allowing you to optimize storage costs.
+4. **Efficient Bulk Deletes**: Deleting old data is simplified by dropping the corresponding partition.
+
+#### Types of Partitioning
+
+1. **Range Partitioning**: Suitable for time-series data, where partitions are created based on a range of values.
+2. **List Partitioning**: Used to separate data based on a list of values, such as countries or company divisions.
+3. **Hash Partitioning**: Used when range and list partitioning do not make sense, and is particularly useful with PostgreSQL foreign data wrappers (FDW).
+
+#### Example: Tracking Monthly Concert Revenue
+
+To track monthly concert revenue for Taylor Swift, you would:
+
+1. Decide on the partition method (range partitioning in this case).
+2. Choose the partition key (sale date).
+3. Create a partitioned table and the actual partitions.
+
+```sql
+CREATE TABLE concert_revenue (
+    city VARCHAR(50),
+    sale_date DATE,
+    merchandise_sales DECIMAL(10, 2),
+    ticket_sales DECIMAL(10, 2)
+) PARTITION BY RANGE (EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date));
+
+CREATE TABLE concert_revenue_2023_06 PARTITION OF concert_revenue
+    FOR VALUES FROM (2023, 6) TO (2023, 7);
+
+CREATE TABLE concert_revenue_2023_07 PARTITION OF concert_revenue
+    FOR VALUES FROM (2023, 7) TO (2023, 8);
+
+CREATE TABLE concert_revenue_2023_08 PARTITION OF concert_revenue
+    FOR VALUES FROM (2023, 8) TO (2023, 9);
+```
+
+### PostgreSQL Sharding
+
+#### What is PostgreSQL Sharding?
+
+Sharding involves splitting a large table into smaller pieces called shards and distributing them across multiple nodes in a cluster.
+
+#### Types of Sharding
+
+1. **Manual Sharding**: Sharding is managed at the application level, requiring significant development effort.
+2. **Partitioning with PostgreSQL FDW**: Combines partitioning with foreign data wrappers to distribute data.
+3. **Citus**: An extension to PostgreSQL that provides automated sharding and distribution of data.
+
+#### Benefits of Sharding with Citus
+
+1. **Improved Query Performance**: Sharding allows you to scale your application by adding more nodes to the cluster.
+2. **Automatic Maintenance**: Citus handles shard creation and distribution automatically.
+3. **Better Autovacuum Performance**: Autovacuum benefits from parallelization and distribution across nodes.
+
+#### Example: Creating a Distributed Table with Citus
+
+To create a distributed table with Citus, you would use the `CREATE DISTRIBUTED TABLE` function and specify the distribution column (sharding key).
+
+```sql
+CREATE DISTRIBUTED TABLE concert_revenue (
+    city VARCHAR(50),
+    sale_date DATE,
+    merchandise_sales DECIMAL(10, 2),
+    ticket_sales DECIMAL(10, 2)
+) DISTRIBUTED BY (sale_date);
+```
+
+### Combining Partitioning and Sharding
+
+Partitioning and sharding can be used together to leverage the benefits of both techniques. For example, you can partition a table by range and then shard those partitions across multiple nodes.
+
+```sql
+CREATE TABLE concert_revenue (
+    city VARCHAR(50),
+    sale_date DATE,
+    merchandise_sales DECIMAL(10, 2),
+    ticket_sales DECIMAL(10, 2)
+) PARTITION BY RANGE (EXTRACT(YEAR FROM sale_date), EXTRACT(MONTH FROM sale_date));
+
+CREATE TABLE concert_revenue_2023_06 PARTITION OF concert_revenue
+    FOR VALUES FROM (2023, 6) TO (2023, 7);
+
+CREATE DISTRIBUTED TABLE concert_revenue_2023_06 (
+    city VARCHAR(50),
+    sale_date DATE,
+    merchandise_sales DECIMAL(10, 2),
+    ticket_sales DECIMAL(10, 2)
+) DISTRIBUTED BY (sale_date);
+```
+
+### Comparison of Partitioning and Sharding
+
+| **Attribute**                | **PostgreSQL Native Partitioning** | **Sharding with Citus**   | **Combination** |
+| ---------------------------- | ---------------------------------- | ------------------------- | --------------- |
+| **Built-in**                 | Yes                                | No (extension)            | Yes/No          |
+| **Single Node**              | Yes                                | No (multi-node)           | Yes/No          |
+| **Dropping Old Data**        | Efficient                          | Less efficient            | Efficient       |
+| **Parallel/Distributed SQL** | No                                 | Yes                       | Yes             |
+| **Partition Pruning**        | Yes                                | No                        | Yes             |
+| **Shard Pruning Logic**      | No                                 | Yes                       | Yes             |
+| **Autovacuum**               | Parallel                           | Distributed               | Distributed     |
+| **Automatic Maintenance**    | No                                 | Yes                       | Partly          |
+| **Time Series Data**         | Good fit                           | Good fit with combination | Excellent fit   |
+
+### Key Takeaways
+
+1. **Partitioning and Sharding are Complementary**: Both techniques can be used together to improve query performance.
+2. **Advanced Tools**: Both partitioning and sharding require careful planning and maintenance.
+3. **Choice of Partition Key/Sharding Key is Crucial**: The choice of partition key or sharding key significantly impacts performance.

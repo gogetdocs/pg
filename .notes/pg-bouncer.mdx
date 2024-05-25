@@ -1,0 +1,101 @@
+## Overview of PostgreSQL Connection Pooling with PgBouncer
+
+PgBouncer is a connection pooling tool for PostgreSQL that helps improve the performance of applications by reducing the overhead of creating new database connections. Here are the key points and examples from the provided source text:
+
+### Fundamental Concepts of Connection Pooling
+
+- **Connection Costs**: Creating a new database connection consumes a couple of hundred kilobytes of memory and involves a time-consuming process in the background, including a fork system call by the postmaster[1].
+- **PgBouncer Role**: PgBouncer acts as a proxy between the application and the PostgreSQL database server, maintaining an array of open connections and reusing them to reduce the time taken to create new connections[1].
+
+### Building a PgBouncer Setup
+
+1. **Creating a PostgreSQL Test Database**:
+
+   - Use `initdb` to create a new PostgreSQL database cluster:
+     ```sh
+     initdb -D /tmp/test_db
+     ```
+   - Start the database using `pg_ctl`:
+     ```sh
+     pg_ctl -D /tmp/test_db start
+     ```
+
+2. **Installing PgBouncer**:
+
+   - Install PgBouncer using your package manager (e.g., `yum` for Red Hat/CentOS, `apt-get` for Ubuntu/Debian, `brew` for macOS):
+     ```sh
+     brew install pgbouncer
+     ```
+
+3. **Configuring PgBouncer**:
+
+   - Create a configuration file (`pgbouncer.ini`) or use the sample file provided with the installation:
+     ```sh
+     nano /usr/local/etc/pgbouncer.ini
+     ```
+   - Configure the backend database server in `pgbouncer.ini`:
+     ```ini
+     [databases]
+     test_db = host=127.0.0.1 port=5432 dbname=postgres
+     ```
+   - Specify authentication settings, such as using a superuser:
+     ```ini
+     auth_user = postgres
+     ```
+
+4. **Starting PgBouncer**:
+
+   - Start PgBouncer with the specified configuration file:
+     ```sh
+     pgbouncer /usr/local/etc/pgbouncer.ini
+     ```
+
+5. **Connecting to PostgreSQL through PgBouncer**:
+   - Use `psql` to connect to the database through PgBouncer (port 6432):
+     ```sh
+     psql -p 6432 -d test_db -U postgres
+     ```
+
+### Advanced Settings for Performance
+
+- **Pool Size**: Set `min_pool_size` to a reasonable value to ensure there are spare connections available:
+  ```ini
+  min_pool_size = 20
+  ```
+- **Upper Limits**: Configure `default_pool_size` and `max_client_conn` to manage the pool and prevent long waits:
+  ```ini
+  default_pool_size = 20
+  max_client_conn = 100
+  ```
+- **Network Considerations**: Ensure all nodes are close to each other to reduce network latency[1].
+
+### Pool Modes
+
+- **Session Mode**: The safest method, where a connection is reserved for a client until it disconnects.
+- **Transaction Mode**: A connection is reserved for a client until the transaction is completed.
+- **Statement Mode**: A connection is returned to the pool immediately after each statement, suitable for high concurrency setups[1].
+
+### Benchmarking
+
+- **Using PgBench**:
+  1. Initialize the database for benchmarking:
+     ```sh
+     pgbench -i postgres
+     ```
+  2. Run a benchmark directly on PostgreSQL:
+     ```sh
+     pgbench -c 20 -t 1000 -s 10 postgres -f select.sql -p 5432
+     ```
+  3. Run the same benchmark through PgBouncer:
+     ```sh
+     pgbench -c 20 -t 1000 -s 10 test_db -f select.sql -p 6432
+     ```
+- **Results**: The benchmark through PgBouncer shows a significant increase in transactions per second and a reduction in average connection time[1].
+
+### Key Concepts and Examples Summary
+
+- **Connection Pooling Basics**: PgBouncer reduces the overhead of creating new connections.
+- **Setup and Configuration**: Creating a PostgreSQL database, installing and configuring PgBouncer.
+- **Performance Tuning**: Setting pool sizes and limits, considering network latency.
+- **Pool Modes**: Choosing between session, transaction, and statement modes based on application needs.
+- **Benchmarking**: Using PgBench to demonstrate the performance gain with PgBouncer.

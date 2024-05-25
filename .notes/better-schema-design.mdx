@@ -1,0 +1,136 @@
+### 1. Designing Good Schemas
+
+- **Fitness Criteria**: Solve a business problem, easy to reason with, and change tolerant.
+- **Model vs Schema**: Model represents the real world, while schema implements the model in the database.
+
+### 2. Data Types
+
+- **Opaque Data Types**: Avoid using data types that don't represent a single, understandable concept (e.g., full name as a single field).
+- **Incorrect Data Types**: Use proper data types (e.g., date fields instead of strings).
+- **Non-Domain Values**: Avoid storing values that don't belong to the domain (e.g., null for country codes).
+
+### 3. Fixing Data Types
+
+- **Algorithm to Fix Opaque Data Types**:
+  1. Identify if a value is atomic.
+  2. If not, determine if it's a set of properties or a sequence.
+  3. Break down non-atomic values into separate columns or tables.
+
+### 4. Multi-Entity Tables
+
+- **Issue**: Tables that store multiple entities lead to null values and complexity.
+- **Solution**: Split into separate tables for each entity type.
+
+### 5. Abnormal Form
+
+- **Issue**: Tables that are not normalized lead to null values, decreased flexibility, and complexity.
+- **Solution**: Normalize tables to avoid these issues.
+
+### 6. References
+
+- **Natural Keys**: Use meaningful keys from the real world.
+- **Artificial Keys**: Use keys that are observable but foreign to the entity.
+- **Exposed Locators**: Avoid using keys that are only meaningful to the database.
+
+### 7. Primary Keys
+
+- **Characteristics**: Familiar, stable, meaningful, rarely changes, and convenient.
+- **Sequential Primary Keys**: Avoid using auto-generated keys that are not meaningful in the real world.
+
+### 8. ORM (Object-Relational Mapping)
+
+- **Issues**: ORMs can lead to complex queries, diminished benefits, and concurrency issues.
+- **Use Cases**: Connection management and codec work are beneficial, but command marshaling and repo patterns can be problematic.
+
+### 9. Adhoc DDL
+
+- **Issue**: Manual changes to database schema are not repeatable or reliable.
+- **Solution**: Use migration scripts for automated and tracked changes.
+
+### Comparative Examples
+
+#### 1. Opaque Data Types
+
+- **Incorrect**:
+  ```sql
+  CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(100)
+  );
+  ```
+- **Correct**:
+  ```sql
+  CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50)
+  );
+  ```
+
+#### 2. Multi-Entity Tables
+
+- **Incorrect**:
+  ```sql
+  CREATE TABLE catalog_items (
+    id SERIAL PRIMARY KEY,
+    sku VARCHAR(20),
+    name VARCHAR(100),
+    numeric_size INTEGER,
+    letter_size VARCHAR(10)
+  );
+  ```
+- **Correct**:
+
+  ```sql
+  CREATE TABLE catalog_items (
+    id SERIAL PRIMARY KEY,
+    sku VARCHAR(20),
+    name VARCHAR(100)
+  );
+
+  CREATE TABLE numeric_sized_items (
+    id SERIAL PRIMARY KEY,
+    catalog_item_id INTEGER REFERENCES catalog_items(id),
+    numeric_size INTEGER
+  );
+
+  CREATE TABLE letter_sized_items (
+    id SERIAL PRIMARY KEY,
+    catalog_item_id INTEGER REFERENCES catalog_items(id),
+    letter_size VARCHAR(10)
+  );
+  ```
+
+#### 3. Natural Keys
+
+- **Incorrect**:
+  ```sql
+  CREATE TABLE countries (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    iso_code VARCHAR(2)
+  );
+  ```
+- **Correct**:
+  ```sql
+  CREATE TABLE countries (
+    iso_code VARCHAR(2) PRIMARY KEY,
+    name VARCHAR(100)
+  );
+  ```
+
+#### 4. Migration Scripts
+
+- **Example using Flyway**:
+  1. Create a migration script (e.g., `V001__create_table.sql`):
+  ```sql
+  CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50)
+  );
+  ```
+  2. Run the migration using Flyway:
+  ```sh
+  flyway migrate
+  ```

@@ -1,0 +1,137 @@
+## PostgreSQL Partitioning Overview
+
+### What is Partitioning?
+
+Partitioning in PostgreSQL is the division of a table into distinct, independent parts, making it easier to manage and improving performance under certain conditions[1].
+
+### History of Partitioning in PostgreSQL
+
+- **Inheritance-Based Partitioning**: Introduced in PostgreSQL 8.1 (2005), based on exclusion constraints.
+- **Declarative Partitioning**: Introduced in PostgreSQL 10 (2017), offering a more straightforward method to partition data.
+
+### Declarative Partitioning
+
+- **Available from PostgreSQL 10 onwards**: Allows declaring the partitioning method, key, and boundaries using DDL (Data Definition Language).
+- **Example**:
+
+  ```sql
+  CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    sign_up_date DATE
+  ) PARTITION BY RANGE (sign_up_date);
+
+  CREATE TABLE customers_2020 PARTITION OF customers
+  FOR VALUES FROM ('2020-01-01') TO ('2021-01-01');
+  ```
+
+### Why Partition Data?
+
+- **Overcome PostgreSQL Limits**:
+  - **Database Size**: Effectively unlimited.
+  - **Tables per Database**: 1.4 billion.
+  - **Maximum Table Size**: 32 terabytes (with default 8k block size).
+- **Performance Benefits**:
+  - **Partition Pruning**: Reduces the need to scan entire tables for queries.
+  - **Index Scans**: Faster scans on smaller indexes.
+- **Maintenance**:
+  - **Easier Data Deletion**: Drop partitions instead of deleting rows.
+  - **Vacuum Efficiency**: Reduces bloat and avoids transaction ID wraparound.
+
+### Partitioning Methods
+
+- **Range Partitioning**: Partition by ranges of values (e.g., dates).
+- **List Partitioning**: Partition by explicit list of key values.
+- **Hash Partitioning**: Partition by hashing the key values (introduced in PostgreSQL 11).
+
+### Partition Key Selection
+
+- **High Cardinality**: Choose keys with a wide range of values.
+- **Stability**: Avoid keys that change frequently.
+- **Multiple Columns**: Use composite keys for finer granularity.
+
+### Sub-Partitioning
+
+- **Divide Partitions Further**: Create sub-partitions for additional granularity.
+- **Example**:
+
+  ```sql
+  CREATE TABLE transactions (
+    id SERIAL PRIMARY KEY,
+    t_stamp TIMESTAMP WITH TIME ZONE,
+    location_code TEXT
+  ) PARTITION BY RANGE (t_stamp);
+
+  CREATE TABLE transactions_202106 PARTITION OF transactions
+  FOR VALUES FROM ('2021-06-01') TO ('2021-07-01')
+  PARTITION BY HASH (location_code);
+
+  CREATE TABLE transactions_202106_p1 PARTITION OF transactions_202106
+  FOR VALUES WITH (modulus 4, remainder 0);
+  ```
+
+### Partitioning a Live Production System
+
+- **Scenario**: A 20 terabyte table serving an OLTP workload.
+- **Steps**:
+  1. **Rename the Huge Table and Its Indexes**.
+  2. **Create an Empty Partitioned Table with the Old Name**.
+  3. **Create Indexes on the New Partitioned Table**.
+  4. **Create a New Partition for Incoming Data**.
+  5. **Attach the Old Table as a Partition**.
+  6. **Move Data Incrementally**.
+
+### Example Code for Partitioning a Live System
+
+```sql
+-- Step 1: Rename the huge table and its indexes
+ALTER TABLE daily_totals RENAME TO daily_totals_legacy;
+ALTER INDEX daily_totals_batch_id RENAME TO daily_totals_legacy_batch_id;
+
+-- Step 2: Create an empty partitioned table
+CREATE TABLE daily_totals (
+  id SERIAL PRIMARY KEY,
+  total_date DATE
+) PARTITION BY RANGE (total_date);
+
+-- Step 3: Create indexes on the new partitioned table
+CREATE INDEX daily_totals_batch_id ON daily_totals (batch_id);
+
+-- Step 4: Create a new partition for incoming data
+CREATE TABLE daily_totals_202106 PARTITION OF daily_totals
+FOR VALUES FROM ('2021-06-01') TO ('2021-07-01');
+
+-- Step 5: Attach the old table as a partition
+DO $$
+DECLARE
+  earliest DATE;
+  latest DATE;
+BEGIN
+  SELECT MIN(total_date), MAX(total_date) INTO earliest, latest
+  FROM daily_totals_legacy;
+
+  ALTER TABLE daily_totals_legacy
+  ADD CONSTRAINT daily_totals_legacy_total_date CHECK (total_date >= earliest AND total_date < latest) NOT VALID;
+
+  UPDATE pg_constraint SET convalidated = TRUE
+  WHERE conname = 'daily_totals_legacy_total_date';
+
+  ALTER TABLE daily_totals
+  ATTACH PARTITION daily_totals_legacy FOR VALUES FROM (earliest) TO (latest);
+END $$;
+
+-- Step 6: Move data incrementally
+-- To be done at quiet hours or with scheduled batch jobs
+DELETE FROM daily_totals_legacy
+WHERE total_date >= '2021-06-01' AND total_date < '2021-07-01'
+RETURNING * INTO daily_totals_202106;
+```
+
+### Importance of Using the Latest PostgreSQL Version
+
+- **Latest Features and Performance Enhancements**:
+  - **PostgreSQL 11**: Dynamic partition elimination, default partitions, updates on partition keys.
+  - **PostgreSQL 12**: Improved performance of partitioning, copy into partitions, foreign key references.
+  - **PostgreSQL 13**: Logical replication for partition tables, improved performance of partitioned operations.
+  - **PostgreSQL 14**: Reindex concurrently on partitioned tables, detach concurrently, faster updates and deletes.
+
+---

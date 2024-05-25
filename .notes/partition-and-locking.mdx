@@ -1,0 +1,50 @@
+## Key Concepts
+
+**Partitioning in PostgreSQL**
+
+- Partitioning allows large tables to be divided into smaller, more manageable pieces while still appearing as a single logical table to users.
+- It helps improve query performance by reducing the number of rows scanned and thus speeding up access times.
+
+**Advantages of Partitioning**
+
+- Queries can be optimized to access only relevant partitions based on partition keys, improving performance.
+- Smaller partitions lead to smaller indexes, which are faster to query.
+
+**Challenges with Partitioning**
+
+- Partitioning can introduce complexities, such as managing multiple tables and handling lock contention.
+- Each partition requires its own set of indexes, increasing the number of locks needed during queries.
+
+**Lock Management in PostgreSQL**
+
+- PostgreSQL uses locks to manage concurrent access to tables and indexes. These include table locks (access share locks) and row locks (row exclusive locks).
+- The lock manager handles these locks but can become a bottleneck if too many locks are required, especially with numerous partitions.
+
+**Fast Path Locking**
+
+- Fast path locking is a mechanism that allows for quicker lock acquisition without using the lock manager for up to 16 relations per backend process.
+- When this limit is exceeded, the system reverts to slower lock management methods, which can lead to contention.
+
+## Examples and Issues
+
+**Example Scenario**
+
+- A production system experienced performance degradation due to lock manager waits caused by excessive partitioning.
+- Initially, daily partitions were created for an orders table, resulting in many partitions and indexes that overwhelmed the lock manager.
+
+**Problems Identified**
+
+1. **Lock Contention:** As the number of partitions increased, so did the number of locks required per query, leading to significant contention.
+2. **PostgreSQL 13 Limitation:** Even when querying a single partition, PostgreSQL 13 would acquire locks on all partitions, exacerbating lock contention.
+3. **Lock Manager Waits:** These waits became a significant portion of total query time as partitions accumulated.
+
+**Solutions Implemented**
+
+- The system was restructured from daily to weekly partitions to reduce the number of partitions and associated locks.
+- Indexes were temporarily dropped during data migration to reduce locking overhead.
+- Consideration was given to upgrading to PostgreSQL 14, where these locking issues have been addressed.
+
+**PostgreSQL 14 Improvements**
+
+- PostgreSQL 14 optimizes locking by only acquiring necessary locks for the queried partition rather than all partitions.
+- New features like `DETACH PARTITION CONCURRENTLY` allow for less disruptive maintenance operations.

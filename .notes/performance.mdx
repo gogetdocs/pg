@@ -1,0 +1,167 @@
+### High Concurrency and Performance Issues
+
+1. **High Concurrency**:
+
+   - **Issue**: High concurrency can lead to performance issues if not managed properly.
+   - **Solution**: Use connection pooling to limit the number of connections to the database. Tools like PgBouncer can help manage connections efficiently.
+
+2. **Explicit Locks**:
+
+   - **Mistake**: Using explicit locks (heavyweight locks) can lead to performance bottlenecks and deadlocks.
+   - **Better Way**: Use Serializable Snapshot Isolation (SSI) or rely on PostgreSQL's built-in concurrency control mechanisms like MVCC.
+
+3. **Lightweight Locks (LWLocks)**:
+
+   - **Issue**: High contention for LWLocks can slow down performance.
+   - **Solution**: Monitor LWLock contention using `pg_stat_activity` and consider reducing concurrency or optimizing queries.
+
+4. **Snapshot Contention**:
+
+   - **Issue**: Having too many snapshots can lead to performance issues.
+   - **Solution**: Use PostgreSQL 14's snapshot caching feature and ensure that idle connections are managed properly.
+
+5. **High Transaction Rates**:
+
+   - **Issue**: Very high transaction rates can lead to transaction ID wraparound and bloat.
+   - **Solution**: Batch operations to reduce transaction rates, and tweak auto-vacuum settings to prevent bloat.
+
+6. **Auto-Vacuum**:
+
+   - **Mistake**: Not configuring auto-vacuum properly can lead to bloat and performance issues.
+   - **Better Way**: Increase auto-vacuum's memory and worker count, and adjust cost delay and cost limit parameters for better performance.
+
+7. **Connection Pooling**:
+
+   - **Solution**: Use connection pooling tools like PgBouncer to manage connections efficiently. This can help reduce contention and improve performance.
+
+8. **Workload Splitting**:
+   - **Solution**: Split read and write workloads using streaming and logical replication to distribute load and improve performance.
+
+---
+
+### High Concurrency and PostgreSQL
+
+- **Definition**: High concurrency in relational databases refers to the ability to execute multiple transactions simultaneously rather than serially.
+- **Purpose**: To serve multiple users or sessions more or less simultaneously without conflicts.
+- **Conflicts**: Dirty reads, lost updates, non-repeatable reads, phantom reads, and transaction skew can occur with concurrent access[1].
+
+### PostgreSQL Architecture
+
+- **Multi-Process System**: PostgreSQL is a client-server implementation with a hard separation between the client and server.
+- **Process Model**: Each user gets a backend process, and these processes are coordinated by the postmaster (PostgreSQL server process).
+- **Inter-Process Communication (IPC)**: Uses semaphores and shared memory for IPC.
+- **Shared Memory**: Allows processes to access and exchange data efficiently.
+
+### ACID and MVCC
+
+- **ACID**: Atomicity, Consistency, Isolation, Durability. Focus on Isolation for concurrency control.
+- **Isolation Levels**: PostgreSQL supports various isolation levels, including Read Committed (default) and Serializable.
+- **MVCC (Multiversion Concurrency Control)**: Allows high concurrency and performance without explicit locking.
+- **Snapshot Isolation**: MVCC provides snapshot isolation by keeping track of timestamps and transaction IDs.
+- **Transaction Snapshots**: Each transaction gets a snapshot of the database state at its start time.
+
+### Serializable Snapshot Isolation (SSI)
+
+- **SSI**: Provides the highest level of safety from serialization anomalies with the performance of MVCC.
+- **Dependency Graph**: Checks for anti-dependency cycles to prevent anomalies.
+- **Error Handling**: Aborts transactions that could lead to anomalies instead of allowing hazardous operations.
+
+### Locks in PostgreSQL
+
+- **Explicit Locks (Heavyweight Locks)**: Table-level or row-level locks that block other operations.
+- **Lightweight Locks (LWLocks)**: Automatic locks that protect shared memory data.
+- **LWLock Contention**: High concurrency can lead to LWLock contention, reducing performance.
+
+### Snapshot Contention
+
+- **Snapshot Contention**: Too many snapshots can lead to waiting for idle connections.
+- **PostgreSQL 14**: Introduces snapshot caching to alleviate this problem.
+
+### High Transaction Rates
+
+- **Transaction ID Wraparound**: High transaction rates can lead to transaction ID wraparound, causing issues.
+- **Freezing**: PostgreSQL uses freezing to mark old transactions as always in the past.
+- **Bloat**: High transaction rates can cause table bloat if maintenance operations like VACUUM cannot keep up.
+
+### VACUUM and Auto-VACUUM
+
+- **VACUUM**: Removes dead tuples and performs freeze operations to prevent transaction ID wraparound.
+- **Auto-VACUUM**: Automatic VACUUM operation with limited capacity by default.
+- **Overhead**: VACUUM and Auto-VACUUM have overhead and may need tuning for high workloads.
+
+### Mitigation Strategies
+
+- **Connection Pooling**: Use tools like PgBouncer to throttle connections and reduce contention.
+- **Split Workload**: Use streaming and logical replication to distribute read and write operations.
+- **Batch Operations**: Batch writes to reduce transaction ID usage.
+- **Tune Auto-VACUUM**: Increase Auto-VACUUM efficiency to prevent bloat.
+
+### Monitoring Tools
+
+- **PSQL**: Use built-in functions and views for monitoring.
+- **Unix Tools**: Use `ps`, `top`, `iostat`, and `vmstat` to monitor system load.
+- **PgAdmin**: Offers monitoring capabilities.
+- **Standalone Solutions**: Tools like PgView, PgStats, and PgMetrics for detailed monitoring.
+
+### Example Use Cases
+
+- **OLTP (Online Transaction Processing)**: Point of sales systems recording transactions.
+- **OLAP (Online Analytical Processing)**: Data cubes for multi-dimensional analysis.
+
+### Code Examples
+
+Due to the nature of the provided text, there are no direct code examples. However, here are some illustrative examples based on the discussed concepts:
+
+#### Using Serializable Isolation Level
+
+```sql
+BEGIN;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+-- Perform operations
+COMMIT;
+```
+
+#### Monitoring LWLock Contention
+
+```sql
+SELECT * FROM pg_stat_activity WHERE wait_event_type = 'LWLock';
+```
+
+#### Setting Up PgBouncer
+
+```ini
+# PgBouncer configuration
+[databases]
+mydb = host=127.0.0.1 port=5432 dbname=mydb
+
+[pgbouncer]
+listen_addr = 127.0.0.1
+listen_port = 6432
+max_client_conn = 1000
+max_db_connections = 100
+```
+
+### **Adjusting Auto-Vacuum Settings**:
+
+```sql
+ALTER SYSTEM SET autovacuum_vacuum_scale_factor = 0.2;
+ALTER SYSTEM SET autovacuum_vacuum_threshold = 50;
+ALTER SYSTEM SET autovacuum_max_workers = 5;
+ALTER SYSTEM SET autovacuum_work_mem = '1GB';
+```
+
+#### Splitting Workload
+
+- **Setting Up Read-Only and Read-Write Endpoints in PgBouncer**:
+  ```ini
+  [databases]
+  mydb_ro = host=primary_server port=5432 dbname=mydb user=myuser
+  mydb_rw = host=standby_server port=5432 dbname=mydb user=myuser
+  ```
+- **Using Read-Only and Read-Write Endpoints**:
+  ```sql
+  -- Connect to read-only endpoint
+  psql -h localhost -p 6432 -U myuser mydb_ro
+  -- Connect to read-write endpoint
+  psql -h localhost -p 6432 -U myuser mydb_rw
+  ```

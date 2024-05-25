@@ -1,0 +1,111 @@
+### Key Concepts and Architectures
+
+1. **Single Machine PostgreSQL**:
+
+   - **Pros**: Extremely fast, low latency, high IOPS (Input/Output Operations Per Second), relatively low cost for the performance.
+   - **Cons**: Operational hazards like machine failure, data loss, and scalability limitations.
+
+2. **Network Attached Block Storage**:
+
+   - **Description**: Cloud providers offer virtual machines with network-attached storage (e.g., Amazon Elastic Block Store, Azure Premium SSD).
+   - **Pros**: Deals with disk failure and machine failure internally, allows for easy scaling up or down, and resizing disks.
+   - **Cons**: Higher latency (at least 10 times worse than modern NVMe drives), lower IOPS, and potential for higher costs.
+
+3. **Read Replicas**:
+
+   - **Description**: Use multiple replicas of the database for read operations, with a primary server for writes.
+   - **Pros**: Scales read throughput, can lower latency in global applications, and improves availability through auto-failover.
+   - **Cons**: Eventual consistency issues (read-your-writes consistency, monotonic read consistency), poor cache usage if the working set outgrows memory.
+
+4. **DBMS Optimized Storage (e.g., Aurora)**:
+
+   - **Description**: Only writes the WAL (Write-Ahead Log) to storage, which then applies changes to data files internally.
+   - **Pros**: Potential performance benefits, especially for complex workloads, storage efficiency, and faster crash recovery.
+   - **Cons**: Higher write latency due to writing WAL to multiple data centers, and potential higher costs due to per-IO request charges.
+
+5. **Sharding**:
+
+   - **Description**: Distributes tables by a shard key across multiple nodes, each of which can also have replicas.
+   - **Pros**: Scales read and write throughput, suitable for multi-tenant apps and compute-heavy queries.
+   - **Cons**: Every statement incurs latency, data modeling decisions have high impact on performance, and parallel queries can be challenging.
+
+6. **Active-Active Systems**:
+
+   - **Description**: Multiple primary nodes that can handle reads and writes, offering high availability and low latency.
+   - **Pros**: High read and write availability, low latency, and linear scalability for reads.
+   - **Cons**: Update conflicts, eventual consistency issues, and programming challenges due to lack of linear history of writes.
+
+7. **Distributed SQL Architectures (e.g., Yugabyte, CockroachDB, Spanner)**:
+   - **Description**: Evolution of NoSQL databases with SQL layers on top of key-value stores, using consensus algorithms for replication.
+   - **Pros**: Nice availability properties, efficient use of resources, and scalability for simple CRUD operations.
+   - **Cons**: Extra network round trips for internal operations, high response times, and less maturity compared to traditional PostgreSQL.
+
+### Comparative Examples
+
+- **Single Machine vs. Network Attached Block Storage**:
+
+  ```sql
+  -- Single Machine
+  CREATE TABLE data (id SERIAL PRIMARY KEY, value TEXT);
+  INSERT INTO data (value) VALUES ('example');
+
+  -- Network Attached Block Storage (conceptual, as the difference is in infrastructure setup)
+  -- Same SQL, but the storage is managed and replicated by the cloud provider
+  ```
+
+- **Read Replicas**:
+
+  ```sql
+  -- Primary Server
+  CREATE TABLE data (id SERIAL PRIMARY KEY, value TEXT);
+  INSERT INTO data (value) VALUES ('example');
+
+  -- Read Replica (conceptual, as replication is set up at the database level)
+  -- SELECT queries can be directed to replicas for scaling
+  SELECT * FROM data;
+  ```
+
+- **DBMS Optimized Storage**:
+
+  ```sql
+  -- Conceptual, as the optimization is in how the database writes to storage
+  CREATE TABLE data (id SERIAL PRIMARY KEY, value TEXT);
+  INSERT INTO data (value) VALUES ('example');
+  -- The database only writes WAL to storage, which applies changes internally
+  ```
+
+- **Sharding**:
+
+  ```sql
+  -- Conceptual, as sharding is set up at the database level
+  CREATE TABLE data (id SERIAL PRIMARY KEY, value TEXT, user_id INTEGER);
+  -- Shard by user_id
+  INSERT INTO data (value, user_id) VALUES ('example', 1);
+  -- Queries are routed to the appropriate shard based on user_id
+  SELECT * FROM data WHERE user_id = 1;
+  ```
+
+- **Active-Active Systems**:
+
+  ```sql
+  -- Conceptual, as multiple primary nodes are set up at the database level
+  CREATE TABLE counters (id SERIAL PRIMARY KEY, value INTEGER);
+  -- Two concurrent updates on different nodes
+  UPDATE counters SET value = value + 1 WHERE id = 1; -- Node 1
+  UPDATE counters SET value = value + 1 WHERE id = 1; -- Node 2
+  -- Potential for update conflicts and consistency issues
+  ```
+
+- **Distributed SQL Architectures**:
+  ```sql
+  -- Conceptual, as the architecture is fundamentally different
+  CREATE TABLE data (id SERIAL PRIMARY KEY, value TEXT);
+  INSERT INTO data (value) VALUES ('example');
+  -- Data is distributed across multiple nodes using key-value stores and consensus algorithms
+  ```
+
+### Key Takeaways
+
+- Each distributed database architecture offers different trade-offs in terms of performance, scalability, availability, and complexity.
+- Understanding these trade-offs is crucial for choosing the appropriate architecture for specific application needs.
+- There is no one-size-fits-all solution, and careful consideration of application requirements and constraints is necessary.

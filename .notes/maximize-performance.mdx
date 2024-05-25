@@ -1,0 +1,100 @@
+### 1. Introduction to PostgreSQL Performance Tuning
+
+- **Overview**: This covers high-level tuning tips for PostgreSQL, from hardware to queries.
+- **EDB Background**: EDB is the largest dedicated PostgreSQL company, contributing significantly to PostgreSQL development.
+
+### 2. Designing the Hardware
+
+- **CPU Selection**: Level 3 cache is crucial for PostgreSQL performance. More L3 cache allows for more shared data between CPUs.
+- **Disk Selection**: Choose disks based on workload (read-intensive, write-intensive, mixed). Use RAID for transaction logs and data (RAID 1 for logs, RAID 10 for data).
+- **RAM**: Prioritize RAM as it is the cheapest component to upgrade and significantly impacts performance. More RAM means less I/O.
+- **Network**: Faster network speeds are crucial for data transfer and replication.
+
+### 3. Virtualization Considerations
+
+- **Para-Virtualization**: Use para-virtualization (e.g., with QEMU) to offload disk and network operations to the host machine.
+- **Dedicated Hardware**: Use dedicated hardware in cloud environments to avoid "noisy neighbors."
+- **Instance Types**: Carefully select VM instance types based on cores, RAM, and network throughput.
+- **NUMA Pinning**: Consider NUMA pinning on certain hardware (e.g., IBM Power) to prevent performance loss.
+
+### 4. Disk Configuration in Virtual Environments
+
+- **Pre-Allocation**: Pre-allocate disk space to avoid fragmentation.
+- **RAID in Virtual Machines**: Using RAID in VMs may not provide noticeable performance benefits due to remote block device limitations.
+- **Provisioned IOPS**: Consider paying for dedicated IOPS in cloud storage for guaranteed performance.
+
+### 5. Operating System Tuning
+
+- **Tuned Daemon**: Use the tuned daemon for dynamic system tuning. Create a custom profile for PostgreSQL (e.g., `edb-postgres`).
+- **Huge Pages**: Enable huge pages to reduce memory fragmentation. Calculate and set the appropriate huge pages size.
+  - **Example**:
+    ```sh
+    # Calculate huge pages size
+    echo "vm.nr_hugepages=$(( $(grep Hugepagesize /proc/meminfo | awk '{print $2}') / 2 ))" >> /etc/sysctl.conf
+    sysctl -p /etc/sysctl.conf
+    # Restart PostgreSQL after setting huge pages
+    ```
+
+### 6. File System Optimization
+
+- **No Access Time**: Mount file systems with `noatime` to reduce unnecessary I/O.
+- **File System Type**: Use XFS as it is the most popular and performs well for PostgreSQL.
+
+### 7. PostgreSQL Tuning Parameters
+
+- **Max Connections**: Set `max_connections` based on expected load. High values can lead to performance issues.
+- **Shared Buffers**: Set `shared_buffers` to 30-50% of available RAM.
+- **Work Mem**: Set `work_mem` carefully to avoid over-allocation (e.g., 16MB).
+- **Maintenance Work Mem**: Set `maintenance_work_mem` for maintenance operations (e.g., 1-4GB).
+- **Effective I/O Concurrency**: Set `effective_io_concurrency` based on disk type (e.g., hundreds for SSDs).
+- **WAL Settings**:
+  - **WAL Compression**: Enable `wal_compression` to reduce I/O.
+  - **WAL Log Hints**: Enable `wal_log_hints` for utilities like `pg_rewind`.
+- **Checkpoint Settings**:
+  - **Checkpoint Completion Target**: Set `checkpoint_completion_target` to 0.9 to spread checkpoint writes.
+  - **Checkpoint Timeout**: Adjust `checkpoint_timeout` based on workload.
+
+### 8. Query Tuning
+
+- **Query Parameters**:
+  - **Seq Page Cost**: Adjust `seq_page_cost` and `random_page_cost` based on disk type.
+  - **CPU Tuple Cost**: Set `cpu_tuple_cost` relative to disk costs.
+  - **Effective Cache Size**: Set `effective_cache_size` to hint at available cache.
+- **Client Connection Settings**:
+  - **Idle Session Transaction Timeout**: Set `idle_session_transaction_timeout` to terminate idle transactions.
+- **Auto Vacuum Settings**:
+  - **Auto Vacuum Max Workers**: Set `autovacuum_max_workers` (e.g., 5).
+  - **Auto Vacuum Cost Limit**: Set `autovacuum_vacuum_cost_limit` (e.g., 3000).
+
+### 9. Reporting and Logging
+
+- **Log Temp Files**: Enable `log_temp_files` to identify sort spills.
+- **Log Checkpoints**: Enable `log_checkpoints` to monitor checkpoint activity.
+- **DRITA**: Enable `drita` for dynamic runtime instrumentation in EDB Postgres Advanced Server.
+
+### 10. Fine Tuning
+
+- **Identify Slow Queries**: Use `log_min_duration_statement` to log slow queries.
+- **PG Stats Statement**: Use `pg_stats_statement` to analyze query performance.
+- **PG Badger**: Use `pg_badger` to analyze PostgreSQL logs.
+
+### 11. Rewriting Queries
+
+- **Use Naked Columns**: Avoid expressions in `WHERE` clauses to enable index use.
+- **Avoid Certain Patterns**: Avoid `NOT IN`, use window functions (CTEs) wisely, and group by least complex types first.
+- **Explain Analyze**: Use `EXPLAIN ANALYZE` to understand query execution plans.
+
+### 12. Partitioning
+
+- **Automatic Partitioning**: Use automatic partitioning in EDB Postgres Advanced Server for easier data management.
+  - **Example**:
+    ```sql
+    CREATE TABLE users (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(50),
+      country VARCHAR(50)
+    ) PARTITION BY LIST (country) (
+      PARTITION users_england VALUES IN ('England'),
+      PARTITION users_india VALUES IN ('India')
+    ) ENABLE AUTOMATIC PARTITIONING;
+    ```

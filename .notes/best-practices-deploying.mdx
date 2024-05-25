@@ -1,0 +1,57 @@
+### Understanding PostgreSQL's Strengths
+
+- **Application Landscape**: Understand where PostgreSQL shines. It is universally usable but particularly strong in analytical purposes (data mart and ODS space), system of records, system of engagement, and edge computing (IoT solutions)[1].
+- **Use Cases**: 60% of customers use PostgreSQL for analytical purposes, 50% for system of records, and 19% for system of engagement and edge computing[1].
+
+### Planning for Deployment
+
+- **Tiering Framework**: Develop a tiering framework to categorize databases based on their recovery point objective (RPO) and recovery time objective (RTO). This helps in creating a manageable plan for migration[1].
+- **Reference Architectures**: Define standardized setups (reference architectures) for different tiers. This includes considerations for CPU, memory, storage, and network configurations[1].
+
+### Sample Tiering Framework
+
+- **Simple Architecture**: Databases with lenient RPO and RTO, suitable for daily backups and less critical applications[1].
+- **Departmental/Mission Critical**: Databases with stricter RPO and RTO, requiring more robust architectures like replication and failover[1].
+
+### Reference Architectures
+
+- **Single Node**: Not suitable for mission-critical applications due to long recovery times[1].
+- **Multi-Node with Asynchronous Replication**: Popular for its balance between availability and performance, but may lose unreplicated transactions[1].
+- **Multi-Node with Synchronous Replication**: Ensures no committed transactions are lost, ideal for applications requiring zero data loss[1].
+
+### Standardization and Automation
+
+- **Importance**: Standardization and automation are crucial for agility and scalability. They enable faster deployment and management of multiple databases[1].
+- **Tools**: Use tools like Terraform, CloudFormation, Ansible, Chef, Puppet, and Salt for automation. Ansible is particularly popular among customers[1].
+- **EDB Postgres on Ansible Galaxy**: Provides automated scripts for deploying PostgreSQL, including setup for high availability, monitoring, and replication[1].
+
+### Collaboration and Evangelization
+
+- **Bottom-Up Innovation**: Encourage collaboration between development and operations teams through meetups, hackathons, and shared knowledge bases[1].
+- **Top-Down Mandate**: Support the move to open source with a top-down mandate, backed by bottom-up innovation[1].
+
+### Recommended Practices
+
+- **Understand Application Landscape**: Know where PostgreSQL fits best in your application environment[1].
+- **Start Small**: Begin with one tier and perfect it before moving to the next. Develop, deploy, and automate reference architectures[1].
+- **Collaboration**: Foster collaboration and evangelization to drive adoption and innovation[1].
+
+### Resources
+
+- **White Papers**: EDB has published white papers on tuning PostgreSQL on Windows and Linux, authored by experts like Vic Fearing, Dave Page, and Devrim Gündüz[1].
+- **Blogs and Open Source Projects**: EDB provides blogs and open source projects on reference architectures and automation, available at edb.com[1].
+- **Ansible Roles**: EDB has published Ansible roles for PostgreSQL deployment on Ansible Galaxy[1].
+
+### Key Concepts
+
+- **Agility and Scalability**: Standardization and automation are key to achieving agility and scalability in PostgreSQL deployments[1].
+- **Open Source Adoption**: The move to open source databases like PostgreSQL is driven by cost reduction and the need for agility[1].
+
+### Comparative Examples
+
+- **PostgreSQL vs. Other Databases**: PostgreSQL is often chosen over proprietary databases like Oracle and is growing rapidly in areas driven by innovation and DevOps considerations[1].
+- **PostgreSQL in Different Environments**: PostgreSQL is versatile and can be used in various environments, including containers, where it is the second most installed application after Nginx[1].
+
+### Code Examples
+
+Given the nature of the text, there are no direct code examples provided. However, the presentation mentions the use of Ansible for automation and provides resources where detailed scripts and roles can be found, such as Ansible Galaxy.

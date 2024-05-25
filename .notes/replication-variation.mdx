@@ -1,0 +1,157 @@
+## PostgreSQL Replication Overview
+
+PostgreSQL offers various replication methods to ensure data availability and redundancy. This overview covers the key concepts and examples from the provided source text, focusing on the different replication strategies and their use cases.
+
+### Replication Strategies
+
+#### 1. Shared Disk and Disk Replication
+
+- **Concept**: Shared disk involves multiple VMs or nodes accessing the same networked disk. Disk replication mirrors this setup for disaster recovery.
+- **Use Case**: Suitable for scenarios where high availability is not the primary concern but ease of setup is important.
+- **Pros**:
+  - Easy to set up.
+  - No overhead on the primary database.
+  - No risk of transaction loss due to writing on the same disk.
+- **Cons**:
+  - Vulnerable to disk corruption.
+  - Failover can take a long time due to recovery needs.
+  - Not considered high availability.
+
+#### 2. WAL (Write-Ahead Log) Shipping
+
+- **Concept**: WAL files are copied from the primary to the standby server after a checkpoint.
+- **Use Case**: Ideal for read-only standbys or when network setup prevents streaming replication.
+- **Pros**:
+  - Easy to set up.
+  - Low impact on the primary server.
+  - Standby can be used for read-only queries not needing to be up-to-date.
+- **Cons**:
+  - Risk of data loss if the primary server fails before WAL files are copied.
+  - Checkpoint tweaking is possible but must be done carefully.
+
+#### 3. WAL Streaming
+
+- **Concept**: WAL records are sent from the primary to the standby server in real-time.
+- **Use Case**: Recommended for most use cases due to its near-real-time replication.
+- **Pros**:
+  - Standby is almost up-to-date.
+  - Low risk of data loss.
+  - Easy to set up.
+- **Cons**:
+  - Small window of potential data loss.
+  - Requires open communication between databases.
+
+#### 4. Synchronous Commit
+
+- **Concept**: Transactions are not considered committed until they are confirmed by the standby server.
+- **Use Case**: Used when data loss is unacceptable and the standby must be fully up-to-date.
+- **Pros**:
+  - No data loss.
+  - Standby is always up-to-date.
+- **Cons**:
+  - Commits hang if the standby is unavailable.
+  - Requires multiple standbys for redundancy.
+
+#### 5. Native Logical Replication
+
+- **Concept**: Replicates data by sending logical changes (e.g., inserts, updates, deletes) rather than physical WAL records.
+- **Use Case**: Useful for consolidating data from multiple sources or upgrading major versions without downtime.
+- **Pros**:
+  - Can span different PostgreSQL versions.
+  - Good for data consolidation and version upgrades.
+- **Cons**:
+  - Does not replicate DDL changes.
+  - Requires manual setup for table structure changes.
+  - Needs primary key or replica identity for updates and deletes.
+
+#### 6. Trigger-Based Replication
+
+- **Concept**: Uses triggers to capture data changes and replicate them to another database.
+- **Use Case**: Easy to understand but can be complex to set up and manage.
+- **Pros**:
+  - Easy to understand.
+  - Can replicate data from various sources.
+- **Cons**:
+  - Fragile and prone to synchronization issues.
+  - Slower than WAL decoding solutions due to trigger overhead.
+
+#### 7. SQL-Based Replication
+
+- **Concept**: Captures SQL statements and replicates them to another database.
+- **Use Case**: Easy to set up but can be problematic with complex SQL statements.
+- **Pros**:
+  - Easy to understand and set up.
+  - Can provide read-only routing.
+- **Cons**:
+  - Difficult to identify which SQL statements to replicate.
+  - Can lead to unnecessary traffic.
+
+#### 8. Multi-Master Replication
+
+- **Concept**: Multiple active databases share data between them.
+- **Use Case**: Highly available but can be complex to configure and manage.
+- **Pros**:
+  - Highly available with no need for standby mode.
+  - Scalable for CPU-intensive triggers.
+- **Cons**:
+  - Difficult to configure correctly.
+  - Requires conflict management and handling.
+  - Not suitable for synchronous replication due to PostgreSQL's architecture.
+
+### Comparative Examples
+
+#### WAL Shipping Example
+
+```sql
+-- Enable WAL shipping on the primary server
+ALTER SYSTEM SET archive_mode = 'on';
+ALTER SYSTEM SET archive_command = 'test ! -f /var/lib/postgresql/12/main/archive/%f && cp %p /var/lib/postgresql/12/main/archive/%f';
+
+-- On the standby server, restore the WAL files
+pg_ctl stop
+rm -rf /var/lib/postgresql/12/main/*
+pg_basebackup -h primary_server -D /var/lib/postgresql/12/main
+pg_ctl start
+```
+
+#### WAL Streaming Example
+
+```sql
+-- Create a replication role on the primary server
+CREATE ROLE replication WITH REPLICATION SLAVE;
+
+-- On the standby server, set up the streaming replication
+pg_ctl stop
+rm -rf /var/lib/postgresql/12/main/*
+pg_basebackup -h primary_server -D /var/lib/postgresql/12/main
+pg_ctl start
+
+-- Enable streaming replication on the primary server
+ALTER SYSTEM SET max_wal_senders = 2;
+ALTER SYSTEM SET wal_sender_timeout = 60;
+
+-- On the standby server, start the streaming replication
+pg_ctl start
+psql -c "ALTER SYSTEM SET hot_standby = on;"
+```
+
+#### Synchronous Commit Example
+
+```sql
+-- On the primary server, set up synchronous commit
+ALTER SYSTEM SET synchronous_commit = 'on';
+ALTER SYSTEM SET synchronous_standby_names = 'standby_server';
+
+-- On the standby server, confirm synchronous replication
+psql -c "SELECT application_name, sync_state FROM pg_stat_replication;"
+```
+
+#### Native Logical Replication Example
+
+```sql
+-- Create a publication on the primary server
+CREATE PUBLICATION my_publication FOR ALL TABLES;
+
+-- On the standby server, create a subscription
+CREATE SUBSCRIPTION my_subscription CONNECTION 'host=primary_server port=5432 user=replication dbname=my_database' PUBLICATION my_publication;
+```

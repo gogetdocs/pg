@@ -1,0 +1,65 @@
+### General Guidelines for Max Connections
+
+- **Low Max Connections**: It is generally recommended to keep the `max_connections` setting low, especially for older PostgreSQL versions before 13 or 14 where optimization was not as advanced[1].
+- **Optimal Setting**: For a server with 100 vCPUs, setting `max_connections` to 300-500 is considered optimal. Higher values can lead to performance degradation and potential downtime[1].
+- **Idle Connections**: While idle connections are less resource-intensive than active ones, having too many (e.g., 2,000-3,000) can still cause issues. It is advisable to keep idle connections to a minimum[1].
+
+### Connection Pooling
+
+- **Pool Sizes**: Connection pooling with tools like PG Bouncer can help manage a large number of connections efficiently. However, it is crucial to configure pool sizes appropriately to avoid overloading the database[1].
+- **PG Bouncer Configuration**: The `max_connections` setting in PG Bouncer should be set high (e.g., 10,000) because these connections are not PostgreSQL backends and do not consume as many resources. However, it is essential to monitor CPU usage and client wait times to avoid bottlenecks[1].
+
+### User-Level Connection Limits
+
+- **Per-User Limits**: Setting `max_connections` per user can help prevent any single user from consuming all available connections. This approach requires careful planning and maintenance to ensure that no user exceeds their allocated quota[1].
+- **Example**: Altering a user to set a specific `max_connections` limit can be done using SQL:
+  ```sql
+  ALTER ROLE myuser WITH CONNECTION LIMIT 100;
+  ```
+- **Considerations**: This method adds maintenance overhead but provides better control over resource allocation among different users[1].
+
+### Memory Management
+
+- **Memory Considerations**: High `max_connections` values can lead to memory saturation, as each backend consumes memory. It is vital to consider memory management when setting `max_connections`[1].
+- **Out of Memory Issues**: Exceeding available memory can cause the database to fail, making memory management a critical aspect of configuring `max_connections`[1].
+
+### Superuser Reserved Connections
+
+- **Superuser Connections**: Reserving connections for superusers can be beneficial in emergency situations but may not be applicable in all environments, such as Amazon RDS[1].
+- **RDS Considerations**: In RDS, the concept of superusers is different, and it is unclear if reserved connections work for RDS superusers[1].
+
+### Instance Size and Max Connections
+
+- **Automatic Adjustment**: In RDS and Aurora, `max_connections` is automatically determined based on the instance size, following specific rules[1].
+- **Instance Size Consideration**: The `max_connections` setting should be adjusted according to the instance size to avoid overloading smaller instances[1].
+
+### Comparative Examples
+
+- **Small Instance**: For a small instance with 4 vCPUs, a `max_connections` setting of 20-40 is more appropriate than the default 200 recommended by PG Tune for OLTP workloads[1].
+- **Large Instance**: For a larger instance with 100 vCPUs, setting `max_connections` to 300-500 is more suitable[1].
+
+### Key Concepts Summary
+
+- **Max Connections**: Keep `max_connections` low, especially for older PostgreSQL versions.
+- **Connection Pooling**: Use connection pooling with appropriate pool sizes.
+- **User-Level Limits**: Set per-user `max_connections` limits to prevent resource overconsumption.
+- **Memory Management**: Consider memory saturation when setting `max_connections`.
+- **Superuser Connections**: Reserve connections for superusers in emergency situations.
+- **Instance Size**: Adjust `max_connections` based on instance size.
+
+### Example SQL Commands
+
+- **Alter User**: Set a specific `max_connections` limit for a user:
+  ```sql
+  ALTER ROLE myuser WITH CONNECTION LIMIT 100;
+  ```
+- **Check Current Max Connections**: View the current `max_connections` setting:
+  ```sql
+  SHOW max_connections;
+  ```
+- **Adjust Max Connections**: Change the `max_connections` setting:
+  ```sql
+  ALTER SYSTEM SET max_connections TO 300;
+  ```
+
+These guidelines and examples cover the key concepts and considerations for configuring `max_connections` in PostgreSQL, emphasizing the importance of balancing resource allocation with performance needs.

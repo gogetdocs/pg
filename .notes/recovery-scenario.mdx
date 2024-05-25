@@ -1,0 +1,55 @@
+### PostgreSQL Database Structure
+
+- **Physical Structure**: PostgreSQL databases are stored under `/var/lib/pgsql` (or similar paths depending on the installation). The critical directory is `base`, which contains subdirectories named after the object identifier (OID) of each database[1].
+- **Database Directories**: Each database directory (e.g., `16587`) contains files for tables and indexes. The OID of a database can be found in the `pg_database` catalog view[1].
+- **Table and Index Files**: Files for tables and indexes are named after their relation file node (e.g., `16600`). The `pg_class` catalog view maps table names to their OIDs and file nodes[1].
+- **Segment Size**: Large tables (>1GB) are split into multiple files (e.g., `1`, `2`, etc.) to accommodate the default segment size of 1GB[1].
+
+### Recovery Process
+
+1. **Recreating Data Directory Structure**: Use recovered files to recreate the original directory structure under a new data directory (e.g., `/opt/recovery`)[1].
+2. **Starting PostgreSQL**: Attempt to start PostgreSQL with the recreated data directory using `pg_ctl start -D /opt/recovery`[1].
+3. **Handling Missing Files**: If PostgreSQL fails to start due to missing files (e.g., `pg_xact`), create dummy files with appropriate content (e.g., filling with `0x01` for committed transactions)[1].
+4. **PG Dump**: Once PostgreSQL starts, perform a logical dump of the database using `pg_dump` to ensure data integrity[1].
+5. **Restoring Dump**: Restore the dump to a fresh database server to validate the recovery[1].
+
+### Key Concepts
+
+- **OIDs**: Object identifiers used to name database directories and files. OIDs below 16384 are reserved for system use[1].
+- **PG Dump Limitations**: `pg_dump` is not a backup tool; it lacks automation, point-in-time recovery, and does not capture transaction logs[1].
+- **Transaction Logs**: Stored in `pg_wal`, these logs are crucial for point-in-time recovery but were not critical in this specific recovery scenario[1].
+- **Backup Tools**: Use dedicated backup tools like `pg_backrest` or `barman` for reliable backups[1].
+
+### Best Practices
+
+- **Automated Backups**: Ensure backups are automated and monitored[1].
+- **Redundancy**: Use streaming replicas for redundancy[1].
+- **Testing Backups**: Regularly test backups to ensure they are recoverable[1].
+- **Communication**: Keep stakeholders informed during recovery processes to avoid reputational damage[1].
+
+### Example Commands
+
+- **Starting PostgreSQL with a Specific Data Directory**:
+  ```sh
+  pg_ctl start -D /opt/recovery
+  ```
+- **Creating a Dummy `pg_xact` File**:
+  ```sh
+  dd if=/dev/zero bs=256k count=1 | tr '\0' '\125' > pg_xact/000000
+  ```
+- **Performing a Logical Dump**:
+  ```sh
+  pg_dump -U postgres pgbench > pgbench.dump
+  ```
+- **Restoring a Dump**:
+  ```sh
+  psql -U postgres pgbench < pgbench.dump
+  ```
+
+### Comparative Examples
+
+- **Using `pg_dump` vs. Dedicated Backup Tools**:
+  - `pg_dump` is a snapshot of the database at a specific time and lacks transaction logs.
+  - Dedicated tools like `pg_backrest` and `barman` offer point-in-time recovery and automation[1].
+
+This emphasizes the importance of understanding PostgreSQL's internal structure for recovery purposes. It highlights the limitations of `pg_dump` as a backup tool and stresses the need for automated, tested backups using dedicated tools. The recovery process involves recreating the data directory structure, handling missing files, and validating the recovery through logical dumps and restores. Best practices include maintaining redundancy, testing backups, and keeping stakeholders informed during recovery processes.

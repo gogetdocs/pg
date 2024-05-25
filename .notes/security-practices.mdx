@@ -1,0 +1,82 @@
+### General Recommendations
+
+1. **Keep Software Updated**: Ensure that both the operating system and PostgreSQL are patched and up to date to mitigate security vulnerabilities[1].
+2. **Isolate Database Port**: Do not expose the PostgreSQL port directly to the internet. Use local sockets, loopback addresses, or virtual private clouds (VPCs) instead[1].
+3. **Minimize Access**: Grant users the minimum access required for their work and nothing more, adhering to the principle of least privilege[1].
+4. **Restrict Configuration File Access**: Limit access to configuration files like `postgresql.conf` and `pg_hba.conf` to trusted individuals only[1].
+5. **Use Individual Logins**: Avoid using the PostgreSQL superuser for system login. Instead, use individual logins and tools like `sudo` for privilege escalation[1].
+6. **Test Backups**: Regularly test backups to ensure they are valid and can be used for recovery[1].
+
+### Authentication
+
+1. **Understanding `pg_hba.conf`**: This file defines the authentication rules for PostgreSQL. It is critical to understand how it works and protect it against unauthorized modification[1].
+2. **Authentication Methods**: PostgreSQL supports various authentication methods, including Kerberos, SSPI, LDAP, certificate authentication, MD5, and SCRAM. Kerberos is recommended over LDAP for security reasons[1].
+3. **Password Profiles**: EDB Advanced Server offers Oracle-compatible password profiles, which can specify failed login attempts, password expiration, and lockout times[1].
+
+### Authorization
+
+1. **Managing Access Privileges**: Revoke create privileges from all users and grant them back to trusted users only. Limit the use of functional triggers written in untrusted procedural languages[1].
+2. **Security Definer Functions**: These functions allow for elevated privileges and can be used to provide controlled access to certain functionalities[1].
+3. **Database Object Ownership**: Ensure that database objects are owned by secure roles, not by the application user[1].
+4. **Row-Level Security**: This feature restricts access to specific rows in a table based on the user, similar to Oracle's Virtual Private Database[1].
+5. **Data Redaction**: Use views or EDB Advanced Server's data redaction features to mask sensitive information like social security numbers[1].
+
+### Auditing
+
+1. **PostgreSQL Limitations**: PostgreSQL does not have a built-in audit module, but third-party add-ons are available. EDB Advanced Server includes auditing capabilities[1].
+2. **Audit Configuration**: Configure auditing to capture relevant SQL activity, including DML and DDL statements, and store logs securely[1].
+
+### Encryption
+
+1. **Understanding Threat Vectors**: Identify what you are protecting against, as different threats require different mechanisms. For example, full disk encryption protects against physical theft, not against network attacks[1].
+2. **Data Encryption**: Use encryption for specific columns or partitions, especially for sensitive data like credit card numbers. Always hash passwords; encrypt them only if necessary and with caution[1].
+3. **Network Encryption**: Use SSL/TLS for encrypting data in transit, including client-server communication[1].
+
+### SQL Injection Prevention
+
+1. **Sanitizing User Input**: Use database drivers to sanitize user input, avoiding manual concatenation of SQL queries[1].
+2. **SQL Protect**: EDB Advanced Server's SQL Protect module provides an additional layer of security against SQL injection attacks, including tautology checks and DDL command prevention[1].
+
+### Example Code Snippets
+
+#### Creating a Password Profile
+
+```sql
+CREATE PROFILE myprofile LIMIT FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LOCK_TIME 2;
+ALTER ROLE myuser PROFILE myprofile;
+```
+
+#### Assigning a Profile to a User
+
+```sql
+ALTER ROLE myuser PROFILE myprofile;
+```
+
+#### Viewing Profile Information
+
+```sql
+SELECT * FROM pg_user WHERE usename = 'myuser';
+```
+
+#### Row-Level Security Example
+
+```sql
+CREATE TABLE accounts (id SERIAL PRIMARY KEY, manager VARCHAR(50));
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY accounts_select_policy ON accounts FOR SELECT USING (manager = current_user);
+```
+
+#### Data Redaction Example
+
+```sql
+CREATE VIEW redacted_accounts AS SELECT id, '*****' AS manager FROM accounts;
+GRANT SELECT ON redacted_accounts TO public;
+```
+
+#### Auditing Configuration Example
+
+```sql
+ALTER SYSTEM SET edb_audit = 'on';
+ALTER SYSTEM SET edb_audit_directory = '/var/log/postgresql';
+ALTER SYSTEM SET edb_audit_filename = 'audit-%Y-%m-%d.log';
+```

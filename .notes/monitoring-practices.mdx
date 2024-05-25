@@ -1,0 +1,79 @@
+### Introduction
+
+- **Speakers**: Courtney Brown (Marketing Manager at EnterpriseDB), Pavani Rao (EDB Senior Product Marketing Manager), and Baron Schwartz (Founder and CTO of VividCortex).
+- **Agenda**: Benefits of database monitoring, landscape of monitoring tools, and specific tools like Postgres Enterprise Manager (PEM) and VividCortex.
+
+### Benefits of Monitoring
+
+- **Low-Level Benefits**:
+  - Better utilization of time and resources.
+  - Capacity planning (e.g., disk space management).
+  - Availability (e.g., backup and replication management).
+  - Performance (query resolution times).
+- **High-Level Benefits**:
+  - Drive better user experience.
+  - Manage costs.
+  - Avoid downtime.
+
+### Differences Between Databases and Typical Applications
+
+- **Statefulness**: Databases are stateful, unlike many applications.
+- **Workload Variability**: Databases have diverse and unpredictable workloads.
+- **Complexity**: Databases have additional dimensions (e.g., SQL statements, explain plans) beyond typical time-series data.
+
+### Monitoring Philosophy
+
+- **Three Major Categories**:
+  1. **Operating System and Hardware**: Input/output, memory utilization, network utilization, CPU, physical disk space.
+  2. **Database Server**: DML/DDL logs, wait times, users, objects, replication, backups.
+  3. **SQL and Queries**: Throughput, latency, concurrency, errors.
+
+### Monitoring Roles
+
+- **Operations**: Regular database monitoring, administration (e.g., creating tables, adding users).
+- **Developers**: Focus on application responsiveness, database development (e.g., migrations, foreign data wrappers).
+- **Database Administrators**: Comprehensive role including monitoring, administration, and development.
+
+### Monitoring Questions
+
+- **Common Questions**:
+  - Did the backup complete successfully?
+  - Which queries are consuming the most resources?
+  - Is replication running and up-to-date?
+  - Is the application encountering slow queries?
+  - Did the auto-vacuum run?
+  - Are the databases bloated?
+  - Are configuration settings optimal?
+
+### Survey Questions
+
+- **Monitoring Tools**: DataDog, EDP Postgres Enterprise Manager, Nagios, VividCortex, others.
+- **Open-Source Databases Used**: PostgreSQL, MySQL, others.
+
+### Tools Overview
+
+- **Health Checks and Alerting**: Nagios, Zabbix, DataDog.
+- **Query Performance**:
+  - **Database-Centric**: VividCortex, EDB Postgres Enterprise Manager, PG Analyze, PG Badger.
+  - **Application-Centric**: New Relic, DynaTrace, DataDog.
+- **Reporting and Administration**: Postgres Enterprise Manager, pgAdmin, OmniDB.
+- **General-Purpose Monitoring**: Prometheus, Grafana, DataDog, Wavefront.
+
+### Specific Tools
+
+- **Postgres Enterprise Manager (PEM)**:
+  - All-purpose tool for DBAs.
+  - Includes alerting, administration, and some query performance analysis.
+  - Works with both community Postgres and EDB Postgres Advanced Server.
+- **VividCortex**:
+  - Fully managed, hosted solution for monitoring database performance.
+  - High-resolution visibility into database workload without impacting performance.
+  - Scalable, supports multiple database technologies, and is developer-friendly.
+
+### Choosing VividCortex
+
+- **Use Cases**:
+  - Fast-growing technology companies with complex, multi-tenant applications.
+  - Need for high-resolution query performance monitoring.
+  - Support for multiple database technologies.
+  - Scalability and off-prem deployment.

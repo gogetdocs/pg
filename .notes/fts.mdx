@@ -1,0 +1,116 @@
+### 1. Text Representation in PostgreSQL
+
+- **CHAR**: Fixed-length character type, padded with spaces if necessary.
+- **VARCHAR**: Variable-length character type with a specified limit.
+- **TEXT**: Variable-length character type without a specified limit, ideal for storing large amounts of text[1].
+
+### 2. What is Text Search?
+
+- **Information Retrieval**: Mainly used for metadata searches (e.g., descriptive, bibliographic, tags).
+- **Text Retrieval**: Focuses on matching words within metadata fields[1].
+
+### 3. Text Search Operators in PostgreSQL
+
+- **LIKE**: Basic pattern matching.
+- **ILIKE**: Case-insensitive pattern matching.
+- **~** and **~\***: POSIX regular expression matching.
+- **regexp_match()**: Returns matched patterns from a string.
+- **SIMILAR TO**: A mix of POSIX regular expressions and SQL, but less recommended due to complexity[1].
+
+### 4. Full Text Search (FTS)
+
+- **Definition**: Searching for words or tokens within documents (e.g., articles, web pages).
+- **Need for Indexing**: Essential for efficient FTS to avoid sequential scans.
+- **Techniques**: Natural language processing algorithms, stop words, stemming[1].
+
+### 5. Documents and Tokens
+
+- **Documents**: Chunks of text (e.g., fields in a database row).
+- **Tokens**: Strings, alphanumeric strings, numbers, or character groups of interest.
+- **Parsing**: Breaking text into tokens and classes of tokens[1].
+
+### 6. Normalization and Lexemes
+
+- **Normalization**: Converting tokens into a more usable form.
+- **Lexemes**: Abstract lexical units representing related words (e.g., word roots).
+- **Stemming**: Reducing words to lexemes to increase recall[1].
+
+### 7. FTS Representation in PostgreSQL
+
+- **TS Vector**: A data type representing a pre-processed document.
+- **TS Query**: A data type for search queries, normalized into lexemes.
+- **Utility Functions**: `to_tsvector()`, `to_tsquery()`, `phraseto_tsquery()`, `websearch_to_tsquery()`[1].
+
+### 8. Dictionaries in PostgreSQL
+
+- **Purpose**: Normalize text, eliminate stop words, and reduce TS vector size.
+- **Templates**: Simple, Ispell, MySpell, Hunspell.
+- **Customization**: Defining stop words, assigning weights[1].
+
+### 9. Text Matching Examples
+
+- **Basic Matching**: Using `to_tsvector()` and `to_tsquery()`.
+- **Phrase Search**: Using `phraseto_tsquery()`.
+- **Web Search**: Using `websearch_to_tsquery()`[1].
+
+### 10. Indexing for FTS
+
+- **GIN Index**: Inverted index, suitable for FTS but slow to update.
+- **GiST Index**: Generalized search tree index, lossy and slower but smaller.
+- **Example**: Creating a GIN index on a TS vector column[1].
+
+### 11. Ranking and Statistics
+
+- **TS Rank**: Function for ranking search results based on relevance.
+- **TS Stat**: Function for verifying text search configuration and dictionaries[1].
+
+### 12. Special Cases and Modules
+
+- **Non-Natural Text**: Using trigrams for searching non-language text.
+- **PG Trigram**: Extension for trigram-based matching and similarity metrics.
+- **Accent Removal**: Using `unaccent` to ignore accents in text[1].
+
+### 13. Character Set Support and Collation
+
+- **Character Sets**: PostgreSQL supports various character sets and automatic conversion.
+- **Collation**: Defining sort order and character classification per column or operation[1].
+
+### 14. Other Document Types
+
+- **JSON**: Indexing and searching JSON documents using `jsonb_to_tsvector()`[1].
+
+### 15. Maintenance
+
+- **Vacuum and Analyze**: Keeping table statistics up-to-date.
+- **Explain Analyze**: Monitoring query performance over time[1].
+
+### Comparative Examples
+
+#### Creating a GIN Index
+
+```sql
+CREATE INDEX mail_messages_gin ON mail_messages USING GIN (to_tsvector('english', body));
+```
+
+#### Using TS Rank for Ranking
+
+```sql
+SELECT subject, ts_rank(to_tsvector('english', body), to_tsquery('english', 'aggregate')) AS rank
+FROM mail_messages
+WHERE to_tsvector('english', body) @@ to_tsquery('english', 'aggregate')
+ORDER BY rank DESC LIMIT 5;
+```
+
+#### Trigram Indexing for Non-Natural Text
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE INDEX log_entries_trgm ON log_entries USING GIN (message gin_trgm_ops);
+```
+
+#### Using Web Search to TS Query
+
+```sql
+SELECT * FROM mail_messages
+WHERE to_tsvector('english', body) @@ websearch_to_tsquery('english', 'stray cat -shelter');
+```

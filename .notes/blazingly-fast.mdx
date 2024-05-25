@@ -1,0 +1,80 @@
+### Prepared Statements
+
+- **Purpose**: Increase performance by reusing queries with different inputs, reducing the need for PostgreSQL to parse and plan queries every time.
+- **Creation**: Use the `PREPARE` command followed by the name of the statement and the query. Define input parameters using the dollar prefix on a numbered index starting from 1.
+- **Execution**: Use the `EXECUTE` command to run the prepared statement, passing in any parameters.
+- **Example**:
+  ```sql
+  PREPARE my_query AS SELECT * FROM users WHERE age = $1;
+  EXECUTE my_query(25);
+  ```
+- **Caveats**:
+  - Prepared statements only last for the duration of the current database session.
+  - Each client must create its own statements; multiple connections cannot use the same statement.
+
+### Indexing
+
+- **Purpose**: Improve query performance by enabling queries to perform well even as the table size grows.
+- **Basic Idea**: Store associated columns in a data structure with a reference to the applicable row IDs.
+- **Creation**: Use the `CREATE INDEX` command followed by the index name and the table, specifying the columns to use for the index.
+- **Example**:
+  ```sql
+  CREATE INDEX idx_age ON users (age);
+  ```
+- **Benchmarking**: Use `EXPLAIN ANALYZE` to measure the time taken and understand what PostgreSQL is doing under the hood.
+- **Caveats**:
+  - Indexing increases the time to write to a table as new rows must also be added to the index and balanced.
+
+### Partitioning
+
+- **Purpose**: Improve performance by breaking up large tables into smaller tables based on column segmentation.
+- **Creation**: Use the `CREATE TABLE` statement with the `PARTITION BY` keyword at the end, specifying the type of partition and the column to partition on.
+- **Example**:
+
+  ```sql
+  CREATE TABLE events (
+    id SERIAL PRIMARY KEY,
+    event_timestamp TIMESTAMP NOT NULL
+  ) PARTITION BY RANGE (EXTRACT(YEAR FROM event_timestamp));
+
+  CREATE TABLE events_2022 PARTITION OF events FOR VALUES FROM ('2022-01-01') TO ('2023-01-01');
+  ```
+
+- **Caveats**:
+  - Partitioning can make queries slower if they have to scan multiple partitions.
+  - Managing the creation of new partitions is necessary, typically with a cron job or using extensions like PG Partman and PG Cron.
+
+### Using COPY for Bulk Inserts
+
+- **Purpose**: Increase the speed of writing data to a table by orders of magnitude compared to individual inserts.
+- **Usage**: Use the `COPY` command to insert data from a file or standard input.
+- **Example**:
+  ```sql
+  COPY events FROM '/path/to/data.csv' DELIMITER ',' CSV HEADER;
+  ```
+- **Caveats**:
+  - If the data is malformed, the entire operation will fail.
+  - Data files must live on the server unless using client-side COPY via SSDN.
+
+### Separation of Concerns
+
+- **Purpose**: Improve performance by separating read and write tasks using multiple database instances.
+- **Method**: Use read replicas, where a primary database enables writes and replica databases are read-only.
+- **Creation**: Not covered in detail in the text, but mentioned that cloud providers offer read replication, and a Docker Compose example is available in the source code.
+- **Caveats**:
+  - Introduces additional complexity to the system.
+  - Requires careful setup and monitoring to ensure read replicas are working correctly.
+  - Tools like PG Bouncer or PG Pool II can help abstract some of this complexity.
+
+### Summary
+
+- **Key Concepts**:
+  - Prepared statements for reusing queries.
+  - Indexing for faster query performance.
+  - Partitioning for segmenting large tables.
+  - Using `COPY` for bulk inserts.
+  - Separation of concerns with read replicas.
+- **Examples and Benchmarks**:
+  - Provided for prepared statements, indexing, partitioning, and using `COPY`.
+- **Caveats**:
+  - Each method has specific considerations and potential drawbacks that need to be managed.
